@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# builds / artifacts
+web/dist/
+api/dist/
+infra/cdk.out/
+infra/*.js
+infra/*.d.ts
+!infra/jest.config.js
+
+# secrets & env
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+
+# os / editor
+.DS_Store
+.vscode/
+
+# misc
+*.tsbuildinfo

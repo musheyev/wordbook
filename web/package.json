@@ -1,0 +1,27 @@
+{
+  "name": "makeyourwordbook-react",
+  "version": "2.0.0",
+  "description": "Make Your Wordbook - React SPA (Vite)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "@redux-devtools/extension": "^3.3.0",
+    "axios": "^1.7.9",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.1.5",
+    "redux": "^5.0.1",
+    "redux-thunk": "^3.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.0.0"
+  }
+}

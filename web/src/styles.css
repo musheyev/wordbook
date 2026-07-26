@@ -1,0 +1,599 @@
+* {
+    box-sizing: border-box;
+  }
+
+.ui.menu {
+    border-radius: 0;
+}
+
+nav-button-as-link {
+    background-color: none;
+    border: none;
+    padding: 0!important;
+    font-family: Lato,'Helvetica Neue',Arial,Helvetica,sans-serif;
+    font-weight: 400;
+    font-size: 1rem;
+    color: #fff;
+    cursor: pointer;
+    outline: none;
+    overflow: hidden;
+
+  }
+
+  .button-as-link {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    outline: none;
+    overflow: hidden;
+    padding-right: 0px;
+
+  }
+
+/* Clear float=left setting of the search elements */
+.history {
+  clear: both;
+  margin-left: 10px;
+  margin-top: 40px;
+  font-family: "Lato,'Helvetica Neue',Arial,Helvetica,sans-serif";
+  font-weight: normal;
+  font-size: 16px;
+}
+
+  /* Style the search field */
+  form.search input[type=text] {
+    padding: 10px;
+    font-size: 15px;
+    border: 1px solid grey;
+    float: left;
+    max-width: 400px;
+    width: 70%;
+    background: #f1f1f1;
+    margin-left: 10px;
+    margin-top: 0px;
+  }
+
+    /* Style the submit button */
+    form.search button {
+      
+      width: 50px;
+      padding: 10px;
+      background: #2196F3;;
+      color: white;
+      font-size: 17px;
+      border: 1px solid grey;
+      
+      cursor: pointer;
+      margin-left: 2px;
+      margin-top: 0px;
+    }
+
+form.search button:hover {
+    background: #0b7dda;
+  }
+
+  .search-result {
+    clear: left;
+    position: relative;
+    top: 20px;
+    left: 10px;
+
+    line-height: 1.4;
+
+  }
+
+  .search-result h2 {
+   font-size: 14px;
+
+  }
+
+  .source-dictionary {
+    color: rgb(53, 50, 50);
+    background-color: honeydew;
+    
+  }
+
+  img {
+  
+    max-height:200px;
+    width: auto;
+    height: auto;
+    margin-left: 10px;
+    margin-top: 10px;
+  }
+
+  .image-search-result {
+    margin-top: 30px;
+  }
+
+  .no-padding {
+    
+    padding-top: 0px!important;
+    padding-bottom: 0px!important;
+
+}
+
+/* used in AddWordbook.js */
+/* https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_inline_form */
+/* flex container */
+.form-inline {  
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+}
+
+.form-inline label {
+  margin: 5px 10px 5px 0px;
+}
+
+
+.form-inline input {
+  vertical-align: middle;
+  margin: 5px 10px 5px 0;
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  
+}
+
+.form-inline select {
+  vertical-align: middle;
+  margin: 5px 10px 5px 0;
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  
+}
+
+.form-inline button {
+  padding: 10px 20px;
+  background-color: dodgerblue;
+  border: 1px solid #ddd;
+  color: white;
+  cursor: pointer;
+}
+
+.form-inline button:hover {
+  background-color: royalblue;
+}
+
+.form-inline .delete-button {
+  padding: 1px 5px;
+  margin: "2px";
+  background-color: #ED5D68;
+  color: white;
+  cursor: pointer;
+}
+
+.form-inline .delete-button:hover {
+  background-color: red;
+}
+
+.form-inline .open-button {
+  padding: 1px 5px;
+  background-color: green;
+  border: 1px solid #ddd;
+  color: white;
+  cursor: pointer;
+}
+
+
+[type="checkbox"]
+{
+    vertical-align:middle;
+}
+
+/* adjust for screen size */
+@media (max-width: 600px) {
+  .form-inline input {
+    margin: 10px 0;
+  }
+  
+  .form-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-inline .delete-button{
+    align-self: flex-end;
+    margin-right: 10px;
+    width: 20%;
+    height: 30px;
+  }
+}
+
+/* wordbook page */
+#wordbook {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  
+}
+
+#wordbookmain {
+  display: flex;
+  flex-direction: row;
+  padding: 10px;
+  
+}
+
+#worddefinition {
+  padding: 10px 20px;
+}
+
+#wordbookwords {
+  padding: 10px 20px;
+}
+
+.current-word-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.current-word-container div:nth-child(2) {
+  padding-left: 15px;
+  position: relative;
+  top: -5px;
+}
+
+/* https://css-tricks.com/snippets/css/css-triangle/  */
+.arrowup {
+  width: 0; 
+  height: 0; 
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid rgb(223, 218, 218);
+  display:block;
+  position:relative;
+  left: 20px
+}
+
+@media only screen and (max-width: 400px) {
+  .arrowup {
+    left: 100px
+  }
+}
+
+.wordbook-selection-container {
+  background: white;
+  border-radius: 4px;
+  min-width: 260px;
+  padding: 1em;
+  
+  box-shadow: 1px 2px 5px 1px rgb(167, 161, 161);
+}
+
+.wordbook-checkboxes-container {
+  max-height: 250px;
+  overflow: auto;
+}
+
+.popup {
+  display: block;
+  z-index: 9;
+  position: absolute;
+}
+
+
+.form-wordbook-config {  
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+}
+
+.form-wordbook-config label {
+  margin: 5px 10px 5px 0px;
+}
+
+
+.form-wordbook-config input {
+  vertical-align: middle;
+  margin: 5px 10px 5px 0;
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  
+}
+
+.form-wordbook-config select {
+  vertical-align: middle;
+  margin: 5px 10px 5px 0;
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+
+}
+
+/* account page — wordbook cards */
+.wb-card {
+  background: #fff;
+  border: 1px solid #e3e5e8;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+
+.wb-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.wb-card__info {
+  min-width: 0;
+}
+
+.wb-card__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.wb-card__preview {
+  margin-top: 3px;
+  font-size: 0.85rem;
+  color: #6b6f76;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wb-open {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border: 1px solid #b5d4f4;
+  border-radius: 6px;
+  background: #e6f1fb;
+  color: #185fa5;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.wb-open:hover {
+  background: #d7e8fa;
+}
+
+.wb-actions {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  font-size: 0.85rem;
+}
+
+.wb-action {
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: #6b6f76;
+  cursor: pointer;
+}
+
+.wb-action:hover {
+  color: #185fa5;
+}
+
+.wb-action--danger {
+  color: #c0392b;
+}
+
+.wb-action--danger:hover {
+  color: #a3282a;
+}
+
+.wb-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f7f8fa;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.wb-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eceef1;
+  color: #6b6f76;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.wb-reminders label {
+  color: #6b6f76;
+}
+
+.wb-confirm {
+  background: #fceaea;
+}
+
+.wb-confirm__msg {
+  margin-bottom: 10px;
+  color: #a3282a;
+}
+
+.wb-confirm__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.wb-rename {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+}
+
+.wb-rename input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.wb-btn {
+  padding: 6px 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.wb-btn--primary {
+  border-color: #b5d4f4;
+  background: #e6f1fb;
+  color: #185fa5;
+}
+
+.wb-btn--danger {
+  border-color: #e2a0a0;
+  background: #fff;
+  color: #c0392b;
+}
+
+/* mobile: stack the card so Open goes full-width and actions spread out */
+@media (max-width: 600px) {
+  .wb-card__head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .wb-open {
+    width: 100%;
+    text-align: center;
+    padding: 11px;
+  }
+
+  .wb-actions {
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .wb-rename {
+    flex-wrap: wrap;
+  }
+}
+
+/* wordbook word chips — shares the visual language of the search-history chips */
+.word-chips__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.word-chips__edit {
+  font-size: 0.8rem;
+  color: #2f6fb3;
+}
+
+.word-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.word-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 12px;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #2f6fb3;
+  cursor: pointer;
+  white-space: nowrap;
+  outline: none;
+}
+
+.word-chip:hover {
+  background: #fff;
+}
+
+.word-chip:focus-visible {
+  box-shadow: 0 0 0 2px #b5d4f4;
+}
+
+.word-chip.selected {
+  background: #e6f1fb;
+  border-color: #b5d4f4;
+  font-weight: 500;
+}
+
+.word-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.word-chip__x {
+  display: none;
+  font-style: normal;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #9a9a9a;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.word-chip__x:hover {
+  color: #c0392b;
+}
+
+/* show the remove control in edit mode (works on touch + desktop) */
+.word-chips.editing .word-chip__x {
+  display: inline-flex;
+}
+
+/* desktop: word list is a fixed side column; reveal remove on hover */
+@media (min-width: 769px) {
+  #wordbookwords {
+    width: 260px;
+    flex-shrink: 0;
+  }
+
+  .word-chip:hover .word-chip__x {
+    display: inline-flex;
+  }
+}
+
+/* mobile: stack the page and turn the word list into a horizontal pill strip */
+@media (max-width: 768px) {
+  #wordbookmain {
+    flex-direction: column;
+  }
+
+  #wordbookwords {
+    width: 100%;
+  }
+
+  .word-chips {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .word-chip {
+    flex-shrink: 0;
+    border-radius: 999px;
+    border-color: #d9dbe0;
+    background: #fff;
+  }
+
+  .word-chip.selected {
+    border-color: #b5d4f4;
+    background: #e6f1fb;
+  }
+}

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <link href="https://fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet"> -->
+    <!-- Bootstrap CSS -->
+    <!--     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+     -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="../css/dictionary.css">
+    <title>Document</title>
+</head>
+
+<body>
+
+    <div>
+        <form class="search" action="/dictionary" method="POST">
+            <div>
+                <input type="text" name="search" placeholder="Search..." autofocus>
+                <button type="submit"><i class="fa fa-search"></i></button>
+            </div>
+
+
+        </form>
+    </div>
+    <div class="search-result">
+        <% if (search != "") { %>
+        <p>
+        <h2><%-search%></h2>
+        </p>
+
+        <p>
+            <% if (definitions[0] == undefined) { %>
+            <% for (var key in definitions) { %>
+            <em class="source-dictionary"><%=key%></em>
+        <ul>
+            <% for (var temp in definitions[key]) { %>
+            <li><%-definitions[key][temp]%></li>
+            <% } %>
+        </ul>
+        <% } %>
+        <% } %>
+        </p>
+        <% } %>
+
+    </div>
+
+    <div class="image-search-result">
+        <% if (search != "" && images[0] != "") { %>
+            <% for (var imageLink in images) { %>
+                <img src="<%=images[imageLink]%>" alt="image">
+                
+            <% } %>
+        <% } %>
+
+
+    </div>
+
+
+</body>
+
+</html>
