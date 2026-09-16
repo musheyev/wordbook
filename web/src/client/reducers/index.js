@@ -5,6 +5,9 @@ import authReducer from './authReducer';
 import adminsReducer from './adminsReducer';
 import wordReducer from "./wordReducer";
 import currentWordReducer from "./currentWordReducer";
+import currentWordTypeReducer from "./currentWordTypeReducer";
+import currentCardReducer from "./currentCardReducer";
+import cardEditorReducer from "./cardEditorReducer";
 import currentWordbookReducer from "./currentWordbookReducer";
 import userHistoryReducer from './userHistoryReducer';
 import wordbookReducer from './wordbooksReducer';
@@ -19,6 +22,9 @@ export default combineReducers({
     admins: adminsReducer,
     word: wordReducer,
     currentWord: currentWordReducer,
+    currentWordType: currentWordTypeReducer,
+    currentCard: currentCardReducer,
+    cardEditor: cardEditorReducer,
     currentWordbook: currentWordbookReducer,
     userHistory: userHistoryReducer,
     wordbooks: wordbookReducer,

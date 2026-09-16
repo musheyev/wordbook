@@ -1,5 +1,6 @@
 const express = require("express");
 const wordbook = require("../wordbook.js");
+const cards = require("../cards.js");
 
 let wordbookRouter = express.Router();
 
@@ -295,5 +296,126 @@ wordbookRouter.post("/rename", function (req, res) {
 
 });
 
+
+// ---------------------------------------------------------------------------
+// Cards: user-authored rich-text entries (see cards.js). A card is stored once
+// and referenced from any number of wordbooks.
+// ---------------------------------------------------------------------------
+
+// Create a new card and (optionally) add it to one or more wordbooks in the
+// same request. Body: { title, content, wordbooks?: [name, ...] }
+wordbookRouter.post("/card/create", function (req, res) {
+    const { title, content } = req.body;
+    const wordbooks = Array.isArray(req.body.wordbooks) ? req.body.wordbooks : [];
+
+    const { id_token: token } = req.cookies;
+
+    cards.createCard(token, title, content)
+        .then((card) => {
+            if (wordbooks.length === 0) {
+                return res.send(card);
+            }
+            // add the new card to each requested wordbook, then return the card
+            const adds = wordbooks.map((wb) =>
+                wordbook.addCardToWordbook(token, wb, card.card_id)
+            );
+            Promise.all(adds)
+                .then(() => res.send(card))
+                .catch((err) => {
+                    console.log(err);
+                    res.status(400).end(err.message);
+                });
+        })
+        .catch((err) => {
+            console.log(`card/create error: ${err.name}`);
+            if (err.name === "TokenExpiredError") {
+                res.status(401).end("Your login session expired.  Please login again.");
+            } else {
+                res.status(400).end(err.message);
+            }
+        });
+});
+
+// Update a card's title/content. Body: { card_id, title, content }
+wordbookRouter.post("/card/update", function (req, res) {
+    const { card_id, title, content } = req.body;
+    const { id_token: token } = req.cookies;
+
+    cards.updateCard(token, card_id, title, content)
+        .then((card) => res.send(card))
+        .catch((err) => {
+            console.log(`card/update error: ${err.name}`);
+            if (err.name === "TokenExpiredError") {
+                res.status(401).end("Your login session expired.  Please login again.");
+            } else {
+                res.status(400).end(err.message);
+            }
+        });
+});
+
+// Fetch a single card's content (lazy load on click). Body: { card_id }
+wordbookRouter.post("/card/get", function (req, res) {
+    const { card_id } = req.body;
+    const { id_token: token } = req.cookies;
+
+    cards.getCard(token, card_id)
+        .then((card) => res.send(card))
+        .catch((err) => {
+            console.log(`card/get error: ${err.name}`);
+            if (err.name === "TokenExpiredError") {
+                res.status(401).end("Your login session expired.  Please login again.");
+            } else {
+                res.status(400).end(err.message);
+            }
+        });
+});
+
+// Delete a card everywhere (card row + all its wordbook memberships).
+// Body: { card_id }
+wordbookRouter.post("/card/delete", function (req, res) {
+    const { card_id } = req.body;
+    const { id_token: token } = req.cookies;
+
+    cards.deleteCard(token, card_id)
+        .then(() => res.status(200).send("Done"))
+        .catch((err) => {
+            console.log(`card/delete error: ${err.name}`);
+            if (err.name === "TokenExpiredError") {
+                res.status(401).end("Your login session expired.  Please login again.");
+            } else {
+                res.status(400).end(err.message);
+            }
+        });
+});
+
+// Add an existing card to a wordbook. Body: { wordbook, card_id }
+// Returns the wordbook's updated (typed) item list.
+wordbookRouter.post("/card/add", function (req, res) {
+    const wordbookName = req.body.wordbook;
+    const cardId = req.body.card_id;
+    const { id_token: token } = req.cookies;
+
+    wordbook.addCardToWordbook(token, wordbookName, cardId)
+        .then((data) => res.send(data))
+        .catch((err) => {
+            console.log(err);
+            res.status(400).end(err.message);
+        });
+});
+
+// Remove a card from a single wordbook (membership only).
+// Body: { wordbook, card_id }. Returns the wordbook's updated item list.
+wordbookRouter.post("/card/remove", function (req, res) {
+    const wordbookName = req.body.wordbook;
+    const cardId = req.body.card_id;
+    const { id_token: token } = req.cookies;
+
+    wordbook.removeCardFromWordbook(token, wordbookName, cardId)
+        .then((data) => res.send(data))
+        .catch((err) => {
+            console.log(err);
+            res.status(400).end(err.message);
+        });
+});
 
 module.exports = wordbookRouter;

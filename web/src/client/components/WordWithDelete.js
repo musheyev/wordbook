@@ -1,42 +1,61 @@
 import React from "react";
 import { connect } from 'react-redux';
-import { fetchWordData, deleteWordbookWord } from '../actions';
+import { fetchWordData, fetchCardData, deleteWordbookWord, deleteWordbookCard } from '../actions';
 
-const WordWithDelete = ({ word, wordbook, selected, fetchWordData, deleteWordbookWord }) => {
+// Renders one item chip in a wordbook. `item` is a typed object:
+//   { type: 'word'|'card', id, title }
+// Cards get a distinct look (📝 + accent) and route clicks/deletes to the
+// card-specific actions. The × removes the item from THIS wordbook only.
+const WordWithDelete = ({ item, wordbook, selected, fetchWordData, fetchCardData, deleteWordbookWord, deleteWordbookCard }) => {
 
-    const onWordClick = () => {
-        fetchWordData(word);
+    const isCard = item.type === 'card';
+
+    const onClick = () => {
+        if (isCard) {
+            fetchCardData(item.id);
+        } else {
+            fetchWordData(item.id);
+        }
     };
 
-    const onWordDelete = (e) => {
+    const onDelete = (e) => {
         e.stopPropagation();
-        deleteWordbookWord(wordbook, word);
+        if (isCard) {
+            deleteWordbookCard(wordbook, item.id);
+        } else {
+            deleteWordbookWord(wordbook, item.id);
+        }
     };
 
     const onKeyDown = (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            onWordClick();
+            onClick();
         }
     };
 
+    const removeTitle = isCard
+        ? `Remove card from ${wordbook}`
+        : `Remove ${item.title}`;
+
     return (
-        <div className={`word-chip${selected ? ' selected' : ''}`}
+        <div className={`word-chip${selected ? ' selected' : ''}${isCard ? ' word-chip--card' : ''}`}
             role="button" tabIndex={0}
-            onClick={onWordClick} onKeyDown={onKeyDown}>
-            <span className="word-chip__label">{word}</span>
-            <i className="word-chip__x" title={`Remove ${word}`} aria-label={`Remove ${word}`}
-                onClick={onWordDelete}>×</i>
+            onClick={onClick} onKeyDown={onKeyDown}>
+            {isCard && <i className="word-chip__icon" aria-hidden="true">📝</i>}
+            <span className="word-chip__label">{item.title}</span>
+            <i className="word-chip__x" title={removeTitle} aria-label={removeTitle}
+                onClick={onDelete}>×</i>
         </div>
     );
 };
 
 function mapStatetoProps({ currentWord }, ownProps) {
     return {
-        selected: currentWord === ownProps.word,
-        word: ownProps.word,
+        selected: currentWord === ownProps.item.id,
+        item: ownProps.item,
         wordbook: ownProps.wordbook,
     };
 }
 
-export default connect(mapStatetoProps, { fetchWordData, deleteWordbookWord })(WordWithDelete);
+export default connect(mapStatetoProps, { fetchWordData, fetchCardData, deleteWordbookWord, deleteWordbookCard })(WordWithDelete);

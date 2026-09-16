@@ -20,9 +20,9 @@ const WordList = (props) => {
             </div>
 
             <div className={`word-chips${editing ? ' editing' : ''}`}>
-                {words.map((word, index) => (
-                    <WordWithDelete key={`wordWithDelete${index}`}
-                        word={word} id={index} wordbook={props.wordbook} />
+                {words.map((item, index) => (
+                    <WordWithDelete key={`wordWithDelete${item.type}${item.id}${index}`}
+                        item={item} id={index} wordbook={props.wordbook} />
                 ))}
             </div>
         </div>

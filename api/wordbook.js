@@ -1,5 +1,6 @@
 const getCurentUserFromToken = require('./auth').getCurentUserFromToken;
 const database = require('./dynamoDb');
+const cards = require('./cards');
 
 // NOTE: https://docs.amazonaws.cn/en_us/sdk-for-javascript/v2/developer-guide/dynamodb-example-document-client.html
 /*
@@ -335,7 +336,9 @@ function _listWordbooksWithWords(userName, limit = 5) {
                     .then(data => {
                         let i = 0;
                         wordbooks.forEach(wordbook => {
-                            result[wordbook] = data[i].join(', ');
+                            // data[i] is now a list of typed items ({type,id,title});
+                            // the preview is just the titles joined.
+                            result[wordbook] = data[i].map(item => item.title).join(', ');
                             i++;
                         });
 
@@ -475,7 +478,13 @@ function deleteWordFromWordbook(userIdToken, wordbookName, word) {
     });
 };
 
-/// private, list of words in a wordbook
+/// private, list of items (words and cards) in a wordbook.
+/// Returns typed objects so the UI can tell words and cards apart:
+///   word -> { type: "word", id: <word>,    title: <word> }
+///   card -> { type: "card", id: <card_id>, title: <card title> }
+/// Card titles are resolved from the dictionary_cards table (single source of
+/// truth) rather than denormalized onto the membership row, so editing a card
+/// updates its title in every wordbook.
 function _listOfWords(userName, wordbookName, limit = 0) {
     return new Promise((resolve, reject) => {
 
@@ -486,7 +495,7 @@ function _listOfWords(userName, wordbookName, limit = 0) {
                 ":userName": userName,
                 ":wordbook": wordbookName + "#"
             },
-            ProjectionExpression: "word,sort_order",
+            ProjectionExpression: "word, sort_order, item_type, card_id",
 
         };
 
@@ -496,29 +505,118 @@ function _listOfWords(userName, wordbookName, limit = 0) {
 
         database.dynamoDbClientInstance().query(params, (err, dataFromDb) => {
             if (err)
-                reject(err);
-            else {
+                return reject(err);
 
-                dataFromDb.Items.sort((e1, e2) => {
-                    if (e1.sort_order < e2.sort_order) {
-                        return -1;
-                    }
+            const items = dataFromDb.Items || [];
 
-                    if (e1.sort_order > e2.sort_order) {
-                        return 1;
-                    }
+            items.sort((e1, e2) => {
+                if (e1.sort_order < e2.sort_order) {
+                    return -1;
+                }
 
-                    return 0;
-                });
+                if (e1.sort_order > e2.sort_order) {
+                    return 1;
+                }
 
-                let data = dataFromDb.Items.map(element => element.word);
+                return 0;
+            });
 
-                resolve(data);
-            }
+            const cardIds = items
+                .filter(item => item.item_type === "card")
+                .map(item => item.card_id);
 
+            cards._getCardTitles(userName, cardIds)
+                .then(titleMap => {
+                    const data = items.map(item => {
+                        if (item.item_type === "card") {
+                            const title = titleMap[item.card_id];
+                            return {
+                                type: "card",
+                                id: item.card_id,
+                                title: (title != null && title !== "") ? title : "(untitled card)",
+                            };
+                        }
+
+                        return { type: "word", id: item.word, title: item.word };
+                    });
+
+                    resolve(data);
+                })
+                .catch(err => reject(err));
         });
 
     })
+}
+
+/// Add a card (by id) to a wordbook. Membership row mirrors a word row but is
+/// tagged item_type="card"; `word` is set to the card_id so the existing
+/// delete/reorder paths (which key on wordbook#word) work unchanged.
+function addCardToWordbook(userIdToken, wordbookName, cardId) {
+    return new Promise((resolve, reject) => {
+        if (!userIdToken) {
+            return resolve("");
+        }
+
+        getCurentUserFromToken(userIdToken).then(userName => {
+            var params = {
+                TableName: "dictionary_wordbooks_words",
+                Item: {
+                    user_name: userName,
+                    wordbook_name: wordbookName + "#" + cardId,
+                    word: cardId,
+                    item_type: "card",
+                    card_id: cardId,
+                    added_datetime: (new Date()).toISOString(),
+                }
+            };
+
+            database.dynamoDbClientInstance().put(params, (err) => {
+                if (err) {
+                    return reject(err);
+                }
+                _listOfWords(userName, wordbookName)
+                    .then(words => resolve(words))
+                    .catch(_ => resolve([]));
+            });
+        })
+            .catch((error) => {
+                console.log("error from getCurentUserFromToken");
+                reject(error);
+            });
+    });
+}
+
+/// Remove a card from a single wordbook (deletes only the membership row; the
+/// card itself and its other memberships are untouched).
+function removeCardFromWordbook(userIdToken, wordbookName, cardId) {
+    return new Promise((resolve, reject) => {
+        if (!userIdToken) {
+            return resolve("");
+        }
+
+        getCurentUserFromToken(userIdToken).then(userName => {
+            var params = {
+                TableName: "dictionary_wordbooks_words",
+                Key: {
+                    user_name: userName,
+                    wordbook_name: wordbookName + "#" + cardId,
+                }
+            };
+
+            database.dynamoDbClientInstance().delete(params, (err) => {
+                if (err) {
+                    return reject(err);
+                }
+                _listOfWords(userName, wordbookName)
+                    .then(words => resolve(words))
+                    .catch(_ => resolve([]));
+            });
+        })
+            .catch((error) => {
+                console.log("error from getCurentUserFromToken");
+                reject(error);
+            });
+    });
 }
 
 function listofWords(userIdToken, wordbookName) {
@@ -921,6 +1019,8 @@ module.exports = {
     listWordbooksWithWords,
     addWordToWordbook,
     deleteWordFromWordbook,
+    addCardToWordbook,
+    removeCardFromWordbook,
     listofWords,
     listOfWordbooksForWord,
     reorder,

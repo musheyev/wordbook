@@ -1,27 +1,22 @@
 import React from "react";
 import { connect } from 'react-redux';
 import requireAuth from './hocs/requireAuth';
-import { addWordbookWord, deleteWordbookWord} from '../actions';
+import { addItemToWordbook, removeItemFromWordbook } from '../actions';
 
 function WordbookCheckbox(props) {
-  
-    // if (props.wordbookName === 'this is a test2') {
-    //     console.log(`WordbookCheckbox '${props.wordbookName}' props.checked ${props.checked}`)
-
-    // }
 
     function handleOnChange(e) {
         const wordbookName = e.target.name;
         const isChecked = e.target.checked;
-        //console.log(`workbookName=${wordbookName}, isChecked=${isChecked}`);
 
+        // Works for the current item whether it is a word or a card.
         if (isChecked) {
-            props.addWordbookWord(wordbookName, props.currentWord);
+            props.addItemToWordbook(wordbookName);
         }
         else {
-            props.deleteWordbookWord(wordbookName, props.currentWord);
+            props.removeItemFromWordbook(wordbookName);
         }
-        
+
     }
   
     return (
@@ -50,4 +45,4 @@ function mapStatetoProps(state, ownProps) {
         wordbookName: ownProps.wordbookName};
 }
 //wordWorkbooks: state.wordWorkbooks,
-export default connect(mapStatetoProps, { addWordbookWord, deleteWordbookWord })(requireAuth(WordbookCheckbox));
+export default connect(mapStatetoProps, { addItemToWordbook, removeItemFromWordbook })(requireAuth(WordbookCheckbox));

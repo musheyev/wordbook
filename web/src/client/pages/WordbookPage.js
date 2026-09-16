@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
 import { SET_CURRENT_WORDBOOK } from '../actions';
-import { fetchWordbookWords } from '../actions';
+import { fetchWordbookWords, openCardEditor } from '../actions';
 import WordList from '../components/WordList';
 import SearchResult from '../components/SearchResult';
 
@@ -52,6 +52,10 @@ class WordbookPage extends Component {
                         <label>Wordbook Name</label>
                         <input type="text" size="40" value={this.props.currentWordbook} onChange={() => { }}>
                         </input>
+                        <button type="button" className="ui button primary new-card-btn"
+                            onClick={() => this.props.openCardEditor({ mode: 'create', wordbook: this.state.myWordbook })}>
+                            + New card
+                        </button>
                     </form>
                 </header>
                 {/* {console.log("wordbookWords=")} */}
@@ -89,7 +93,7 @@ function mapStatetoProps({ auth, currentWordbook, currentWord, wordbookWords, wo
 //return dispatch(fetchAdmins());
 //}
 
-const WordbookPageContainer = connect(mapStatetoProps, { fetchWordbookWords })(requireAuth(WordbookPage));
+const WordbookPageContainer = connect(mapStatetoProps, { fetchWordbookWords, openCardEditor })(requireAuth(WordbookPage));
 
 // Inject the :name route param (react-router v7 no longer passes match/location as props).
 const WordbookPageWithParams = (props) => {

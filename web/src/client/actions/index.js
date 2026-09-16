@@ -21,7 +21,11 @@ export const fetchCurrentUser = () => async (dispatch, getState, api) => {
 };
 
 export const SET_CURRENT_WORD = "set_current_word";
+export const SET_CURRENT_WORD_TYPE = "set_current_word_type";
 export const SET_CURRENT_WORDBOOK = "set_current_wordbook";
+
+// Shared JSON headers for POST bodies.
+const JSON_HEADERS = { headers: { 'content-type': 'application/json' } };
 
 export const FETCH_WORD_DATA = 'fetch_word_data';
 export const fetchWordData = (word) => async (dispatch, getState, api) => {
@@ -30,6 +34,10 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
     type: SET_CURRENT_WORD,
     payload: word
   });
+
+  // The current selection is a dictionary word, not a card.
+  dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'word' });
+  dispatch({ type: FETCH_CARD_DATA, payload: null });
 
   const res = await api.get(`/dictionary?search=${word}&json=y`);
 
@@ -40,6 +48,116 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
     type: FETCH_WORD_DATA,
     payload: res
   });
+};
+
+// ---------------------------------------------------------------------------
+// Cards
+// ---------------------------------------------------------------------------
+
+export const FETCH_CARD_DATA = 'fetch_card_data';
+export const OPEN_CARD_EDITOR = 'open_card_editor';
+export const CLOSE_CARD_EDITOR = 'close_card_editor';
+
+export const openCardEditor = (payload = {}) => ({ type: OPEN_CARD_EDITOR, payload });
+export const closeCardEditor = () => ({ type: CLOSE_CARD_EDITOR });
+
+// Load a card's content (lazy, on click) and make it the current selection.
+export const fetchCardData = (cardId) => async (dispatch, getState, api) => {
+  dispatch({ type: SET_CURRENT_WORD, payload: cardId });
+  dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'card' });
+  // Clear any dictionary result so a prior word's images/definitions don't linger.
+  dispatch({ type: FETCH_WORD_DATA, payload: { data: { definitions: {}, images: [] } } });
+
+  const res = await api.post('/wordbook/card/get', { card_id: cardId }, JSON_HEADERS);
+  dispatch({ type: FETCH_CARD_DATA, payload: res.data });
+
+  // Which wordbooks currently contain this card (drives the selection popup).
+  dispatch(fetchWordWordbooks(cardId));
+};
+
+// Create a new card and add it to the given wordbooks in one request.
+export const createCard = (title, content, wordbooks = []) => async (dispatch, getState, api) => {
+  await api.post('/wordbook/card/create', { title, content, wordbooks }, JSON_HEADERS);
+  dispatch(closeCardEditor());
+
+  const currentWordbook = getState().currentWordbook;
+  if (currentWordbook) {
+    dispatch(fetchWordbookWords(currentWordbook));
+  }
+};
+
+// Edit an existing card. Because a card is stored once, this updates it in
+// every wordbook it belongs to.
+export const updateCard = (cardId, title, content) => async (dispatch, getState, api) => {
+  const res = await api.post('/wordbook/card/update', { card_id: cardId, title, content }, JSON_HEADERS);
+
+  // Refresh the open card viewer with the new content.
+  dispatch({ type: FETCH_CARD_DATA, payload: res.data });
+  dispatch(closeCardEditor());
+
+  // Refresh the list so the (possibly renamed) title updates in the chip list.
+  const currentWordbook = getState().currentWordbook;
+  if (currentWordbook) {
+    dispatch(fetchWordbookWords(currentWordbook));
+  }
+};
+
+// Delete a card everywhere (from every wordbook).
+export const deleteCard = (cardId) => async (dispatch, getState, api) => {
+  await api.post('/wordbook/card/delete', { card_id: cardId }, JSON_HEADERS);
+
+  dispatch(closeCardEditor());
+  dispatch({ type: FETCH_CARD_DATA, payload: null });
+  dispatch({ type: SET_CURRENT_WORD, payload: '' });
+  dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'word' });
+
+  const currentWordbook = getState().currentWordbook;
+  if (currentWordbook) {
+    dispatch(fetchWordbookWords(currentWordbook));
+  }
+};
+
+// Add/remove the *current item* (word or card) to/from a wordbook. Used by the
+// wordbook-selection popup so one checkbox works for both kinds.
+export const addItemToWordbook = (wordbook) => async (dispatch, getState, api) => {
+  const state = getState();
+  if (state.currentWordType === 'card') {
+    const res = await api.post('/wordbook/card/add',
+      { wordbook, card_id: state.currentWord }, JSON_HEADERS);
+    if (wordbook === state.currentWordbook) {
+      dispatch({ type: FETCH_WORDBOOK_WORDS, payload: res });
+    }
+    dispatch(fetchWordWordbooks(state.currentWord));
+  } else {
+    dispatch(addWordbookWord(wordbook, state.currentWord));
+  }
+};
+
+export const removeItemFromWordbook = (wordbook) => async (dispatch, getState, api) => {
+  const state = getState();
+  if (state.currentWordType === 'card') {
+    const res = await api.post('/wordbook/card/remove',
+      { wordbook, card_id: state.currentWord }, JSON_HEADERS);
+    if (wordbook === state.currentWordbook) {
+      dispatch({ type: FETCH_WORDBOOK_WORDS, payload: res });
+    }
+    dispatch(fetchWordWordbooks(state.currentWord));
+  } else {
+    dispatch(deleteWordbookWord(wordbook, state.currentWord));
+  }
+};
+
+// Remove a specific card (by id) from a specific wordbook. Used by the chip's
+// × button, which must target that chip regardless of the current selection.
+export const deleteWordbookCard = (wordbook, cardId) => async (dispatch, getState, api) => {
+  const res = await api.post('/wordbook/card/remove',
+    { wordbook, card_id: cardId }, JSON_HEADERS);
+  dispatch({ type: FETCH_WORDBOOK_WORDS, payload: res });
+
+  // If the removed card was the current selection, refresh its wordbook list.
+  if (getState().currentWord === cardId) {
+    dispatch(fetchWordWordbooks(cardId));
+  }
 };
 
 export const FETCH_USER_HISTORY = 'fetch_user_history';
@@ -365,19 +483,20 @@ export const fetchWordbookWords = (wordbookName) => async (dispatch, getState, a
     payload: res
   });
 
-  //need to set current word if blank or does not exist in the current wordbook
-
+  // Items are now typed objects: { type: 'word'|'card', id, title }.
+  // Select the first item if the current selection is blank or no longer in
+  // this wordbook, routing to the right loader for its type.
   const currentWordInState = getState()["currentWord"];
-  if (res.data.length > 0) {
-    if (currentWordInState == "" || res.data.indexOf(currentWordInState) == -1) {
-
-      const newCurrentWord = res.data[0];
-      dispatch({
-        type: SET_CURRENT_WORD,
-        payload: newCurrentWord
-      });
-
-      dispatch(fetchWordData(newCurrentWord));
+  const items = res.data || [];
+  if (items.length > 0) {
+    const stillPresent = items.some((item) => item.id === currentWordInState);
+    if (currentWordInState === "" || !stillPresent) {
+      const first = items[0];
+      if (first.type === 'card') {
+        dispatch(fetchCardData(first.id));
+      } else {
+        dispatch(fetchWordData(first.id));
+      }
     }
   }
 
