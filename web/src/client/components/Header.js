@@ -29,9 +29,14 @@ const Header = ({ auth, logoutCurrentUser }) => {
                     {userExists ? (
                         <>
                             <Link to="/account" className="header item">
+                                <i className="book icon"></i>
+                                My Wordbooks
+                            </Link>
+
+                            <span className="header item wb-user">
                                 <i className="user large icon"></i>
                                 {auth}
-                            </Link>
+                            </span>
 
                             <button
                                 className="ui button secondary no-padding header item"

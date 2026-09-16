@@ -1,17 +1,13 @@
 import React, { useState } from "react";
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { deleteWordbook, renameWordbook } from '../actions';
 
 function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook }) {
-    const navigate = useNavigate();
-
     const [renaming, setRenaming] = useState(false);
     const [draftName, setDraftName] = useState(name);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [remindersOpen, setRemindersOpen] = useState(false);
-
-    const onOpen = () => navigate(`/wordbook/${name}`);
 
     const onRenameSubmit = (e) => {
         e.preventDefault();
@@ -29,7 +25,7 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook 
 
     return (
         <div className="wb-card">
-            <div className="wb-card__head">
+            <div className="wb-card__row">
                 {renaming ? (
                     <form className="wb-rename" onSubmit={onRenameSubmit}>
                         <input autoFocus type="text" value={draftName}
@@ -38,29 +34,29 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook 
                         <button type="button" className="wb-btn" onClick={() => setRenaming(false)}>Cancel</button>
                     </form>
                 ) : (
-                    <div className="wb-card__info">
-                        <h4 className="wb-card__title">{name}</h4>
-                        <div className="wb-card__preview">{preview ? preview : 'No words yet'}</div>
-                    </div>
-                )}
+                    <>
+                        {/* The wordbook name itself is the link (opens the wordbook). */}
+                        <div className="wb-card__info">
+                            <Link className="wb-card__title" to={`/wordbook/${name}`}>
+                                {name}
+                                <i className="arrow right icon wb-card__go"></i>
+                            </Link>
+                            <div className="wb-card__preview">{preview ? preview : 'No words yet'}</div>
+                        </div>
 
-                {!renaming && (
-                    <button className="wb-open" onClick={onOpen}>
-                        <i className="right arrow icon"></i>Open
-                    </button>
+                        <div className="wb-actions">
+                            <button className="wb-action" onClick={() => setRemindersOpen((v) => !v)}>
+                                <i className="bell outline icon"></i>Reminders
+                            </button>
+                            <button className="wb-action" onClick={startRename}>
+                                <i className="edit icon"></i>Rename
+                            </button>
+                            <button className="wb-action wb-action--danger" onClick={() => setConfirmDelete(true)}>
+                                <i className="trash icon"></i>Delete
+                            </button>
+                        </div>
+                    </>
                 )}
-            </div>
-
-            <div className="wb-actions">
-                <button className="wb-action" onClick={() => setRemindersOpen((v) => !v)}>
-                    <i className="bell outline icon"></i>Reminders
-                </button>
-                <button className="wb-action" onClick={startRename}>
-                    <i className="edit icon"></i>Rename
-                </button>
-                <button className="wb-action wb-action--danger" onClick={() => setConfirmDelete(true)}>
-                    <i className="trash icon"></i>Delete
-                </button>
             </div>
 
             {remindersOpen && (

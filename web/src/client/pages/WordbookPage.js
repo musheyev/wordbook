@@ -74,7 +74,7 @@ class WordbookPage extends Component {
                         <SearchResult />
                     </section>
                 </main>
-                    : !this.props.wordbookWordsInProgress ? <h1 style={{ padding: "30px", margin: "auto" }}>This workbook is empty</h1> : ""
+                    : !this.props.wordbookWordsInProgress ? <h1 style={{ padding: "30px", margin: "auto" }}>This wordbook is empty</h1> : ""
                 }
 
 

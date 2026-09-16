@@ -229,12 +229,14 @@ form.search button:hover {
 .current-word-container {
   display: flex;
   flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
 }
 
-.current-word-container div:nth-child(2) {
-  padding-left: 15px;
-  position: relative;
-  top: -5px;
+/* push the "Add to Wordbook" button to the far right of the pane */
+.current-word-container > div:last-child {
+  margin-left: auto;
 }
 
 /* https://css-tricks.com/snippets/css/css-triangle/  */
@@ -305,18 +307,23 @@ form.search button:hover {
 
 }
 
-/* account page — wordbook cards */
+/* account page — wordbook rows */
 .wb-card {
   background: #fff;
   border: 1px solid #e3e5e8;
   border-radius: 12px;
-  padding: 16px 18px;
-  margin-bottom: 14px;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  transition: border-color 0.12s ease;
 }
 
-.wb-card__head {
+.wb-card:hover {
+  border-color: #cdd2d8;
+}
+
+.wb-card__row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
@@ -325,10 +332,28 @@ form.search button:hover {
   min-width: 0;
 }
 
+/* The wordbook name is now the link that opens it. */
 .wb-card__title {
-  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 1.05rem;
   font-weight: 500;
+  color: #2f6fb3;
+  text-decoration: none;
+}
+
+.wb-card__title:hover {
+  text-decoration: underline;
+}
+
+.wb-card__go {
+  opacity: 0.55;
+  transition: transform 0.12s ease;
+}
+
+.wb-card:hover .wb-card__go {
+  transform: translateX(3px);
 }
 
 .wb-card__preview {
@@ -340,41 +365,29 @@ form.search button:hover {
   text-overflow: ellipsis;
 }
 
-.wb-open {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  border: 1px solid #b5d4f4;
-  border-radius: 6px;
-  background: #e6f1fb;
-  color: #185fa5;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.wb-open:hover {
-  background: #d7e8fa;
-}
-
 .wb-actions {
   display: flex;
-  gap: 18px;
   align-items: center;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid #eee;
+  gap: 2px;
+  flex-shrink: 0;
   font-size: 0.85rem;
 }
 
 .wb-action {
-  padding: 4px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
   border: none;
-  background: none;
+  border-radius: 6px;
+  background: transparent;
   color: #6b6f76;
   cursor: pointer;
 }
 
 .wb-action:hover {
-  color: #185fa5;
+  background: #f1f3f6;
+  color: #2f6fb3;
 }
 
 .wb-action--danger {
@@ -382,7 +395,15 @@ form.search button:hover {
 }
 
 .wb-action--danger:hover {
+  background: #fbeaea;
   color: #a3282a;
+}
+
+/* header: the username is a plain identity label, not a nav button */
+#menu .wb-user,
+#menu .wb-user:hover {
+  background: transparent !important;
+  cursor: default;
 }
 
 .wb-panel {
@@ -458,18 +479,12 @@ form.search button:hover {
   color: #c0392b;
 }
 
-/* mobile: stack the card so Open goes full-width and actions spread out */
+/* mobile: stack the actions under the name */
 @media (max-width: 600px) {
-  .wb-card__head {
+  .wb-card__row {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
-  }
-
-  .wb-open {
-    width: 100%;
-    text-align: center;
-    padding: 11px;
+    gap: 10px;
   }
 
   .wb-actions {
@@ -602,45 +617,11 @@ form.search button:hover {
    Manual cards
    =========================================================================== */
 
-/* Card chips in the word list: amber accent + note icon to distinguish from
-   dictionary words. */
-.word-chip--card {
-  color: #8a5a00;
-}
-
-.word-chip--card .word-chip__label {
-  border-left: 3px solid #f0b429;
-  padding-left: 8px;
-}
-
-.word-chip--card.selected {
-  background: #fff7e6;
-  border-color: #f0d090;
-}
-
-.word-chip__icon {
-  font-style: normal;
-  font-size: 0.95rem;
-  line-height: 1;
-}
+/* Card chips are visually identical to word chips (no marker in the list). */
 
 /* New card button in the wordbook header */
 .new-card-btn {
   margin-left: 16px !important;
-}
-
-/* "My note" badge next to a card title in the definition pane */
-.card-badge {
-  display: inline-block;
-  margin-left: 10px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  vertical-align: middle;
-  color: #8a5a00;
-  background: #fff3d6;
-  border: 1px solid #f0d090;
-  border-radius: 10px;
 }
 
 /* Card body: distinct container (amber left bar) vs. dictionary definitions */
@@ -656,6 +637,8 @@ form.search button:hover {
 .card-content p { margin: 0 0 8px; }
 .card-content ul,
 .card-content ol { margin: 0 0 8px 22px; }
+.card-content [data-type="block-math"] { text-align: center; margin: 12px 0; overflow-x: auto; }
+.card-content [data-type="inline-math"] { display: inline-block; }
 .card-content a { color: #2f6fb3; text-decoration: underline; }
 .card-content code {
   background: #f1f1f1;
@@ -739,7 +722,66 @@ form.search button:hover {
   background: #2d2d2d; color: #f2f2f2; padding: 12px; border-radius: 6px; overflow-x: auto;
 }
 .rte-content .ProseMirror pre code { background: transparent; color: inherit; }
-/* Placeholder-ish empty state is not enabled; keep editor readable when empty */
+/* block math nodes render centered like a display equation */
+.rte-content .ProseMirror [data-type="block-math"] { text-align: center; margin: 10px 0; overflow-x: auto; }
+
+/* Formula help: shown only while editing a math node. Tinted so "formula mode"
+   reads as a distinct, active state. */
+.rte-mathhelp {
+  border-top: 2px solid #cfe0f3;
+  background: #eef5fc;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+}
+.rte-mathhelp__intro { color: #1c62a8; margin-bottom: 6px; font-weight: 500; }
+.rte-mathinput {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: monospace;
+  font-size: 0.9rem;
+  padding: 8px 10px;
+  border: 1px solid #cfd4dc;
+  border-radius: 6px;
+  resize: vertical;
+  background: #fff;
+}
+.rte-mathinput:focus { outline: none; border-color: #2f6fb3; box-shadow: 0 0 0 2px #d6e6f7; }
+.rte-mathhelp__tip { color: #8a8f98; font-size: 0.78rem; margin: 6px 0 10px; }
+.rte-mathhelp__tip code {
+  background: #eef1f5; padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 0.9em;
+}
+.rte-mathhelp__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  align-items: center;
+}
+.rte-mathhelp__head {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #5a86b8;
+  font-weight: 500;
+}
+.rte-mathhelp__tex {
+  font-family: monospace;
+  font-size: 0.82rem;
+  color: #0c447c;
+  background: #dcebfa;
+  padding: 2px 6px;
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.rte-mathhelp__out { color: #1f2937; overflow-x: auto; }
+
+/* mobile: toolbar wraps, formula help fits, math scrolls instead of overflowing */
+@media (max-width: 600px) {
+  .rte-toolbar { gap: 1px; padding: 5px; }
+  .rte-btn { min-width: 26px; padding: 0 6px; font-size: 0.8rem; }
+  .rte-mathhelp__tex { white-space: normal; word-break: break-word; }
+  .rte-content .ProseMirror { -webkit-overflow-scrolling: touch; }
+}
 
 /* ---- Card editor modal ---- */
 .card-modal__overlay {
@@ -799,7 +841,132 @@ form.search button:hover {
 }
 
 .card-modal__wordbooks { margin-top: 14px; }
-.card-modal__wb { display: block; margin: 4px 0; cursor: pointer; }
+
+/* Default state: just a subtle link, no heavy checklist. */
+.card-modal__wb-more { position: relative; }
+.card-modal__wb-link {
+  font-size: 0.9rem;
+  color: #2f6fb3;
+  padding: 0;
+}
+.card-modal__wb-link:hover { text-decoration: underline; }
+
+/* Popup for choosing additional wordbooks. */
+.card-modal__wb-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+}
+.card-modal__wb-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  width: 300px;
+  max-width: calc(100vw - 40px);
+  background: #fff;
+  border: 1px solid #dfe2e7;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  padding: 8px;
+  z-index: 20;
+}
+.card-modal__wb-popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.card-modal__wb-done {
+  background: #2f6fb3;
+  border: none;
+  color: #fff;
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+/* Wordbook checklist: soft, scrollable box capped at ~4 rows inside the popup. */
+.card-modal__wb-list {
+  max-height: 132px;
+  overflow-y: auto;
+  border: 1px solid #e6e8ec;
+  border-radius: 8px;
+  background: #fafbfc;
+  padding: 4px;
+  box-sizing: border-box;
+}
+/* Inside the popup the popup itself is the frame, so drop the inner border. */
+.card-modal__wb-popup .card-modal__wb-list {
+  border: none;
+  background: transparent;
+  padding: 0;
+  max-height: 168px;
+}
+.card-modal__wb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  color: #454b56;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.card-modal__wb:hover { background: #eef2f7; }
+/* Custom checkbox — replaces the native (OS-styled) control. */
+.card-modal__wb input {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  position: relative;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  border: 1.5px solid #c4c9d2;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.card-modal__wb input:hover { border-color: #2f6fb3; }
+.card-modal__wb input:checked {
+  background: #2f6fb3;
+  border-color: #2f6fb3;
+}
+.card-modal__wb input:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1.5px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.card-modal__wb input:focus-visible {
+  outline: 2px solid #b5d4f4;
+  outline-offset: 1px;
+}
+.card-modal__wb span { line-height: 1.2; }
+/* thinner, less obtrusive scrollbar */
+.card-modal__wb-list::-webkit-scrollbar { width: 8px; }
+.card-modal__wb-list::-webkit-scrollbar-thumb {
+  background: #cfd4dc;
+  border-radius: 4px;
+  border: 2px solid #fafbfc;
+}
+.card-modal__loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8a8f98;
+  font-size: 0.88rem;
+  padding: 10px 6px;
+}
 .card-modal__hint { color: #999; font-size: 0.85rem; }
 
 .card-modal__actions {

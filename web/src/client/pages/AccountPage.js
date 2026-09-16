@@ -18,7 +18,7 @@ class AccountPage extends Component {
 
                 <AddWordbook />
 
-                {this.props.wordbooks != null ? this.props.wordbooks.map((wordbook, index) => (
+                {Array.isArray(this.props.wordbooks) ? this.props.wordbooks.map((wordbook, index) => (
                     <WordbookItemConfig key={wordbook} name={wordbook} id={index} />
                 )) : ""}
             </div>

@@ -39,10 +39,9 @@ const WordWithDelete = ({ item, wordbook, selected, fetchWordData, fetchCardData
         : `Remove ${item.title}`;
 
     return (
-        <div className={`word-chip${selected ? ' selected' : ''}${isCard ? ' word-chip--card' : ''}`}
+        <div className={`word-chip${selected ? ' selected' : ''}`}
             role="button" tabIndex={0}
             onClick={onClick} onKeyDown={onKeyDown}>
-            {isCard && <i className="word-chip__icon" aria-hidden="true">📝</i>}
             <span className="word-chip__label">{item.title}</span>
             <i className="word-chip__x" title={removeTitle} aria-label={removeTitle}
                 onClick={onDelete}>×</i>

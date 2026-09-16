@@ -4,11 +4,18 @@ import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard } from '
 import Definition from './Definition';
 import WordbookSelection from './WordbookSelection';
 import { sanitizeCardHtml } from '../utils/sanitize';
+import { renderMathIn } from '../utils/math';
 
 function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, auth, wordbooks,
     fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard }) {
     const [wordbookSelectionPopupPosition, setPopupPosition] = useState(0);
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
+
+    // Render any KaTeX math in the card body after the HTML is in the DOM.
+    const cardRef = React.useRef(null);
+    React.useEffect(() => {
+        renderMathIn(cardRef.current);
+    });
 
     if (auth != "") {
         React.useEffect(
@@ -56,17 +63,14 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
             <div className="search-result">
                 <div className="current-word-container">
                     <div>
-                        <h2>
-                            {currentCard.title}
-                            <span className="card-badge" title="Manual card">📝 My note</span>
-                        </h2>
+                        <h2>{currentCard.title}</h2>
                     </div>
                     {addToWordbookButton}
                 </div>
 
                 {wordbookPopup}
 
-                <div className="card-content"
+                <div className="card-content" ref={cardRef}
                     dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(currentCard.content) }} />
 
                 <div className="card-actions">
