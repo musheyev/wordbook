@@ -187,11 +187,22 @@ form.search button:hover {
 @media (max-width: 600px) {
   .form-inline input {
     margin: 10px 0;
+    width: 100%;
+    box-sizing: border-box;
   }
-  
+
   .form-inline {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  /* full-width, boundary-respecting controls when the form is stacked */
+  .form-inline button {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .form-inline .new-card-btn {
+    margin-left: 0 !important;
   }
 
   .form-inline .delete-button{
@@ -200,6 +211,10 @@ form.search button:hover {
     width: 20%;
     height: 30px;
   }
+
+  /* header: wrap items to a second row instead of clipping username/Logout */
+  #menu { flex-wrap: wrap; }
+  #menu .item { padding-left: 12px; padding-right: 12px; }
 }
 
 /* wordbook page */
@@ -231,30 +246,77 @@ form.search button:hover {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 15px;
+  flex-wrap: wrap;
+  gap: 10px 15px;
 }
 
-/* push the "Add to Wordbook" button to the far right of the pane */
+/* push the "Add to Wordbook" button (and the card toolbar) to the far right */
 .current-word-container > div:last-child {
   margin-left: auto;
 }
 
+/* Card header toolbar: Edit / Delete icon buttons + Add to Wordbook. */
+.card-heading { min-width: 0; }
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.card-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d9dbe0;
+  border-radius: 6px;
+  background: #fff;
+  color: #2f6fb3;
+  cursor: pointer;
+}
+.card-tool i.icon { margin: 0; }
+.card-tool:hover { background: #eef4fb; border-color: #b5d4f4; }
+.card-tool--danger { color: #c0392b; }
+.card-tool--danger:hover { background: #fbeaea; border-color: #e0b4b0; }
+
+/* Inline delete confirmation (replaces the native confirm dialog). */
+.card-confirm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 10px 0;
+  padding: 10px 12px;
+  background: #fceaea;
+  border: 1px solid #e0b4b0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #a3282a;
+}
+.card-confirm__msg { flex: 1; min-width: 160px; }
+.card-confirm__actions { display: flex; gap: 8px; margin-left: auto; }
+.card-confirm__cancel {
+  background: #fff; border: 1px solid #d9dbe0; color: #333;
+  padding: 6px 14px; border-radius: 6px; cursor: pointer;
+}
+.card-confirm__delete {
+  background: #c0392b; border: 1px solid #c0392b; color: #fff;
+  padding: 6px 16px; border-radius: 6px; cursor: pointer;
+}
+
 /* https://css-tricks.com/snippets/css/css-triangle/  */
+/* arrow sits near the right, pointing up at the "Add to wordbook" icon */
 .arrowup {
-  width: 0; 
-  height: 0; 
+  width: 0;
+  height: 0;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
   border-bottom: 10px solid rgb(223, 218, 218);
-  display:block;
-  position:relative;
-  left: 20px
-}
-
-@media only screen and (max-width: 400px) {
-  .arrowup {
-    left: 100px
-  }
+  display: block;
+  position: relative;
+  margin-left: auto;
+  margin-right: 16px;
 }
 
 .wordbook-selection-container {
@@ -275,6 +337,9 @@ form.search button:hover {
   display: block;
   z-index: 9;
   position: absolute;
+  right: 8px;
+  left: auto;
+  max-width: calc(100vw - 20px);
 }
 
 
@@ -345,15 +410,6 @@ form.search button:hover {
 
 .wb-card__title:hover {
   text-decoration: underline;
-}
-
-.wb-card__go {
-  opacity: 0.55;
-  transition: transform 0.12s ease;
-}
-
-.wb-card:hover .wb-card__go {
-  transform: translateX(3px);
 }
 
 .wb-card__preview {
@@ -634,6 +690,25 @@ form.search button:hover {
   line-height: 1.5;
 }
 
+/* Long cards scroll inside their own box so the header toolbar stays visible. */
+.card-content--scroll {
+  max-height: calc(100vh - 210px);
+  overflow-y: auto;
+}
+@media (max-width: 768px) {
+  .card-content--scroll { max-height: calc(100vh - 260px); }
+  /* Full-width, boundary-respecting content so text wraps cleanly (no side scroll). */
+  .search-result { left: 0; max-width: 100%; box-sizing: border-box; }
+  .card-content {
+    margin: 12px 2px;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  #worddefinition { max-width: 100%; box-sizing: border-box; }
+}
+
 .card-content p { margin: 0 0 8px; }
 .card-content ul,
 .card-content ol { margin: 0 0 8px 22px; }
@@ -656,13 +731,6 @@ form.search button:hover {
 }
 .card-content pre code { background: transparent; color: inherit; padding: 0; }
 
-.card-actions {
-  margin: 10px 10px 0;
-  display: flex;
-  gap: 18px;
-}
-.card-actions .button-as-link { color: #2f6fb3; font-size: 0.9rem; }
-.card-actions__delete { color: #c0392b !important; }
 
 /* ---- Rich text editor (TipTap) ---- */
 .rte {
@@ -770,10 +838,10 @@ form.search button:hover {
   background: #dcebfa;
   padding: 2px 6px;
   border-radius: 4px;
-  overflow-x: auto;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
 }
-.rte-mathhelp__out { color: #1f2937; overflow-x: auto; }
+.rte-mathhelp__out { color: #1f2937; }
 
 /* mobile: toolbar wraps, formula help fits, math scrolls instead of overflowing */
 @media (max-width: 600px) {

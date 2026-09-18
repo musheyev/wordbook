@@ -3,26 +3,8 @@ import WordbookCheckbox from './WordbookCheckbox';
 import AddWordbook from './AddWordbook';
 
 function WordbookSelection(props) {
-    //NOTE: https://www.w3schools.com/howto/howto_js_media_queries.asp
-    
-    function calculateLeftPosition(x) {
-        if (x.matches) { // If media query matches
-            console.log(`media query matched, props.left=${props.left}`)
-          return 0;
-        } else {
-            console.log(`media query not matched, props.left=${props.left}`)
-          return props.left - 10 ;
-        }
-      }
-
-    const x = window.matchMedia("(max-width: 400px)");
-    const leftoffset = calculateLeftPosition(x);
-    console.log(`leftoffset=${leftoffset}`)
-
-    const styleObj = {
-        left: `${leftoffset}px`,
-    }
-
+    // The popup is anchored to the right edge of the pane via CSS (it opens under
+    // the top-right "Add to wordbook" icon), so no x-position is computed here.
     const doneButtonStyle = {
         padding: "10px 20px",
         marginTop: "10px",
@@ -32,7 +14,7 @@ function WordbookSelection(props) {
         cursor: "pointer"
     }
     return (
-        <div className="popup" style={styleObj}>
+        <div className="popup">
             <div className="arrowup">
             </div>
             <div className="wordbook-selection-container ui">

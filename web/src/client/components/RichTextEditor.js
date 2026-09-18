@@ -1,9 +1,41 @@
 import React from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Extension, nodeInputRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Mathematics } from '@tiptap/extension-mathematics';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+
+// Intuitive math typing shortcuts. The bundled extension's own rules are
+// non-standard ($$=inline, $$$=block) and buggy, so we add cursor-anchored ones:
+//   $…$   -> inline math      $$…$$ -> block math
+// The regex captures the FULL delimited string as group 1 (so nodeInputRule
+// replaces the delimiters too, not just the inner text) and the LaTeX as group 2.
+// High priority so the block rule is tried before the built-in inline rule.
+const MathInputRules = Extension.create({
+    name: 'mathInputRules',
+    priority: 1000,
+    addInputRules() {
+        const block = this.editor.schema.nodes.blockMath;
+        const inline = this.editor.schema.nodes.inlineMath;
+        const rules = [];
+        if (block) {
+            rules.push(nodeInputRule({
+                find: /((?<!\$)\$\$([^$]+)\$\$)$/,
+                type: block,
+                getAttributes: (m) => ({ latex: m[2] }),
+            }));
+        }
+        if (inline) {
+            rules.push(nodeInputRule({
+                find: /((?<!\$)\$([^$\n]+)\$)$/,
+                type: inline,
+                getAttributes: (m) => ({ latex: m[2] }),
+            }));
+        }
+        return rules;
+    },
+});
 
 // A few LaTeX examples shown while editing a formula: "type this" → "get this".
 const MATH_EXAMPLES = [
@@ -27,6 +59,8 @@ const renderTex = (tex) => {
 // link and undo/redo. Mathematics adds KaTeX-rendered LaTeX: type $…$ inline or
 // $$…$$ for a block, or use the fx button.
 const RichTextEditor = ({ value, onChange }) => {
+    // Toggles the formula help/examples reference without inserting anything.
+    const [showHelp, setShowHelp] = React.useState(false);
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
@@ -39,6 +73,7 @@ const RichTextEditor = ({ value, onChange }) => {
                 inlineOptions: { katexOptions: { throwOnError: false } },
                 blockOptions: { katexOptions: { throwOnError: false } },
             }),
+            MathInputRules,
         ],
         content: value || '',
         onUpdate: ({ editor }) => onChange(editor.getHTML()),
@@ -70,8 +105,13 @@ const RichTextEditor = ({ value, onChange }) => {
     const currentLatex = mathType ? (editor.getAttributes(mathType).latex || '') : '';
 
     const updateLatex = (latex) => {
+        // The math node is currently node-selected; note its position, update its
+        // LaTeX, then re-select it. updateInlineMath (and update*) drop the node
+        // selection, which would flip mathType to null and close this editor box.
+        const pos = editor.state.selection.from;
         if (mathType === 'blockMath') editor.commands.updateBlockMath({ latex });
         else if (mathType === 'inlineMath') editor.commands.updateInlineMath({ latex });
+        editor.commands.setNodeSelection(pos);
     };
 
     // Insert a starter block formula and select it so the LaTeX editor opens.
@@ -142,30 +182,37 @@ const RichTextEditor = ({ value, onChange }) => {
                 <Btn label="fx" active={!!mathType}
                     title={mathType ? 'Finish formula (back to text)' : 'Insert formula'}
                     onClick={onFxClick} />
+                <Btn label="?" active={showHelp} title="Formula examples"
+                    onClick={() => setShowHelp((v) => !v)} />
                 <span className="rte-toolbar__spacer" />
                 <Btn label="↶" title="Undo" onClick={() => editor.chain().focus().undo().run()} />
                 <Btn label="↷" title="Redo" onClick={() => editor.chain().focus().redo().run()} />
             </div>
             <EditorContent editor={editor} className="rte-content" />
 
-            {mathType && (
+            {(mathType || showHelp) && (
                 <div className="rte-mathhelp">
-                    <div className="rte-mathhelp__intro">
-                        Formula LaTeX ({mathType === 'blockMath' ? 'block' : 'inline'}) — edit here:
-                    </div>
-                    <textarea
-                        className="rte-mathinput"
-                        rows={2}
-                        value={currentLatex}
-                        placeholder="\frac{a}{b}"
-                        autoFocus
-                        onChange={(ev) => updateLatex(ev.target.value)}
-                    />
+                    {mathType && (
+                        <>
+                            <div className="rte-mathhelp__intro">
+                                Formula LaTeX ({mathType === 'blockMath' ? 'block' : 'inline'}) — edit here:
+                            </div>
+                            <textarea
+                                className="rte-mathinput"
+                                rows={2}
+                                value={currentLatex}
+                                placeholder="\frac{a}{b}"
+                                autoFocus
+                                onChange={(ev) => updateLatex(ev.target.value)}
+                            />
+                        </>
+                    )}
                     <div className="rte-mathhelp__tip">
-                        Tip: click <code>fx</code> to add another formula, or click any formula to edit its LaTeX here.
+                        In the text you can also type <code>$…$</code> for inline math or <code>$$…$$</code> for a block —
+                        e.g. <code>{'$$\\frac{a}{b}$$'}</code>. Or click <code>fx</code>, or click any formula to edit it here.
                     </div>
                     <div className="rte-mathhelp__grid">
-                        <div className="rte-mathhelp__head">Type this</div>
+                        <div className="rte-mathhelp__head">Type this LaTeX</div>
                         <div className="rte-mathhelp__head">You get</div>
                         {MATH_EXAMPLES.map((ex, i) => (
                             <React.Fragment key={i}>

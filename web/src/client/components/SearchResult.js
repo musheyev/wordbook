@@ -10,12 +10,18 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard }) {
     const [wordbookSelectionPopupPosition, setPopupPosition] = useState(0);
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     // Render any KaTeX math in the card body after the HTML is in the DOM.
     const cardRef = React.useRef(null);
     React.useEffect(() => {
         renderMathIn(cardRef.current);
     });
+
+    // Reset the delete confirmation whenever the selected item changes.
+    React.useEffect(() => {
+        setConfirmingDelete(false);
+    }, [currentWord]);
 
     if (auth != "") {
         React.useEffect(
@@ -31,24 +37,19 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
         );
     }
 
-    const isCard = currentWordType === 'card' && currentCard != null;
+    const isCard = currentWordType === 'card';
+    // The card content is fetched after selection; until it arrives (and matches
+    // the selected id) show a blank pane rather than the raw card_id (a GUID).
+    const cardReady = isCard && currentCard != null && currentCard.card_id === currentWord;
 
-    // Shared "Add to Wordbook" button + popup (used by both words and cards).
+    // Shared "Add to wordbook" icon button + popup (used by both words and cards).
+    // Recompute the popup position on every click so it always opens next to the
+    // button (the old one-time capture went stale when the button moved).
     const addToWordbookButton = (
-        <div>
-            <button className="ui right labeled icon button" style={{ display: "inline-block" }}
-                ref={el => {
-                    if (!el) return;
-                    if (wordbookSelectionPopupPosition === 0) {
-                        setPopupPosition(el.getBoundingClientRect().left);
-                    }
-                }}
-                onClick={() => setShouldDisplayPopup(!shouldDisplayPopup)}
-            >
-                <i className="right arrow icon"></i>
-                Add to Wordbook
-            </button>
-        </div>
+        <button className="card-tool" title="Add to wordbook" aria-label="Add to wordbook"
+            onClick={() => setShouldDisplayPopup((v) => !v)}>
+            <i className="bookmark outline icon"></i>
+        </button>
     );
 
     const wordbookPopup = shouldDisplayPopup ? (
@@ -59,34 +60,50 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
 
     // ---- Card view ---------------------------------------------------------
     if (isCard) {
+        // Card selected but its content hasn't loaded yet: blank pane, no GUID.
+        if (!cardReady) {
+            return <div className="search-result" />;
+        }
         return (
-            <div className="search-result">
+            <div className="search-result search-result--card">
                 <div className="current-word-container">
-                    <div>
+                    <div className="card-heading">
                         <h2>{currentCard.title}</h2>
                     </div>
-                    {addToWordbookButton}
+                    <div className="card-header-actions">
+                        {/* Edit / Delete live up here (as a toolbar) so they stay
+                            visible no matter how long the card is. */}
+                        <button className="card-tool" title="Edit card" aria-label="Edit card"
+                            onClick={() => openCardEditor({ mode: 'edit', card: currentCard })}>
+                            <i className="edit icon"></i>
+                        </button>
+                        <button className="card-tool card-tool--danger" title="Delete card" aria-label="Delete card"
+                            onClick={() => setConfirmingDelete(true)}>
+                            <i className="trash alternate outline icon"></i>
+                        </button>
+                        {addToWordbookButton}
+                    </div>
                 </div>
+
+                {confirmingDelete && (
+                    <div className="card-confirm">
+                        <span className="card-confirm__msg">
+                            Delete "{currentCard.title}" from every wordbook? This can't be undone.
+                        </span>
+                        <span className="card-confirm__actions">
+                            <button className="card-confirm__cancel"
+                                onClick={() => setConfirmingDelete(false)}>Cancel</button>
+                            <button className="card-confirm__delete"
+                                onClick={() => deleteCard(currentCard.card_id)}>Delete</button>
+                        </span>
+                    </div>
+                )}
 
                 {wordbookPopup}
 
-                <div className="card-content" ref={cardRef}
+                {/* Scrollbar lives on the card content so the header/toolbar stays put. */}
+                <div className="card-content card-content--scroll" ref={cardRef}
                     dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(currentCard.content) }} />
-
-                <div className="card-actions">
-                    <button className="button-as-link"
-                        onClick={() => openCardEditor({ mode: 'edit', card: currentCard })}>
-                        Edit
-                    </button>
-                    <button className="button-as-link card-actions__delete"
-                        onClick={() => {
-                            if (window.confirm('Delete this card from every wordbook? This cannot be undone.')) {
-                                deleteCard(currentCard.card_id);
-                            }
-                        }}>
-                        Delete
-                    </button>
-                </div>
             </div>
         );
     }

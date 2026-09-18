@@ -39,7 +39,6 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook 
                         <div className="wb-card__info">
                             <Link className="wb-card__title" to={`/wordbook/${name}`}>
                                 {name}
-                                <i className="arrow right icon wb-card__go"></i>
                             </Link>
                             <div className="wb-card__preview">{preview ? preview : 'No words yet'}</div>
                         </div>
