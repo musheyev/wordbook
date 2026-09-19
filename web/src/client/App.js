@@ -13,9 +13,11 @@ const App = ({ fetchCurrentUser, cardEditorOpen, cardEditorKey }) => {
     }, [fetchCurrentUser]);
 
     return (
-        <div>
+        <div className="app-shell">
             <Header />
-            <Outlet />
+            <main className="app-main">
+                <Outlet />
+            </main>
             {/* Keyed so the modal remounts fresh each time it opens. */}
             {cardEditorOpen && <CardEditorModal key={cardEditorKey} />}
         </div>

@@ -2,6 +2,131 @@
     box-sizing: border-box;
   }
 
+/* ===========================================================================
+   Cardbook design tokens (UI redesign)
+   =========================================================================== */
+:root {
+  --cb-accent: #2563eb;
+  --cb-accent-ink: #ffffff;
+  --cb-accent-weak: #eaf1fe;
+  --cb-ink: #1f2430;
+  --cb-ink-2: #545c6b;
+  --cb-ink-3: #99a1af;
+  --cb-bg: #ffffff;
+  --cb-surface: #f6f8fb;
+  --cb-surface-2: #ffffff;
+  --cb-border: #e6e9ef;
+  --cb-border-strong: #d4d9e2;
+  --cb-danger: #dc2626;
+  --cb-radius: 12px;
+  --cb-radius-sm: 8px;
+}
+
+/* App shell: nav rail (desktop) + content, becomes a bottom tab bar on mobile */
+.app-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-rail {
+  display: flex;
+  flex-direction: column;
+  width: 212px;
+  flex-shrink: 0;
+  background: var(--cb-surface);
+  border-right: 1px solid var(--cb-border);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 16px 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--cb-ink);
+  text-decoration: none;
+}
+.nav-brand i.icon { margin: 0; color: var(--cb-accent); }
+
+.nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px 12px;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--cb-radius-sm);
+  color: var(--cb-ink-2);
+  text-decoration: none;
+  font-size: 0.95rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.nav-item i.icon { margin: 0; width: 1.2em; font-size: 1.05rem; }
+.nav-item:hover { background: var(--cb-accent-weak); color: var(--cb-accent); }
+.nav-item.on { background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 500; }
+
+.nav-spacer { flex: 1; }
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  color: var(--cb-ink-3);
+  font-size: 0.85rem;
+}
+.nav-user i.icon { margin: 0; font-size: 1.05rem; }
+
+/* Mobile: rail becomes a fixed bottom tab bar */
+@media (max-width: 768px) {
+  .app-shell { flex-direction: column; }
+  .nav-rail {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    width: auto;
+    height: 58px;
+    flex-direction: row;
+    border-right: none;
+    border-top: 1px solid var(--cb-border);
+    z-index: 200;
+  }
+  .nav-brand { display: none; }
+  .nav-items { flex-direction: row; padding: 0; gap: 0; }
+  .nav-item {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    border-radius: 0;
+    padding: 6px 2px;
+    font-size: 0.68rem;
+  }
+  .nav-item i.icon { font-size: 1.25rem; width: auto; }
+  .nav-item:hover { background: transparent; }
+  .nav-item.on { background: transparent; }
+  .nav-spacer { display: none; }
+  .nav-user { display: none; }
+  .app-main { padding-bottom: 64px; }
+}
+
 .ui.menu {
     border-radius: 0;
 }
