@@ -39,16 +39,13 @@ const HomePage = ({ auth, currentWord, fetchWordData,  }) => {
     };
 
     return (
-        <div style={{ marginTop: '20px' }}>
+        <div className="home-page">
             <Search onSearchWordDefinition={onWordSearchRequest} />
 
             {auth != "" ? <UserHistory onSearchWordDefinition={onWordSearchRequest} /> : ""}
 
             { currentWord != "" ? <SearchResult /> : ""}
-            
-
         </div>
-
     )
 };
 
