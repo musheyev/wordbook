@@ -39,11 +39,10 @@ class AddWordbook extends React.Component {
             this.props.errorAPI.action_type === ADD_WORDBOOK_ERROR_MESSAGE;
 
         return (
-            <div className="ui segment">
+            <div className="cb-addwb">
                 <form className="ui form-inline" onSubmit={this.onFormSubmit}>
-                    <div className="field"></div>
-                    <label>{this.isEmptyOrSpaces(this.props.displayLabel) ? "Wordbook Name" : this.props.displayLabel}</label>
-                    <input type="text" size="40" value={this.state.name} 
+                    <label>{this.isEmptyOrSpaces(this.props.displayLabel) ? "New cardbook" : this.props.displayLabel}</label>
+                    <input type="text" size="40" placeholder="Cardbook name" value={this.state.name}
                      onChange={this.onWordbookNameChange}></input>
                     <button>Add</button>
                 </form>

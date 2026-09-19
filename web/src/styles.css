@@ -1237,3 +1237,87 @@ nav-button-as-link {
   cursor: pointer;
 }
 .card-modal__save:disabled { opacity: 0.5; cursor: not-allowed; }
+/* ===========================================================================
+   My Cardbooks (page 3)
+   =========================================================================== */
+.cb-account { padding: 24px 20px 44px; max-width: 1040px; }
+.cb-account__head { margin-bottom: 16px; }
+.cb-page-title { font-size: 1.6rem; font-weight: 600; color: var(--cb-ink); margin: 0; }
+.cb-page-sub { font-size: 0.85rem; color: var(--cb-ink-3); margin-top: 2px; }
+
+.cb-addwb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--cb-surface);
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  padding: 12px 14px;
+}
+.cb-addwb .form-inline { flex: 1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cb-addwb label { font-size: 0.9rem; color: var(--cb-ink-2); margin: 0; font-weight: 500; }
+.cb-addwb input {
+  flex: 1; min-width: 160px; width: auto;
+  border: 1px solid var(--cb-border-strong);
+  border-radius: var(--cb-radius-sm);
+  padding: 9px 12px;
+  background: var(--cb-surface-2);
+  font-size: 0.9rem;
+}
+.cb-addwb input:focus { outline: none; border-color: var(--cb-accent); box-shadow: 0 0 0 3px var(--cb-accent-weak); }
+.cb-addwb button {
+  border: none; background: var(--cb-accent); color: var(--cb-accent-ink);
+  padding: 9px 18px; border-radius: var(--cb-radius-sm); font-size: 0.9rem; cursor: pointer;
+}
+.cb-addwb button:hover { filter: brightness(0.94); }
+
+.cb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.cb-empty {
+  margin-top: 18px; padding: 28px; text-align: center; color: var(--cb-ink-3);
+  border: 1px dashed var(--cb-border-strong); border-radius: var(--cb-radius); font-size: 0.95rem;
+}
+
+.cb-book {
+  background: var(--cb-surface-2);
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  padding: 14px 16px;
+  transition: border-color .12s ease;
+}
+.cb-book:hover { border-color: var(--cb-border-strong); }
+.cb-book__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.cb-book__info { min-width: 0; }
+.cb-book__title { font-size: 1.05rem; font-weight: 600; color: var(--cb-accent); text-decoration: none; }
+.cb-book__title:hover { text-decoration: underline; }
+.cb-book__preview {
+  margin-top: 4px; font-size: 0.85rem; color: var(--cb-ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.cb-menu { position: relative; flex-shrink: 0; }
+.cb-menu__btn {
+  width: 32px; height: 32px; border: none; background: none;
+  border-radius: var(--cb-radius-sm); color: var(--cb-ink-3); cursor: pointer;
+}
+.cb-menu__btn i.icon { margin: 0; }
+.cb-menu__btn:hover { background: var(--cb-surface); color: var(--cb-ink-2); }
+.cb-menu__backdrop { position: fixed; inset: 0; z-index: 30; }
+.cb-menu__list {
+  position: absolute; right: 0; top: 100%; margin-top: 4px;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: 10px; box-shadow: 0 10px 26px rgba(0,0,0,0.14);
+  padding: 6px; z-index: 31; min-width: 156px; display: flex; flex-direction: column;
+}
+.cb-menu__list button {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border: none; background: none; border-radius: 6px; font-size: 0.9rem;
+  color: var(--cb-ink); cursor: pointer; text-align: left; font-family: inherit;
+}
+.cb-menu__list button:hover { background: var(--cb-surface); }
+.cb-menu__list i.icon { margin: 0; width: 1.1em; }
+.cb-menu__danger { color: var(--cb-danger); }

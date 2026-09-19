@@ -8,6 +8,7 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook 
     const [draftName, setDraftName] = useState(name);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [remindersOpen, setRemindersOpen] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const onRenameSubmit = (e) => {
         e.preventDefault();
@@ -24,39 +25,47 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook 
     };
 
     return (
-        <div className="wb-card">
-            <div className="wb-card__row">
-                {renaming ? (
-                    <form className="wb-rename" onSubmit={onRenameSubmit}>
-                        <input autoFocus type="text" value={draftName}
-                            onChange={(e) => setDraftName(e.target.value)} />
-                        <button type="submit" className="wb-btn wb-btn--primary">Save</button>
-                        <button type="button" className="wb-btn" onClick={() => setRenaming(false)}>Cancel</button>
-                    </form>
-                ) : (
-                    <>
-                        {/* The wordbook name itself is the link (opens the wordbook). */}
-                        <div className="wb-card__info">
-                            <Link className="wb-card__title" to={`/wordbook/${name}`}>
-                                {name}
-                            </Link>
-                            <div className="wb-card__preview">{preview ? preview : 'No words yet'}</div>
-                        </div>
+        <div className="cb-book">
+            {renaming ? (
+                <form className="wb-rename" onSubmit={onRenameSubmit}>
+                    <input autoFocus type="text" value={draftName}
+                        onChange={(e) => setDraftName(e.target.value)} />
+                    <button type="submit" className="wb-btn wb-btn--primary">Save</button>
+                    <button type="button" className="wb-btn" onClick={() => setRenaming(false)}>Cancel</button>
+                </form>
+            ) : (
+                <div className="cb-book__row">
+                    {/* The cardbook name is the link that opens it. */}
+                    <div className="cb-book__info">
+                        <Link className="cb-book__title" to={`/wordbook/${name}`}>{name}</Link>
+                        <div className="cb-book__preview">{preview ? preview : 'Empty'}</div>
+                    </div>
 
-                        <div className="wb-actions">
-                            <button className="wb-action" onClick={() => setRemindersOpen((v) => !v)}>
-                                <i className="bell outline icon"></i>Reminders
-                            </button>
-                            <button className="wb-action" onClick={startRename}>
-                                <i className="edit icon"></i>Rename
-                            </button>
-                            <button className="wb-action wb-action--danger" onClick={() => setConfirmDelete(true)}>
-                                <i className="trash icon"></i>Delete
-                            </button>
-                        </div>
-                    </>
-                )}
-            </div>
+                    <div className="cb-menu">
+                        <button className="cb-menu__btn" aria-label="Cardbook options"
+                            onClick={() => setMenuOpen((v) => !v)}>
+                            <i className="ellipsis vertical icon"></i>
+                        </button>
+                        {menuOpen && (
+                            <>
+                                <div className="cb-menu__backdrop" onMouseDown={() => setMenuOpen(false)} />
+                                <div className="cb-menu__list">
+                                    <button onClick={() => { setRemindersOpen((v) => !v); setMenuOpen(false); }}>
+                                        <i className="bell outline icon"></i>Reminders
+                                    </button>
+                                    <button onClick={() => { startRename(); setMenuOpen(false); }}>
+                                        <i className="edit icon"></i>Rename
+                                    </button>
+                                    <button className="cb-menu__danger"
+                                        onClick={() => { setConfirmDelete(true); setMenuOpen(false); }}>
+                                        <i className="trash icon"></i>Delete
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {remindersOpen && (
                 <div className="wb-panel">
@@ -79,7 +88,7 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook 
             {confirmDelete && (
                 <div className="wb-panel wb-confirm">
                     <div className="wb-confirm__msg">
-                        Delete "{name}" and all its words? This can't be undone.
+                        Delete "{name}" and all its cards? This can't be undone.
                     </div>
                     <div className="wb-confirm__actions">
                         <button className="wb-btn" onClick={() => setConfirmDelete(false)}>Cancel</button>
