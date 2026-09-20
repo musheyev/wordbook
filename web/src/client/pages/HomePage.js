@@ -1,11 +1,16 @@
-import React, { useState }from 'react';
+import React, { useEffect } from 'react';
 import { connect } from 'react-redux';
-import { fetchWordData } from '../actions';
+import { fetchWordData, clearCurrentSelection } from '../actions';
 import Search from '../components/Search';
 import UserHistory from '../components/UserHistory';
 import SearchResult from '../components/SearchResult';
 
-const HomePage = ({ auth, currentWord, fetchWordData,  }) => {
+const HomePage = ({ auth, currentWord, fetchWordData, clearCurrentSelection }) => {
+
+    // Landing on Words starts fresh: drop any card/word selected elsewhere.
+    useEffect(() => {
+        clearCurrentSelection();
+    }, [clearCurrentSelection]);
 
     // function searchWordDefinitionOld(word) {
 
@@ -57,4 +62,4 @@ function mapStatetoProps(state) {
               };
 }
 
-export default connect(mapStatetoProps, { fetchWordData })(HomePage);
+export default connect(mapStatetoProps, { fetchWordData, clearCurrentSelection })(HomePage);

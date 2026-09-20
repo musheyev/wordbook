@@ -27,6 +27,14 @@ export const SET_CURRENT_WORDBOOK = "set_current_wordbook";
 // Shared JSON headers for POST bodies.
 const JSON_HEADERS = { headers: { 'content-type': 'application/json' } };
 
+// Clear the current word/card selection (e.g. when landing on the Words page,
+// so a card viewed inside a cardbook doesn't linger there).
+export const clearCurrentSelection = () => (dispatch) => {
+  dispatch({ type: SET_CURRENT_WORD, payload: '' });
+  dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'word' });
+  dispatch({ type: FETCH_CARD_DATA, payload: null });
+};
+
 export const FETCH_WORD_DATA = 'fetch_word_data';
 export const fetchWordData = (word) => async (dispatch, getState, api) => {
 

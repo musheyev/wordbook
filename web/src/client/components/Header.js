@@ -55,7 +55,7 @@ const Header = ({ auth, logoutCurrentUser, openCardEditor }) => {
             <div className="nav-items">
                 <NavLink to="/" end className={navClass}>
                     <i className="search icon"></i>
-                    <span className="nav-label">Search</span>
+                    <span className="nav-label">Words</span>
                 </NavLink>
 
                 {userExists && (
