@@ -25,8 +25,10 @@ const Header = ({ auth, logoutCurrentUser, openCardEditor }) => {
         : '';
 
     const onLogoutRequest = () => {
-        logoutCurrentUser();
-        navigate('/');
+        if (window.confirm('Log out of Cardbook?')) {
+            logoutCurrentUser();
+            navigate('/');
+        }
     };
 
     return (
