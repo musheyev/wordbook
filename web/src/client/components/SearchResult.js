@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { connect } from 'react-redux';
 import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard } from '../actions';
 import Definition from './Definition';
-import WordbookSelection from './WordbookSelection';
+import AddToCardbook from './AddToCardbook';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
 
 function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, auth, wordbooks,
     fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard }) {
-    const [wordbookSelectionPopupPosition, setPopupPosition] = useState(0);
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -42,21 +41,19 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     // the selected id) show a blank pane rather than the raw card_id (a GUID).
     const cardReady = isCard && currentCard != null && currentCard.card_id === currentWord;
 
-    // Shared "Add to wordbook" icon button + popup (used by both words and cards).
-    // Recompute the popup position on every click so it always opens next to the
-    // button (the old one-time capture went stale when the button moved).
-    const addToWordbookButton = (
-        <button className="card-tool" title="Add to wordbook" aria-label="Add to wordbook"
-            onClick={() => setShouldDisplayPopup((v) => !v)}>
-            <i className="bookmark outline icon"></i>
-        </button>
+    // Shared "Add to cardbook" bookmark button + popover (used by both words and
+    // cards). The popover is anchored to the button so it drops right under it.
+    const addToWordbookControl = (
+        <span className="a2c-anchor">
+            <button className="card-tool" title="Add to cardbook" aria-label="Add to cardbook"
+                onClick={() => setShouldDisplayPopup((v) => !v)}>
+                <i className="bookmark outline icon"></i>
+            </button>
+            {shouldDisplayPopup && (
+                <AddToCardbook align="left" onClose={() => setShouldDisplayPopup(false)} />
+            )}
+        </span>
     );
-
-    const wordbookPopup = shouldDisplayPopup ? (
-        <WordbookSelection left={wordbookSelectionPopupPosition}
-            wordbooks={wordbooks}
-            onDone={() => setShouldDisplayPopup(false)} />
-    ) : "";
 
     // ---- Card view ---------------------------------------------------------
     if (isCard) {
@@ -81,14 +78,14 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             onClick={() => setConfirmingDelete(true)}>
                             <i className="trash alternate outline icon"></i>
                         </button>
-                        {addToWordbookButton}
+                        {addToWordbookControl}
                     </div>
                 </div>
 
                 {confirmingDelete && (
                     <div className="card-confirm">
                         <span className="card-confirm__msg">
-                            Delete "{currentCard.title}" from every wordbook? This can't be undone.
+                            Delete "{currentCard.title}" from every cardbook? This can't be undone.
                         </span>
                         <span className="card-confirm__actions">
                             <button className="card-confirm__cancel"
@@ -98,8 +95,6 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         </span>
                     </div>
                 )}
-
-                {wordbookPopup}
 
                 {/* Scrollbar lives on the card content so the header/toolbar stays put. */}
                 <div className="card-content card-content--scroll" ref={cardRef}
@@ -117,10 +112,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     <>
                         <div className="current-word-container">
                             <div><h2>{currentWord}</h2> </div>
-                            {addToWordbookButton}
+                            {addToWordbookControl}
                         </div>
-
-                        {wordbookPopup}
                     </>
                     : ""}
 

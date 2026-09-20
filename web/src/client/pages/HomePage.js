@@ -1,16 +1,18 @@
 import React, { useEffect } from 'react';
 import { connect } from 'react-redux';
-import { fetchWordData, clearCurrentSelection } from '../actions';
+import { fetchWordData, clearCurrentSelection, closeCardEditor } from '../actions';
 import Search from '../components/Search';
 import UserHistory from '../components/UserHistory';
 import SearchResult from '../components/SearchResult';
 
-const HomePage = ({ auth, currentWord, fetchWordData, clearCurrentSelection }) => {
+const HomePage = ({ auth, currentWord, fetchWordData, clearCurrentSelection, closeCardEditor }) => {
 
-    // Landing on Words starts fresh: drop any card/word selected elsewhere.
+    // Landing on Words starts fresh: drop any card/word selected elsewhere and
+    // close any in-place card editor left open inside a cardbook.
     useEffect(() => {
         clearCurrentSelection();
-    }, [clearCurrentSelection]);
+        closeCardEditor();
+    }, [clearCurrentSelection, closeCardEditor]);
 
     // function searchWordDefinitionOld(word) {
 
@@ -62,4 +64,4 @@ function mapStatetoProps(state) {
               };
 }
 
-export default connect(mapStatetoProps, { fetchWordData, clearCurrentSelection })(HomePage);
+export default connect(mapStatetoProps, { fetchWordData, clearCurrentSelection, closeCardEditor })(HomePage);

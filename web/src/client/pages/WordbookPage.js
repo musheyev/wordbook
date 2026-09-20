@@ -6,6 +6,7 @@ import { SET_CURRENT_WORDBOOK } from '../actions';
 import { fetchWordbookWords, openCardEditor } from '../actions';
 import WordList from '../components/WordList';
 import SearchResult from '../components/SearchResult';
+import CardEditorInline from '../components/CardEditorInline';
 
 class WordbookPage extends Component {
     state = { myWordbook: '' }
@@ -40,10 +41,13 @@ class WordbookPage extends Component {
 
     render() {
 
+        const { cardEditorOpen } = this.props;
+
         return (
-            <div className="cb-detail">
+            <div className={`cb-detail${cardEditorOpen ? ' cb-detail--editing' : ''}`}>
                 {/* Mobile-only: cardbook title, add-card, and the swipeable card
-                    strip. On desktop these live in the left nav rail instead. */}
+                    strip. On desktop these live in the left nav rail instead.
+                    Hidden while editing so the in-place editor owns the pane. */}
                 <div className="cb-mbar">
                     <div className="cb-mbar__head">
                         <h1 className="cb-mbar__title">{this.props.currentWordbook}</h1>
@@ -55,7 +59,11 @@ class WordbookPage extends Component {
                     <WordList wordbook={this.state.myWordbook} />
                 </div>
 
-                {this.props.wordbookWords.length != 0 ? (
+                {cardEditorOpen ? (
+                    <section id="worddefinition">
+                        <CardEditorInline />
+                    </section>
+                ) : this.props.wordbookWords.length != 0 ? (
                     <section id="worddefinition">
                         <SearchResult />
                     </section>
@@ -69,8 +77,8 @@ class WordbookPage extends Component {
     }
 }
 
-function mapStatetoProps({ auth, currentWordbook, currentWord, wordbookWords, wordbookWordsInProgress }, ownProps) {
-    return { auth, currentWordbook, currentWord, wordbookWords, wordbookWordsInProgress };
+function mapStatetoProps({ auth, currentWordbook, currentWord, wordbookWords, wordbookWordsInProgress, cardEditor }, ownProps) {
+    return { auth, currentWordbook, currentWord, wordbookWords, wordbookWordsInProgress, cardEditorOpen: cardEditor.open };
 }
 
 //function loadData( { dispatch }) {
