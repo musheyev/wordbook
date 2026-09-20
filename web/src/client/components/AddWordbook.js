@@ -41,8 +41,8 @@ class AddWordbook extends React.Component {
         return (
             <div className="cb-addwb">
                 <form className="ui form-inline" onSubmit={this.onFormSubmit}>
-                    <label>{this.isEmptyOrSpaces(this.props.displayLabel) ? "New cardbook" : this.props.displayLabel}</label>
-                    <input type="text" size="40" placeholder="Cardbook name" value={this.state.name}
+                    <label>{this.isEmptyOrSpaces(this.props.displayLabel) ? "New notebook" : this.props.displayLabel}</label>
+                    <input type="text" size="40" placeholder="Notebook name" value={this.state.name}
                      onChange={this.onWordbookNameChange}></input>
                     <button>Add</button>
                 </form>

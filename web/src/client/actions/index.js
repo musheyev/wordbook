@@ -2,12 +2,13 @@ import axios from 'axios';
 
 export const FETCH_USERS = 'fetch_users';
 export const fetchUsers = () => async (dispatch, getState, api) => {
-  const res = await api.get('/users');
-
-  dispatch({
-    type: FETCH_USERS,
-    payload: res
-  });
+  try {
+    const res = await api.get('/users');
+    dispatch({ type: FETCH_USERS, payload: res });
+  } catch (err) {
+    // 401/403 (not admin) or 500 — show an empty list rather than crashing.
+    dispatch({ type: FETCH_USERS, payload: { data: [] } });
+  }
 };
 
 export const FETCH_CURRENT_USER = 'fetch_current_user';
@@ -216,12 +217,13 @@ export const logoutCurrentUser = () => async (dispatch, getState, api) => {
 
 export const FETCH_ADMINS = 'fetch_admins';
 export const fetchAdmins = () => async (dispatch, getState, api) => {
-  const res = await api.get('/admins');
-
-  dispatch({
-    type: FETCH_ADMINS,
-    payload: res
-  });
+  try {
+    const res = await api.get('/admins');
+    dispatch({ type: FETCH_ADMINS, payload: res });
+  } catch (err) {
+    // 401/403 (not admin) or 500 — show an empty list rather than crashing.
+    dispatch({ type: FETCH_ADMINS, payload: { data: [] } });
+  }
 };
 
 export const ADD_WORDBOOK = 'add_wordbook';

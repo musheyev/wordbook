@@ -18,7 +18,7 @@ class AccountPage extends Component {
         return (
             <div className="cb-account">
                 <div className="cb-account__head">
-                    <h1 className="cb-page-title">My Cardbooks</h1>
+                    <h1 className="cb-page-title">My Notebooks</h1>
                 </div>
 
                 <AddWordbook />
@@ -31,7 +31,7 @@ class AccountPage extends Component {
                     </div>
                 ) : Array.isArray(wordbooks) ? (
                     <div className="cb-empty">
-                        No cardbooks yet — create one above to start collecting words and cards.
+                        No notebooks yet — create one above to start collecting words and notes.
                     </div>
                 ) : ""}
             </div>

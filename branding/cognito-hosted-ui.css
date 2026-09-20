@@ -1,0 +1,69 @@
+/* Cardbook branding for the Cognito classic Hosted UI.
+   Only AWS-whitelisted selectors/properties are used, so this passes
+   set-ui-customization validation. Colors mirror the app's --cb-* tokens. */
+
+.background-customizable {
+  background-color: #f6f8fb;
+}
+
+.banner-customizable {
+  background-color: #ffffff;
+  padding: 24px 0;
+}
+
+.logo-customizable {
+  max-width: 132px;
+  max-height: 64px;
+}
+
+.label-customizable {
+  color: #1f2430;
+  font-weight: 500;
+}
+
+.textDescription-customizable {
+  color: #545c6b;
+}
+
+.idpDescription-customizable {
+  color: #545c6b;
+}
+
+.legalText-customizable {
+  color: #99a1af;
+}
+
+.inputField-customizable {
+  color: #1f2430;
+  border: 1px solid #d4d9e2;
+  border-radius: 8px;
+}
+
+.inputField-customizable:focus {
+  border-color: #2563eb;
+}
+
+.submitButton-customizable {
+  color: #ffffff;
+  background-color: #2563eb;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.submitButton-customizable:hover {
+  background-color: #1d4ed8;
+}
+
+.errorMessage-customizable {
+  color: #dc2626;
+  background-color: #fdecec;
+  border-radius: 8px;
+}
+
+.socialButton-customizable {
+  border-radius: 8px;
+}
+
+.redirect-customizable {
+  color: #2563eb;
+}

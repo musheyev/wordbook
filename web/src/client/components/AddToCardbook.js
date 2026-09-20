@@ -65,7 +65,7 @@ function AddToCardbook({
             <div className="a2c__backdrop" onMouseDown={onClose} />
             <div className="a2c__panel" onMouseDown={(e) => e.stopPropagation()}>
                 <div className="a2c__head">
-                    <span className="a2c__title">Add to cardbook</span>
+                    <span className="a2c__title">Add to notebook</span>
                     <button type="button" className="a2c__close" aria-label="Close" onClick={onClose}>
                         <i className="times icon"></i>
                     </button>
@@ -74,7 +74,7 @@ function AddToCardbook({
                 {names.length > 6 && (
                     <div className="a2c__filter">
                         <i className="search icon"></i>
-                        <input type="text" placeholder="Filter cardbooks"
+                        <input type="text" placeholder="Filter notebooks"
                             value={filter} onChange={(e) => setFilter(e.target.value)} />
                     </div>
                 )}
@@ -82,7 +82,7 @@ function AddToCardbook({
                 <div className="a2c__list">
                     {visible.length === 0 ? (
                         <div className="a2c__empty">
-                            {names.length === 0 ? 'No cardbooks yet.' : 'No cardbooks match.'}
+                            {names.length === 0 ? 'No notebooks yet.' : 'No notebooks match.'}
                         </div>
                     ) : visible.map((name) => {
                         const on = isIn(name);
@@ -102,14 +102,14 @@ function AddToCardbook({
                 <div className="a2c__foot">
                     {showNew ? (
                         <form className="a2c__new" onSubmit={submitNew}>
-                            <input type="text" autoFocus placeholder="Cardbook name"
+                            <input type="text" autoFocus placeholder="Notebook name"
                                 value={newName} onChange={(e) => setNewName(e.target.value)} />
                             <button type="submit" className="a2c__new-add">Add</button>
                         </form>
                     ) : (
                         <button type="button" className="a2c__newbtn" onClick={() => setShowNew(true)}>
                             <i className="plus icon"></i>
-                            <span>New cardbook</span>
+                            <span>New notebook</span>
                         </button>
                     )}
                 </div>

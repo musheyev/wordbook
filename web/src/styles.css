@@ -125,6 +125,8 @@
   .nav-spacer { display: none; }
   .nav-user { display: none; }
   .app-main { padding-bottom: 64px; }
+  /* No bottom tab bar before login, so no reserved space for it. */
+  .app-shell--norail .app-main { padding-bottom: 0; }
 }
 
 .ui.menu {
@@ -963,6 +965,178 @@ nav-button-as-link {
 }
 
 /* ---------------------------------------------------------------------------
+   Branded confirmation dialog (replaces window.confirm)
+   --------------------------------------------------------------------------- */
+.cb-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 20, 35, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.cb-dialog {
+  width: 100%;
+  max-width: 360px;
+  background: var(--cb-surface-2);
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  box-shadow: 0 16px 40px rgba(15, 20, 35, 0.24);
+  padding: 20px 20px 16px;
+}
+.cb-dialog__title { margin: 0 0 8px; font-size: 1.05rem; font-weight: 600; color: var(--cb-ink); }
+.cb-dialog__msg { margin: 0 0 18px; font-size: 0.9rem; line-height: 1.5; color: var(--cb-ink-2); }
+.cb-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+.cb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--cb-radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+.cb-btn--ghost {
+  background: var(--cb-surface-2);
+  border-color: var(--cb-border-strong);
+  color: var(--cb-ink-2);
+}
+.cb-btn--ghost:hover { background: var(--cb-surface); }
+.cb-btn--accent { background: var(--cb-accent); color: var(--cb-accent-ink); }
+.cb-btn--accent:hover { background: #1d4ed8; }
+.cb-btn--danger { background: var(--cb-danger); color: #ffffff; }
+.cb-btn--danger:hover { background: #b91c1c; }
+
+/* ---------------------------------------------------------------------------
+   New-user onboarding ("Get started") on the Words page
+   --------------------------------------------------------------------------- */
+.cb-onboard { max-width: 680px; margin: 20px 0 0; }
+.cb-onboard__head { margin-bottom: 14px; }
+.cb-onboard__title { font-size: 1.3rem; font-weight: 600; color: var(--cb-ink); margin-bottom: 4px; }
+.cb-onboard__sub { font-size: 0.95rem; color: var(--cb-ink-2); }
+.cb-onboard__steps { display: flex; flex-direction: column; gap: 10px; }
+.cb-step {
+  display: flex; align-items: flex-start; gap: 14px;
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+  padding: 14px 16px; background: var(--cb-surface);
+}
+.cb-step__num {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--cb-accent-weak); color: var(--cb-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; font-weight: 600;
+}
+.cb-step__body { flex: 1; min-width: 0; }
+.cb-step__title { font-size: 0.95rem; font-weight: 600; color: var(--cb-ink); }
+.cb-step__text { font-size: 0.85rem; color: var(--cb-ink-2); line-height: 1.5; margin-top: 2px; }
+.cb-step__action { flex-shrink: 0; align-self: center; }
+.cb-step__form { display: flex; gap: 8px; margin-top: 10px; }
+.cb-step__input {
+  flex: 1; min-width: 0; padding: 8px 12px;
+  border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  font-size: 0.9rem; color: var(--cb-ink);
+}
+.cb-step__input:focus { outline: none; border-color: var(--cb-accent); box-shadow: 0 0 0 2px var(--cb-accent-weak); }
+.cb-step--locked { opacity: 0.7; }
+.cb-step--locked .cb-step__num {
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border-strong); color: var(--cb-ink-3);
+}
+.cb-btn:disabled { opacity: 0.5; cursor: default; }
+@media (max-width: 768px) {
+  .cb-step { flex-wrap: wrap; }
+  .cb-step__action { width: 100%; margin-top: 8px; }
+}
+
+/* ---------------------------------------------------------------------------
+   Word of the day (fills the signed-in Words page when no word is selected)
+   --------------------------------------------------------------------------- */
+.wotd { max-width: 680px; margin: 24px 0 0; }
+.wotd__label {
+  font-size: 0.68rem; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--cb-ink-3); margin-bottom: 10px;
+}
+.wotd__card {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+  background: var(--cb-surface); padding: 14px 16px;
+}
+.wotd__word { font-size: 1.05rem; font-weight: 600; color: var(--cb-ink); margin-bottom: 3px; }
+.wotd__def { font-size: 0.88rem; color: var(--cb-ink-2); line-height: 1.5; }
+.wotd__go { flex-shrink: 0; }
+@media (max-width: 768px) {
+  .wotd__card { flex-direction: column; align-items: flex-start; }
+  .wotd__go { width: 100%; }
+}
+
+/* ---------------------------------------------------------------------------
+   Landing (empty-state) intro on the Words page
+   --------------------------------------------------------------------------- */
+.cb-landing { max-width: 680px; margin: 0 auto; padding: 8px 0 40px; }
+.cb-landing__hero { text-align: center; padding: 16px 12px 4px; }
+.cb-landing__eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--cb-accent); font-size: 0.85rem; font-weight: 500; margin-bottom: 12px;
+}
+.cb-landing__eyebrow i.icon { margin: 0; }
+.cb-landing__title {
+  font-size: 1.7rem; font-weight: 600; color: var(--cb-ink);
+  margin: 0 0 10px; line-height: 1.2;
+}
+.cb-landing__sub {
+  font-size: 1rem; color: var(--cb-ink-2); line-height: 1.6;
+  margin: 0 auto; max-width: 520px;
+}
+
+.cb-landing__features {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  padding: 24px 0 8px;
+}
+.cb-landing__feature {
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+  padding: 16px; background: var(--cb-surface);
+}
+.cb-landing__feature i.icon { margin: 0; color: var(--cb-accent); font-size: 1.2rem; }
+.cb-landing__feature h3 { font-size: 0.95rem; font-weight: 600; color: var(--cb-ink); margin: 8px 0 4px; }
+.cb-landing__feature p { font-size: 0.85rem; color: var(--cb-ink-2); line-height: 1.5; margin: 0; }
+
+.cb-landing__preview {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px 0 4px;
+}
+.cb-landing__pv { border: 1px solid var(--cb-border); border-radius: var(--cb-radius); overflow: hidden; }
+.cb-landing__pv-cap {
+  font-size: 0.68rem; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--cb-ink-3); padding: 8px 12px; border-bottom: 1px solid var(--cb-border);
+}
+.cb-landing__pv-body { padding: 12px; }
+.cb-landing__pv-card {
+  border-left: 3px solid #f0b429; background: #fffdf7;
+  padding: 10px 12px; border-radius: 4px;
+}
+.cb-landing__pv-title { font-size: 0.95rem; font-weight: 600; color: var(--cb-ink); margin-bottom: 3px; }
+.cb-landing__pv-text { font-size: 0.82rem; color: var(--cb-ink-2); line-height: 1.5; }
+
+.cb-landing__cta {
+  display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 20px; padding: 18px;
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius); background: var(--cb-surface);
+}
+.cb-landing__cta span { font-size: 0.92rem; color: var(--cb-ink-2); }
+
+@media (max-width: 768px) {
+  .cb-landing__features { grid-template-columns: 1fr; }
+  .cb-landing__preview { grid-template-columns: 1fr; }
+  .cb-landing__title { font-size: 1.4rem; }
+  .cb-landing__cta { flex-direction: column; }
+  .cb-landing__cta .cb-btn { width: 100%; }
+}
+
+/* ---------------------------------------------------------------------------
    Add-to-cardbook picker: desktop popover / mobile bottom sheet
    --------------------------------------------------------------------------- */
 .a2c__backdrop {
@@ -1441,6 +1615,28 @@ nav-button-as-link {
 .cb-account__head { margin-bottom: 16px; }
 .cb-page-title { font-size: 1.6rem; font-weight: 600; color: var(--cb-ink); margin: 0; }
 .cb-page-sub { font-size: 0.85rem; color: var(--cb-ink-3); margin-top: 2px; }
+
+/* Admin: users list (/users) */
+.cb-users { padding: 24px 20px 44px; max-width: 720px; }
+.cb-users__head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+.cb-users__count { font-size: 0.85rem; color: var(--cb-ink-3); }
+.cb-users__hint { color: var(--cb-ink-3); font-size: 0.95rem; padding: 8px 2px; }
+.cb-users__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cb-user {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius); padding: 12px 14px;
+}
+.cb-user:hover { border-color: var(--cb-border-strong); }
+.cb-user__avatar {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--cb-accent-weak); color: var(--cb-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; font-weight: 600;
+}
+.cb-user__meta { display: flex; flex-direction: column; min-width: 0; }
+.cb-user__name { font-size: 0.95rem; font-weight: 500; color: var(--cb-ink); }
+.cb-user__sub { font-size: 0.8rem; color: var(--cb-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .cb-addwb {
   display: flex;

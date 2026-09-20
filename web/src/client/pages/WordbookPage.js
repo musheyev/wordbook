@@ -51,7 +51,7 @@ class WordbookPage extends Component {
                 <div className="cb-mbar">
                     <div className="cb-mbar__head">
                         <h1 className="cb-mbar__title">{this.props.currentWordbook}</h1>
-                        <button type="button" className="cb-mbar__add" title="New card"
+                        <button type="button" className="cb-mbar__add" title="New note"
                             onClick={() => this.props.openCardEditor({ mode: 'create', wordbook: this.state.myWordbook })}>
                             <i className="plus icon"></i>
                         </button>
@@ -69,7 +69,7 @@ class WordbookPage extends Component {
                     </section>
                 ) : !this.props.wordbookWordsInProgress ? (
                     <div className="cb-detail__empty">
-                        This cardbook is empty. Search a word and add it, or create a card.
+                        This notebook is empty. Search a word and add it, or create a note.
                     </div>
                 ) : ""}
             </div>

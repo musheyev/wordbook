@@ -45,7 +45,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     // cards). The popover is anchored to the button so it drops right under it.
     const addToWordbookControl = (
         <span className="a2c-anchor">
-            <button className="card-tool" title="Add to cardbook" aria-label="Add to cardbook"
+            <button className="card-tool" title="Add to notebook" aria-label="Add to notebook"
                 onClick={() => setShouldDisplayPopup((v) => !v)}>
                 <i className="bookmark outline icon"></i>
             </button>
@@ -70,11 +70,11 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     <div className="card-header-actions">
                         {/* Edit / Delete live up here (as a toolbar) so they stay
                             visible no matter how long the card is. */}
-                        <button className="card-tool" title="Edit card" aria-label="Edit card"
+                        <button className="card-tool" title="Edit note" aria-label="Edit note"
                             onClick={() => openCardEditor({ mode: 'edit', card: currentCard })}>
                             <i className="edit icon"></i>
                         </button>
-                        <button className="card-tool card-tool--danger" title="Delete card" aria-label="Delete card"
+                        <button className="card-tool card-tool--danger" title="Delete note" aria-label="Delete note"
                             onClick={() => setConfirmingDelete(true)}>
                             <i className="trash alternate outline icon"></i>
                         </button>
@@ -85,7 +85,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                 {confirmingDelete && (
                     <div className="card-confirm">
                         <span className="card-confirm__msg">
-                            Delete "{currentCard.title}" from every cardbook? This can't be undone.
+                            Delete "{currentCard.title}" from every notebook? This can't be undone.
                         </span>
                         <span className="card-confirm__actions">
                             <button className="card-confirm__cancel"

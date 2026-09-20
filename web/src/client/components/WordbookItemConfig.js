@@ -42,7 +42,7 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook 
                     </div>
 
                     <div className="cb-menu">
-                        <button className="cb-menu__btn" aria-label="Cardbook options"
+                        <button className="cb-menu__btn" aria-label="Notebook options"
                             onClick={() => setMenuOpen((v) => !v)}>
                             <i className="ellipsis vertical icon"></i>
                         </button>
@@ -88,7 +88,7 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook 
             {confirmDelete && (
                 <div className="wb-panel wb-confirm">
                     <div className="wb-confirm__msg">
-                        Delete "{name}" and all its cards? This can't be undone.
+                        Delete "{name}" and all its notes? This can't be undone.
                     </div>
                     <div className="wb-confirm__actions">
                         <button className="wb-btn" onClick={() => setConfirmDelete(false)}>Cancel</button>

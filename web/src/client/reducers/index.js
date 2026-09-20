@@ -2,6 +2,7 @@
 import { combineReducers } from 'redux';
 import usersReducer from './userReducer';
 import authReducer from './authReducer';
+import isAdminReducer from './isAdminReducer';
 import adminsReducer from './adminsReducer';
 import wordReducer from "./wordReducer";
 import currentWordReducer from "./currentWordReducer";
@@ -19,6 +20,7 @@ import errorReducer from './errorReducer';
 export default combineReducers({
     users: usersReducer,
     auth : authReducer,
+    isAdmin: isAdminReducer,
     admins: adminsReducer,
     word: wordReducer,
     currentWord: currentWordReducer,

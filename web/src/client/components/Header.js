@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { logoutCurrentUser, openCardEditor } from '../actions';
 import WordList from './WordList';
+import ConfirmDialog from './ConfirmDialog';
 
 const COGNITO_LOGIN =
     'https://auth.musheye.com/login?client_id=31i8vt5m567ch5ciedmeskpk67&response_type=code&scope=aws.cognito.signin.user.admin+email+openid+profile&redirect_uri=http://localhost:4000/auth';
@@ -13,7 +14,7 @@ const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
 // Cardbook navigation. A left rail on desktop, a bottom tab bar on mobile.
 // Inside a cardbook the rail becomes contextual (desktop only): back link,
 // cardbook name, add-card, and the card list — so there is a single left panel.
-const Header = ({ auth, logoutCurrentUser, openCardEditor }) => {
+const Header = ({ auth, isAdmin, logoutCurrentUser, openCardEditor }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -24,30 +25,37 @@ const Header = ({ auth, logoutCurrentUser, openCardEditor }) => {
         ? decodeURIComponent(location.pathname.slice('/wordbook/'.length))
         : '';
 
-    const onLogoutRequest = () => {
-        if (window.confirm('Log out of Cardbook?')) {
-            logoutCurrentUser();
-            navigate('/');
-        }
+    const [confirmingLogout, setConfirmingLogout] = React.useState(false);
+
+    const onLogoutConfirmed = () => {
+        setConfirmingLogout(false);
+        logoutCurrentUser();
+        navigate('/');
     };
+
+    // Before login there is no nav: the landing page carries the brand and the
+    // sign-up / log-in actions, so the rail (and mobile tab bar) is hidden.
+    if (!userExists) {
+        return null;
+    }
 
     return (
         <nav className={`nav-rail${inCardbook ? ' nav-rail--ctx' : ''}`}>
             <Link to="/" className="nav-brand">
                 <i className="book icon"></i>
-                Cardbook
+                Remembrancer
             </Link>
 
             {inCardbook && userExists && (
                 <div className="nav-ctx">
                     <div className="nav-ctx__head">
                         <span className="nav-ctx__title" title={cardbookName}>{cardbookName}</span>
-                        <button type="button" className="nav-ctx__add" title="New card"
+                        <button type="button" className="nav-ctx__add" title="New note"
                             onClick={() => openCardEditor({ mode: 'create', wordbook: cardbookName })}>
                             <i className="plus icon"></i>
                         </button>
                     </div>
-                    <div className="nav-ctx__label">Cards</div>
+                    <div className="nav-ctx__label">Notes</div>
                     <div className="nav-ctx__list">
                         <WordList wordbook={cardbookName} />
                     </div>
@@ -63,7 +71,14 @@ const Header = ({ auth, logoutCurrentUser, openCardEditor }) => {
                 {userExists && (
                     <NavLink to="/account" className={navClass}>
                         <i className="clone outline icon"></i>
-                        <span className="nav-label">My Cardbooks</span>
+                        <span className="nav-label">My Notebooks</span>
+                    </NavLink>
+                )}
+
+                {userExists && isAdmin && (
+                    <NavLink to="/users" className={navClass}>
+                        <i className="users icon"></i>
+                        <span className="nav-label">Users</span>
                     </NavLink>
                 )}
 
@@ -75,7 +90,8 @@ const Header = ({ auth, logoutCurrentUser, openCardEditor }) => {
                             <i className="user circle icon"></i>
                             <span className="nav-label">{auth}</span>
                         </span>
-                        <button type="button" className="nav-item nav-logout" onClick={onLogoutRequest}>
+                        <button type="button" className="nav-item nav-logout"
+                            onClick={() => setConfirmingLogout(true)}>
                             <i className="sign out icon"></i>
                             <span className="nav-label">Log out</span>
                         </button>
@@ -93,12 +109,23 @@ const Header = ({ auth, logoutCurrentUser, openCardEditor }) => {
                     </>
                 )}
             </div>
+
+            <ConfirmDialog
+                open={confirmingLogout}
+                title="Log out?"
+                message="You'll need to sign in again to open your notebooks."
+                confirmLabel="Log out"
+                cancelLabel="Cancel"
+                tone="accent"
+                onConfirm={onLogoutConfirmed}
+                onCancel={() => setConfirmingLogout(false)}
+            />
         </nav>
     );
 };
 
-function mapStateToProps({ auth }) {
-    return { auth };
+function mapStateToProps({ auth, isAdmin }) {
+    return { auth, isAdmin };
 }
 
 export default connect(mapStateToProps, { logoutCurrentUser, openCardEditor })(Header);

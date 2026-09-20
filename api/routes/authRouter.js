@@ -94,7 +94,11 @@ authRouter.get("/current_user", function (req, res) {
             .then(decodedToken => {
 
                 const { "cognito:username": userName } = decodedToken;
-                res.send(userName);
+                // Admin = member of the "admins" Cognito group (claim rides in
+                // the token after the user re-logs in once added to the group).
+                const groups = decodedToken["cognito:groups"] || [];
+                const isAdmin = Array.isArray(groups) && groups.includes("admins");
+                res.json({ username: userName || "", isAdmin });
             })
             .catch((err) => {
                 if (err.response != null && err.response.data != null) {
@@ -105,13 +109,13 @@ authRouter.get("/current_user", function (req, res) {
                 };
 
                 res.clearCookie("id_token");
-                res.send("");
+                res.json({ username: "", isAdmin: false });
             });
 
 
     }
     else {
-        res.send("");
+        res.json({ username: "", isAdmin: false });
     }
 
 });

@@ -47,7 +47,7 @@ function CardEditorInline({ cardEditor, closeCardEditor, createCard, updateCard,
             <input
                 className="card-editor__title"
                 type="text"
-                placeholder="Card title"
+                placeholder="Note title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 autoFocus
@@ -55,13 +55,13 @@ function CardEditorInline({ cardEditor, closeCardEditor, createCard, updateCard,
 
             <div className="card-editor__actions">
                 {isEdit && (
-                    <button className="card-tool card-tool--danger" title="Delete card"
-                        aria-label="Delete card" onClick={() => setConfirmingDelete(true)}>
+                    <button className="card-tool card-tool--danger" title="Delete note"
+                        aria-label="Delete note" onClick={() => setConfirmingDelete(true)}>
                         <i className="trash alternate outline icon"></i>
                     </button>
                 )}
                 <span className="a2c-anchor">
-                    <button className="card-tool" title="Add to cardbook" aria-label="Add to cardbook"
+                    <button className="card-tool" title="Add to notebook" aria-label="Add to notebook"
                         onClick={() => setShowWbPopup((v) => !v)}>
                         <i className="bookmark outline icon"></i>
                     </button>
@@ -87,7 +87,7 @@ function CardEditorInline({ cardEditor, closeCardEditor, createCard, updateCard,
             {confirmingDelete && isEdit && (
                 <div className="card-confirm">
                     <span className="card-confirm__msg">
-                        Delete "{card.title}" from every cardbook? This can't be undone.
+                        Delete "{card.title}" from every notebook? This can't be undone.
                     </span>
                     <span className="card-confirm__actions">
                         <button className="card-confirm__cancel"
