@@ -19,7 +19,6 @@ class AccountPage extends Component {
             <div className="cb-account">
                 <div className="cb-account__head">
                     <h1 className="cb-page-title">My Cardbooks</h1>
-                    <div className="cb-page-sub">{this.props.auth}</div>
                 </div>
 
                 <AddWordbook />
