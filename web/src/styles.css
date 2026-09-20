@@ -241,24 +241,27 @@ nav-button-as-link {
 .history__more { margin-top: 12px; font-size: 0.85rem; color: var(--cb-accent); }
 
   .search-result {
-    clear: left;
     position: relative;
-    top: 20px;
-    left: 10px;
-
-    line-height: 1.4;
-
+    line-height: 1.5;
   }
 
   .search-result h2 {
-   font-size: 14px;
-
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--cb-ink);
+    margin: 0;
   }
 
   .source-dictionary {
-    color: rgb(53, 50, 50);
-    background-color: honeydew;
-    
+    display: inline-block;
+    color: var(--cb-ink-2);
+    background: var(--cb-surface);
+    border: 1px solid var(--cb-border);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-style: normal;
+    margin: 12px 0 4px;
   }
 
   img {
@@ -386,45 +389,69 @@ nav-button-as-link {
 }
 
 /* wordbook page */
-#wordbook {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-
-  
+/* ---- Cardbook detail (page 4) ---- */
+.cb-detail { display: flex; flex-direction: column; }
+#worddefinition { padding: 20px 26px; min-width: 0; }
+.cb-detail__empty {
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--cb-ink-3);
+  font-size: 1rem;
 }
 
-#wordbookmain {
-  display: flex;
-  flex-direction: row;
-  padding: 10px;
-  
+/* Desktop: the left rail becomes the cardbook's context (single left panel) */
+.nav-ctx { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 4px 6px 6px; }
+.nav-back {
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  color: var(--cb-ink-2); font-size: 0.85rem; padding: 6px 8px; border-radius: var(--cb-radius-sm);
+}
+.nav-back i.icon { margin: 0; }
+.nav-back:hover { color: var(--cb-accent); }
+.nav-ctx__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 8px; }
+.nav-ctx__title { font-size: 1.05rem; font-weight: 600; color: var(--cb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-ctx__add {
+  flex-shrink: 0; width: 28px; height: 28px; border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm); background: var(--cb-surface-2); color: var(--cb-accent);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.nav-ctx__add i.icon { margin: 0; }
+.nav-ctx__add:hover { background: var(--cb-accent-weak); }
+.nav-ctx__label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--cb-ink-3); padding: 0 8px 6px; }
+.nav-ctx__list { flex: 1; min-height: 0; overflow-y: auto; }
+
+@media (min-width: 769px) {
+  .nav-rail--ctx .nav-brand { display: none; }
+  .nav-rail--ctx .nav-items { flex: 0 0 auto; border-top: 1px solid var(--cb-border); }
+  .nav-rail--ctx .nav-items .nav-spacer { display: none; }
+}
+@media (max-width: 768px) {
+  .nav-ctx { display: none; }
 }
 
-#worddefinition {
-  padding: 10px 20px;
+/* Mobile: cardbook title + add + swipeable card strip live in the content */
+.cb-mbar { display: none; }
+@media (max-width: 768px) {
+  .cb-mbar { display: block; border-bottom: 1px solid var(--cb-border); padding-bottom: 6px; }
+  .cb-mbar__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px 6px; }
+  .cb-mbar__title { font-size: 1.2rem; font-weight: 600; color: var(--cb-ink); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cb-mbar__add {
+    flex-shrink: 0; width: 32px; height: 32px; border: 1px solid var(--cb-border);
+    border-radius: var(--cb-radius-sm); background: var(--cb-surface-2); color: var(--cb-accent); cursor: pointer;
+  }
+  .cb-mbar__add i.icon { margin: 0; }
 }
 
-#wordbookwords {
-  padding: 10px 20px;
-}
-
+/* Title on its own row, actions on a separate row below (no competing). */
 .current-word-container {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px 15px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
-/* push the "Add to Wordbook" button (and the card toolbar) to the far right */
-.current-word-container > div:last-child {
-  margin-left: auto;
-}
-
-/* Card header toolbar: Edit / Delete icon buttons + Add to Wordbook. */
-.card-heading { min-width: 0; }
+.card-heading { min-width: 0; max-width: 100%; }
 .card-header-actions {
   display: flex;
   align-items: center;
@@ -437,15 +464,15 @@ nav-button-as-link {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border: 1px solid #d9dbe0;
-  border-radius: 6px;
-  background: #fff;
-  color: #2f6fb3;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  background: var(--cb-surface-2);
+  color: var(--cb-accent);
   cursor: pointer;
 }
 .card-tool i.icon { margin: 0; }
-.card-tool:hover { background: #eef4fb; border-color: #b5d4f4; }
-.card-tool--danger { color: #c0392b; }
+.card-tool:hover { background: var(--cb-accent-weak); border-color: var(--cb-accent); }
+.card-tool--danger { color: var(--cb-danger); }
 .card-tool--danger:hover { background: #fbeaea; border-color: #e0b4b0; }
 
 /* Inline delete confirmation (replaces the native confirm dialog). */
@@ -730,7 +757,7 @@ nav-button-as-link {
 
 .word-chips__edit {
   font-size: 0.8rem;
-  color: #2f6fb3;
+  color: var(--cb-accent);
 }
 
 .word-chips {
@@ -744,28 +771,27 @@ nav-button-as-link {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 7px 12px;
-  min-height: 40px;
+  padding: 8px 12px;
+  min-height: 38px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--cb-radius-sm);
   background: transparent;
-  color: #2f6fb3;
+  color: var(--cb-accent);
   cursor: pointer;
   white-space: nowrap;
   outline: none;
 }
 
 .word-chip:hover {
-  background: #fff;
+  background: var(--cb-surface-2);
 }
 
 .word-chip:focus-visible {
-  box-shadow: 0 0 0 2px #b5d4f4;
+  box-shadow: 0 0 0 2px var(--cb-accent-weak);
 }
 
 .word-chip.selected {
-  background: #e6f1fb;
-  border-color: #b5d4f4;
+  background: var(--cb-accent-weak);
   font-weight: 500;
 }
 
@@ -793,47 +819,37 @@ nav-button-as-link {
   display: inline-flex;
 }
 
-/* desktop: word list is a fixed side column; reveal remove on hover */
+/* desktop: reveal the remove control on hover */
 @media (min-width: 769px) {
-  #wordbookwords {
-    width: 260px;
-    flex-shrink: 0;
-  }
-
   .word-chip:hover .word-chip__x {
     display: inline-flex;
   }
 }
 
-/* mobile: stack the page and turn the word list into a horizontal pill strip */
+/* mobile: the card list is a swipeable pill strip with no visible scrollbar */
 @media (max-width: 768px) {
-  #wordbookmain {
-    flex-direction: column;
-  }
-
-  #wordbookwords {
-    width: 100%;
-  }
-
   .word-chips {
     flex-direction: row;
     flex-wrap: nowrap;
     overflow-x: auto;
+    overflow-y: hidden;
     gap: 8px;
-    padding-bottom: 6px;
+    padding: 4px 12px 8px;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .word-chips::-webkit-scrollbar { display: none; }
 
   .word-chip {
     flex-shrink: 0;
     border-radius: 999px;
-    border-color: #d9dbe0;
-    background: #fff;
+    border-color: var(--cb-border);
+    background: var(--cb-surface-2);
   }
-
   .word-chip.selected {
-    border-color: #b5d4f4;
-    background: #e6f1fb;
+    border-color: transparent;
+    background: var(--cb-accent-weak);
   }
 }
 

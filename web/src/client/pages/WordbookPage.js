@@ -41,44 +41,29 @@ class WordbookPage extends Component {
     render() {
 
         return (
-            <div className="ui wordbook" style={{ marginTop: '0px' }}>
-
-
-                <header id="wordbookheader" className="ui" style={{ paddingLeft: "20px", backgroundColor: "#eafaff" }}>
-                    {/* <h3>Wordbook page {this.props.match.params.name} for {this.props.auth}</h3> */}
-
-                    <form className="ui form-inline" style={{ padding: '15px 0px', marginBottom: "0px" }}>
-                        <div className="field"></div>
-                        <label>Wordbook Name</label>
-                        <input type="text" size="40" value={this.props.currentWordbook} onChange={() => { }}>
-                        </input>
-                        <button type="button" className="ui button primary new-card-btn"
+            <div className="cb-detail">
+                {/* Mobile-only: cardbook title, add-card, and the swipeable card
+                    strip. On desktop these live in the left nav rail instead. */}
+                <div className="cb-mbar">
+                    <div className="cb-mbar__head">
+                        <h1 className="cb-mbar__title">{this.props.currentWordbook}</h1>
+                        <button type="button" className="cb-mbar__add" title="New card"
                             onClick={() => this.props.openCardEditor({ mode: 'create', wordbook: this.state.myWordbook })}>
-                            + New card
+                            <i className="plus icon"></i>
                         </button>
-                    </form>
-                </header>
-                {/* {console.log("wordbookWords=")} */}
-                {/* {console.log(`${this.props.wordbookWords.length}`)} */}
-                
-                { this.props.wordbookWords.length != 0 ?
-                    
-                    <main id="wordbookmain" style={{ paddingTop: "0px", paddingLeft: "0px", paddingRight: "0px"}}>
+                    </div>
+                    <WordList wordbook={this.state.myWordbook} />
+                </div>
 
-                    <aside id="wordbookwords" style={{ backgroundColor: "#feffef" }}>
-
-                        <WordList wordbook={this.state.myWordbook} />
-
-                    </aside>
-                    <section id="worddefinition" style={this.props.currentWord != "" ? { backgroundColor: "#f7fbff", flexGrow: "1"} : {}} >
+                {this.props.wordbookWords.length != 0 ? (
+                    <section id="worddefinition">
                         <SearchResult />
                     </section>
-                </main>
-                    : !this.props.wordbookWordsInProgress ? <h1 style={{ padding: "30px", margin: "auto" }}>This wordbook is empty</h1> : ""
-                }
-
-
-
+                ) : !this.props.wordbookWordsInProgress ? (
+                    <div className="cb-detail__empty">
+                        This cardbook is empty. Search a word and add it, or create a card.
+                    </div>
+                ) : ""}
             </div>
         );
     }
