@@ -38,9 +38,6 @@ const Header = ({ auth, logoutCurrentUser, openCardEditor }) => {
 
             {inCardbook && userExists && (
                 <div className="nav-ctx">
-                    <button type="button" className="nav-back" onClick={() => navigate('/account')}>
-                        <i className="angle left icon"></i>My Cardbooks
-                    </button>
                     <div className="nav-ctx__head">
                         <span className="nav-ctx__title" title={cardbookName}>{cardbookName}</span>
                         <button type="button" className="nav-ctx__add" title="New card"

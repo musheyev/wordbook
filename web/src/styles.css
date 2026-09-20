@@ -400,14 +400,7 @@ nav-button-as-link {
 }
 
 /* Desktop: the left rail becomes the cardbook's context (single left panel) */
-.nav-ctx { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 4px 6px 6px; }
-.nav-back {
-  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
-  background: none; border: none; cursor: pointer; font-family: inherit;
-  color: var(--cb-ink-2); font-size: 0.85rem; padding: 6px 8px; border-radius: var(--cb-radius-sm);
-}
-.nav-back i.icon { margin: 0; }
-.nav-back:hover { color: var(--cb-accent); }
+.nav-ctx { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 16px 6px 6px; }
 .nav-ctx__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 8px; }
 .nav-ctx__title { font-size: 1.05rem; font-weight: 600; color: var(--cb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-ctx__add {
@@ -1337,3 +1330,26 @@ nav-button-as-link {
 .cb-menu__list button:hover { background: var(--cb-surface); }
 .cb-menu__list i.icon { margin: 0; width: 1.1em; }
 .cb-menu__danger { color: var(--cb-danger); }
+
+/* Desktop: cardbook detail fills the viewport; card content scrolls to bottom */
+@media (min-width: 769px) {
+  .cb-detail { height: 100vh; }
+  #worddefinition {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .search-result--card {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .search-result--card .card-content--scroll {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+}
