@@ -463,6 +463,10 @@ nav-button-as-link {
   margin-bottom: 6px;
 }
 
+/* Word (dictionary) view: extra room between the word and the bookmark button
+   so the word is easy to select/long-press without hitting the button. */
+.search-result:not(.search-result--card) .current-word-container { gap: 20px; }
+
 .card-heading { min-width: 0; max-width: 100%; }
 .card-header-actions {
   display: flex;

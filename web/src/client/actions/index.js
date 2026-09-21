@@ -37,6 +37,7 @@ export const clearCurrentSelection = () => (dispatch) => {
 };
 
 export const FETCH_WORD_DATA = 'fetch_word_data';
+export const PROMOTE_HISTORY_WORD = 'promote_history_word';
 export const fetchWordData = (word) => async (dispatch, getState, api) => {
 
   dispatch({
@@ -47,6 +48,14 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
   // The current selection is a dictionary word, not a card.
   dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'word' });
   dispatch({ type: FETCH_CARD_DATA, payload: null });
+
+  // Optimistically move the searched word to the top of the recently-searched
+  // list right away (the backend also persists this order). Normalized to match
+  // how history is stored (trimmed + lowercased).
+  const normalized = (word || '').trim().toLowerCase();
+  if (getState().auth && normalized) {
+    dispatch({ type: PROMOTE_HISTORY_WORD, payload: normalized });
+  }
 
   const res = await api.get(`/dictionary?search=${word}&json=y`);
 

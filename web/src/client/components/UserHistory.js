@@ -27,7 +27,7 @@ function UserHistory({ userHistory, auth, fetchUserHistory, deleteHistoryWord, o
             <div className="history__chips">
                 {shown.map((word, index) => (
                     <span key={`${word}${index}`} className="history-chip"
-                        onClick={() => onSearchWordDefinition(word)}>
+                        onClick={() => { onSearchWordDefinition(word); setExpanded(false); }}>
                         {word}
                         <i className="history-chip__x" title={`Remove ${word}`} aria-label={`Remove ${word}`}
                             onClick={(e) => { e.stopPropagation(); deleteHistoryWord(word); }}>×</i>
