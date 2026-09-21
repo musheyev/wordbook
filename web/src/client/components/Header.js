@@ -4,10 +4,7 @@ import { connect } from 'react-redux';
 import { logoutCurrentUser, openCardEditor } from '../actions';
 import WordList from './WordList';
 import ConfirmDialog from './ConfirmDialog';
-
-const COGNITO_LOGIN =
-    'https://auth.musheye.com/login?client_id=31i8vt5m567ch5ciedmeskpk67&response_type=code&scope=aws.cognito.signin.user.admin+email+openid+profile&redirect_uri=http://localhost:4000/auth';
-const COGNITO_SIGNUP = COGNITO_LOGIN.replace('/login?', '/signup?');
+import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
 

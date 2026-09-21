@@ -1,12 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
 
 // Shown when the main area would otherwise be empty: to logged-out visitors
-// (as a what-is-Cardbook intro, since search needs an account), and to
+// (as a what-is-Remembrancer intro, since search needs an account), and to
 // signed-in users who have no current word and no search history yet.
-const COGNITO_LOGIN =
-    'https://auth.musheye.com/login?client_id=31i8vt5m567ch5ciedmeskpk67&response_type=code&scope=aws.cognito.signin.user.admin+email+openid+profile&redirect_uri=http://localhost:4000/auth';
-const COGNITO_SIGNUP = COGNITO_LOGIN.replace('/login?', '/signup?');
 
 const FEATURES = [
     { icon: 'search', title: 'Look up', text: 'Definitions and images from real dictionaries.' },

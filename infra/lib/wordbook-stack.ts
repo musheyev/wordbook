@@ -8,6 +8,8 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as certmgr from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import { HttpApi } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 
@@ -33,13 +35,15 @@ export class WordbookStack extends cdk.Stack {
     super(scope, id, props);
 
     // -------------------------------------------------------------------------
-    // Optional custom domain (e.g. apps.musheye.com).
-    //   Pass with:  cdk deploy -c domainName=apps.musheye.com -c certArn=arn:aws:acm:us-east-1:...:certificate/xxxx
-    //   The ACM certificate MUST be in us-east-1 (CloudFront requirement).
-    //   If omitted, the app is served on the generated *.cloudfront.net domain.
-    // APP_URL is the public URL the auth flow redirects to. Set it (in api/.env
-    // as APP_URL, or `-c appUrl=`) to your real URL once you know it, otherwise
-    // the Cognito login redirect stays pointed at localhost.
+    // Optional custom domain (e.g. makeyourwordbook.com).
+    //   Pass with:  cdk deploy -c domainName=makeyourwordbook.com
+    //   The domain's public hosted zone must already exist in Route 53 (this
+    //   account). Given just the domain, the stack looks up that zone, creates a
+    //   DNS-validated ACM cert in us-east-1 (CloudFront requirement), and adds
+    //   A/AAAA alias records pointing at the distribution. Pass -c certArn=... to
+    //   reuse an existing cert instead of creating one. If domainName is omitted,
+    //   the app is served on the generated *.cloudfront.net domain.
+    // APP_URL is the public URL the auth flow redirects to; defaults to the domain.
     // -------------------------------------------------------------------------
     const domainName = this.node.tryGetContext('domainName') as string | undefined;
     const certArn = this.node.tryGetContext('certArn') as string | undefined;
@@ -47,6 +51,20 @@ export class WordbookStack extends cdk.Stack {
       (process.env.APP_URL as string | undefined) ||
       (this.node.tryGetContext('appUrl') as string | undefined) ||
       (domainName ? `https://${domainName}` : undefined);
+
+    // Look up the hosted zone and provision (or reuse) the certificate up front,
+    // so the distribution below can attach it and we can add DNS records later.
+    let hostedZone: route53.IHostedZone | undefined;
+    let certificate: certmgr.ICertificate | undefined;
+    if (domainName) {
+      hostedZone = route53.HostedZone.fromLookup(this, 'Zone', { domainName });
+      certificate = certArn
+        ? certmgr.Certificate.fromCertificateArn(this, 'SiteCert', certArn)
+        : new certmgr.Certificate(this, 'SiteCert', {
+            domainName,
+            validation: certmgr.CertificateValidation.fromDns(hostedZone),
+          });
+    }
 
     // =========================================================================
     // 1. LAMBDA — your Express API, wrapped by serverless-http (api/lambda.js).
@@ -230,14 +248,21 @@ function handler(event) {
         },
       ],
 
-      // Optional custom domain (only if both context values were supplied).
-      ...(domainName && certArn
-        ? {
-            domainNames: [domainName],
-            certificate: certmgr.Certificate.fromCertificateArn(this, 'SiteCert', certArn),
-          }
+      // Custom domain (only when a domainName was supplied; cert created above).
+      ...(domainName && certificate
+        ? { domainNames: [domainName], certificate }
         : {}),
     });
+
+    // Point the domain's apex at this distribution (A + AAAA aliases). This
+    // replaces any stale record, so the deploy fixes DNS itself.
+    if (domainName && hostedZone) {
+      const dnsTarget = route53.RecordTarget.fromAlias(
+        new targets.CloudFrontTarget(distribution)
+      );
+      new route53.ARecord(this, 'AliasRecordA', { zone: hostedZone, target: dnsTarget });
+      new route53.AaaaRecord(this, 'AliasRecordAaaa', { zone: hostedZone, target: dnsTarget });
+    }
 
     // =========================================================================
     // 6. DEPLOY THE SPA — upload web/dist to the bucket and invalidate the CDN
