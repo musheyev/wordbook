@@ -182,7 +182,9 @@ nav-button-as-link {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 0.9rem;
+  /* >=16px so iOS Safari does not auto-zoom (and shove the layout out of
+     bounds) when the field is focused. */
+  font-size: 16px;
   color: var(--cb-ink);
   padding: 4px 0;
 }
@@ -202,6 +204,21 @@ nav-button-as-link {
 }
 .cb-search__go i.icon { margin: 0; font-size: 0.85rem; }
 .cb-search__go:hover { filter: brightness(0.94); }
+
+/* iOS: keep every editable field >=16px on phones so focusing one never
+   triggers Safari's auto-zoom, which pushes the whole layout off-screen. */
+@media (max-width: 768px) {
+  .cb-search__input,
+  .card-editor__title,
+  .a2c__filter input,
+  .a2c__new input,
+  .cb-step__input,
+  .cb-addwb input,
+  .wb-rename input,
+  .rte-content .ProseMirror {
+    font-size: 16px;
+  }
+}
 
 /* Recently searched words */
 .history { margin-top: 32px; }
