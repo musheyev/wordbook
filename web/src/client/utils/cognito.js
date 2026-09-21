@@ -22,10 +22,13 @@ function redirectUri() {
 }
 
 function buildUrl(action) {
+    // NOTE: redirect_uri is sent RAW (not percent-encoded), matching the format
+    // Cognito's classic /login hosted UI expects. Encoding it makes Cognito fail
+    // to match the registered callback and return error=unauthorized_client.
     return (
         `${COGNITO_DOMAIN}/${action}?client_id=${CLIENT_ID}` +
         `&response_type=code&scope=${SCOPE}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri())}`
+        `&redirect_uri=${redirectUri()}`
     );
 }
 
