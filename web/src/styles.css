@@ -220,6 +220,12 @@ nav-button-as-link {
   }
 }
 
+/* Mobile: a compact, contained search bar — narrower than the screen so it
+   never runs to the right edge / out of bounds. */
+@media (max-width: 768px) {
+  .cb-search { max-width: 280px; box-sizing: border-box; }
+}
+
 /* Recently searched words */
 .history { margin-top: 32px; }
 .history__label {
@@ -1153,8 +1159,26 @@ nav-button-as-link {
   .cb-landing__features { grid-template-columns: 1fr; }
   .cb-landing__preview { grid-template-columns: 1fr; }
   .cb-landing__title { font-size: 1.4rem; }
-  .cb-landing__cta { flex-direction: column; }
-  .cb-landing__cta .cb-btn { width: 100%; }
+
+  /* Reorder so the sign-up / log-in row sits right under the hero (no scroll),
+     with the feature tiles and preview below it. */
+  .cb-landing { display: flex; flex-direction: column; }
+  .cb-landing__hero { order: 0; }
+  .cb-landing__cta { order: 1; }
+  .cb-landing__features { order: 2; }
+  .cb-landing__preview { order: 3; }
+
+  /* Buttons on one row; drop the band look and the helper text on mobile. */
+  .cb-landing__cta {
+    flex-direction: row;
+    gap: 10px;
+    margin-top: 4px;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+  .cb-landing__cta span { display: none; }
+  .cb-landing__cta .cb-btn { flex: 1; width: auto; }
 }
 
 /* ---------------------------------------------------------------------------
