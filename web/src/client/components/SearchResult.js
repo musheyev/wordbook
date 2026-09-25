@@ -112,7 +112,22 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     <>
                         <div className="current-word-container">
                             <div><h2>{currentWord}</h2> </div>
-                            {addToWordbookControl}
+                            <div className="card-header-actions">
+                                {addToWordbookControl}
+                                {/* Google's own definition box can't be fetched or
+                                    embedded, so open its "define" search instead. */}
+                                <a className="card-tool card-tool--google" title="Define on Google"
+                                    aria-label="Define on Google" target="_blank" rel="noopener noreferrer"
+                                    href={`https://www.google.com/search?q=${encodeURIComponent(`define ${currentWord}`)}`}>
+                                    <span className="card-tool__g" aria-hidden="true">G</span>
+                                </a>
+                                {/* Example sentences: Google search for use "<word>" in a sentence. */}
+                                <a className="card-tool card-tool--sentence" title="See it used in a sentence"
+                                    aria-label="See it used in a sentence" target="_blank" rel="noopener noreferrer"
+                                    href={`https://www.google.com/search?q=${encodeURIComponent(`use "${currentWord}" in a sentence`)}`}>
+                                    <span className="card-tool__g" aria-hidden="true">T</span>
+                                </a>
+                            </div>
                         </div>
                     </>
                     : ""}

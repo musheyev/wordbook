@@ -57,7 +57,7 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
     dispatch({ type: PROMOTE_HISTORY_WORD, payload: normalized });
   }
 
-  const res = await api.get(`/dictionary?search=${word}&json=y`);
+  const res = await api.get(`/dictionary?search=${encodeURIComponent(word)}&json=y`);
 
   //console.log("word search result:");
   //console.log(res);
@@ -66,6 +66,13 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
     type: FETCH_WORD_DATA,
     payload: res
   });
+};
+
+// Look a word up without selecting it or touching search history. Used by the
+// notebook's "Add" sheet to preview a word before adding it.
+export const lookupWord = (word) => async (dispatch, getState, api) => {
+  const res = await api.get(`/dictionary?search=${encodeURIComponent(word)}&json=y`);
+  return res.data;
 };
 
 // ---------------------------------------------------------------------------
@@ -94,14 +101,16 @@ export const fetchCardData = (cardId) => async (dispatch, getState, api) => {
 };
 
 // Create a new card and add it to the given wordbooks in one request.
+// Resolves to the new card ({ card_id, title, content }) so the caller can open it.
 export const createCard = (title, content, wordbooks = []) => async (dispatch, getState, api) => {
-  await api.post('/wordbook/card/create', { title, content, wordbooks }, JSON_HEADERS);
+  const res = await api.post('/wordbook/card/create', { title, content, wordbooks }, JSON_HEADERS);
   dispatch(closeCardEditor());
 
   const currentWordbook = getState().currentWordbook;
   if (currentWordbook) {
-    dispatch(fetchWordbookWords(currentWordbook));
+    await dispatch(fetchWordbookWords(currentWordbook));
   }
+  return res.data;
 };
 
 // Edit an existing card. Because a card is stored once, this updates it in
@@ -365,11 +374,22 @@ export const fetchWordbookPreviews = () => async (dispatch, getState, api) => {
   });
 };
 
+// Rejects with an Error carrying the server's message (e.g. name already
+// taken) so the rename form can show it.
 export const renameWordbook = (wordbook, name) => async (dispatch, getState, api) => {
-  await api.post('/wordbook/rename',
-    { wordbook, name },
-    { headers: { 'content-type': 'application/json' } }
-  );
+  try {
+    // Time out rather than leave the rename sheet stuck on "Saving…".
+    await api.post('/wordbook/rename', { wordbook, name }, { ...JSON_HEADERS, timeout: 20000 });
+  } catch (err) {
+    const message = err.response && typeof err.response.data === 'string' && err.response.data
+      ? err.response.data
+      : "Couldn't rename the notebook. Refresh the page to check whether it was renamed.";
+    throw new Error(message);
+  }
+
+  if (getState().currentWordbook === wordbook) {
+    dispatch({ type: SET_CURRENT_WORDBOOK, payload: name.trim() });
+  }
   dispatch(fetchWordbooks());
   dispatch(fetchWordbookPreviews());
 };
@@ -391,10 +411,15 @@ export const addWordbookWord = (wordbook, word) => async (dispatch, getState, ap
       }
     );
 
-    dispatch({
-      type: ADD_WORDBOOK_WORD,
-      payload: res
-    });
+    // The response is the item list of `wordbook`; only show it when that is
+    // the notebook on screen (bookmarking into another notebook must not
+    // replace the current notebook's list).
+    if (wordbook === getState().currentWordbook) {
+      dispatch({
+        type: ADD_WORDBOOK_WORD,
+        payload: res
+      });
+    }
 
     //console.log('Calling fetchWordWordbooks');
     dispatch(fetchWordWordbooks(word));
@@ -439,10 +464,12 @@ export const deleteWordbookWord = (wordbook, word) => async (dispatch, getState,
         }
       });
 
-    dispatch({
-      type: DELETE_WORDBOOK_WORD,
-      payload: res
-    });
+    if (wordbook === getState().currentWordbook) {
+      dispatch({
+        type: DELETE_WORDBOOK_WORD,
+        payload: res
+      });
+    }
 
     //console.log(`Calling ${fetchWordWordbooks}`);
     dispatch(fetchWordWordbooks(word));
@@ -497,28 +524,13 @@ export const fetchWordbookWords = (wordbookName) => async (dispatch, getState, a
     payload: false
   });
 
+  // Items are typed objects: { type: 'word'|'card', id, title, preview? }.
+  // Nothing is auto-selected: the notebook opens on its item list, and the
+  // item in the URL (if any) is loaded by WordbookPage.
   dispatch({
     type: FETCH_WORDBOOK_WORDS,
     payload: res
   });
-
-  // Items are now typed objects: { type: 'word'|'card', id, title }.
-  // Select the first item if the current selection is blank or no longer in
-  // this wordbook, routing to the right loader for its type.
-  const currentWordInState = getState()["currentWord"];
-  const items = res.data || [];
-  if (items.length > 0) {
-    const stillPresent = items.some((item) => item.id === currentWordInState);
-    if (currentWordInState === "" || !stillPresent) {
-      const first = items[0];
-      if (first.type === 'card') {
-        dispatch(fetchCardData(first.id));
-      } else {
-        dispatch(fetchWordData(first.id));
-      }
-    }
-  }
-
 };
 
 export const FETCH_WORD_WORDBOOKS = 'fetch_word_wordbooks';

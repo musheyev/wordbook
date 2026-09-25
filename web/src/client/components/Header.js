@@ -1,28 +1,30 @@
 import React from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { connect } from 'react-redux';
-import { logoutCurrentUser, openCardEditor } from '../actions';
+import { logoutCurrentUser } from '../actions';
 import WordList from './WordList';
 import ConfirmDialog from './ConfirmDialog';
+import NotebookMenu from './NotebookMenu';
+import AddItemSheet from './AddItemSheet';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
+import { notebookFromPathname } from '../utils/notebookPaths';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
 
 // Cardbook navigation. A left rail on desktop, a bottom tab bar on mobile.
-// Inside a cardbook the rail becomes contextual (desktop only): back link,
-// cardbook name, add-card, and the card list — so there is a single left panel.
-const Header = ({ auth, isAdmin, logoutCurrentUser, openCardEditor }) => {
+// Inside a cardbook the rail becomes contextual (desktop only): notebook
+// menu, add, and the item list — so there is a single left panel.
+const Header = ({ auth, isAdmin, logoutCurrentUser }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
     const userExists = auth != null && auth !== '' && auth !== false;
 
-    const inCardbook = location.pathname.startsWith('/wordbook/');
-    const cardbookName = inCardbook
-        ? decodeURIComponent(location.pathname.slice('/wordbook/'.length))
-        : '';
+    const cardbookName = notebookFromPathname(location.pathname);
+    const inCardbook = cardbookName !== '';
 
     const [confirmingLogout, setConfirmingLogout] = React.useState(false);
+    const [addOpen, setAddOpen] = React.useState(false);
 
     const onLogoutConfirmed = () => {
         setConfirmingLogout(false);
@@ -46,9 +48,9 @@ const Header = ({ auth, isAdmin, logoutCurrentUser, openCardEditor }) => {
             {inCardbook && userExists && (
                 <div className="nav-ctx">
                     <div className="nav-ctx__head">
-                        <span className="nav-ctx__title" title={cardbookName}>{cardbookName}</span>
-                        <button type="button" className="nav-ctx__add" title="New note"
-                            onClick={() => openCardEditor({ mode: 'create', wordbook: cardbookName })}>
+                        <NotebookMenu name={cardbookName} className="nb-menu--rail" />
+                        <button type="button" className="nav-ctx__add" title="Add a word or note"
+                            aria-label="Add a word or note" onClick={() => setAddOpen(true)}>
                             <i className="plus icon"></i>
                         </button>
                     </div>
@@ -56,6 +58,7 @@ const Header = ({ auth, isAdmin, logoutCurrentUser, openCardEditor }) => {
                     <div className="nav-ctx__list">
                         <WordList wordbook={cardbookName} />
                     </div>
+                    <AddItemSheet open={addOpen} wordbook={cardbookName} onClose={() => setAddOpen(false)} />
                 </div>
             )}
 
@@ -125,4 +128,4 @@ function mapStateToProps({ auth, isAdmin }) {
     return { auth, isAdmin };
 }
 
-export default connect(mapStateToProps, { logoutCurrentUser, openCardEditor })(Header);
+export default connect(mapStateToProps, { logoutCurrentUser })(Header);

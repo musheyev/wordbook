@@ -9,7 +9,7 @@ import AddToCardbook from './AddToCardbook';
 //   [ title input on its own row ]
 //   [ delete · bookmark · cancel · save ]   (icon cluster, left-aligned)
 //   [ formatting toolbar + body ]           (RichTextEditor)
-function CardEditorInline({ cardEditor, closeCardEditor, createCard, updateCard, deleteCard }) {
+function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, updateCard, deleteCard }) {
     const isEdit = cardEditor.mode === 'edit';
     const card = cardEditor.card;
 
@@ -30,7 +30,7 @@ function CardEditorInline({ cardEditor, closeCardEditor, createCard, updateCard,
         );
     };
 
-    const onSave = () => {
+    const onSave = async () => {
         if (title.trim() === '') return;
         if (isEdit) {
             updateCard(card.card_id, title, content);
@@ -38,7 +38,8 @@ function CardEditorInline({ cardEditor, closeCardEditor, createCard, updateCard,
             const targets = [];
             if (currentWordbook) targets.push(currentWordbook);
             extras.forEach((w) => { if (!targets.includes(w)) targets.push(w); });
-            createCard(title, content, targets);
+            const created = await createCard(title, content, targets);
+            if (created && onCreated) onCreated(created);
         }
     };
 

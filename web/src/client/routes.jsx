@@ -29,6 +29,7 @@ export const routes = [
       { index: true, Component: HomePage },
       { path: 'account', Component: AccountPage },
       { path: 'wordbook/:name', Component: WordbookPage },
+      { path: 'wordbook/:name/:type/:id', Component: WordbookPage },
       { path: 'users', Component: UsersListPage },
       { path: 'admins', Component: AdminsListPage },
       { path: 'login', Component: LoginRedirect },
