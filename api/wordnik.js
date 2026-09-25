@@ -191,7 +191,7 @@ function getWordDefinitionsFromDb(word) {
 function getWordDefinitionsFromWordnik(word) {
     let definitions = Object();
 
-    let wordnikURL = "https://api.wordnik.com/v4/word.json/" + word + "/definitions?" +
+    let wordnikURL = "https://api.wordnik.com/v4/word.json/" + encodeURIComponent(word) + "/definitions?" +
         "&includeRelated=false&useCanonical=false&includeTags=false&limit=20" +
         "&api_key=" + WORDNIK_API_KEY;
 
@@ -227,36 +227,25 @@ function getWordDefinitionsFromWordnik(word) {
     });
 }
 
+// Cached definitions from DynamoDB, else Wordnik (and cache the result). If the
+// cache read fails, fall back to Wordnik rather than leaving the request
+// unanswered.
 function getWordDefinitions(word) {
-    return new Promise((resolve, reject) => {
-
-        let shouldContinue = true;
-        getWordDefinitionsFromDb(word).then(dataFromDb => {
-            if (dataFromDb == null) {
-                getWordDefinitionsFromWordnik(word)
-                    .then(dataFromWordnik => {
-
-                        //this is where I want to trigger save to database 
-                        saveWordDefinitionsToDynamoDb(word, dataFromWordnik);
-
-                        resolve(dataFromWordnik);
-                    })
-                    .catch(errFromWordnikRequest => {
-                        //console.log("Error in getWordDefinitions:", JSON.stringify(errFromWordnikRequest, null, 2));
-                        reject(errFromWordnikRequest);
-                    })
-
-            }
-            else {
-                resolve(dataFromDb);
-            }
+    return getWordDefinitionsFromDb(word)
+        .catch(errFromDb => {
+            console.error("Error getting word definition from db.  Trying wordnik API.  In getWordDefinitions:", JSON.stringify(errFromDb, null, 2));
+            return null;
         })
-            .catch(errFromDb => {
-                console.error("Error getting word definition from db.  Try wordnik API.  In getWordDefinition:", JSON.stringify(errFromDb, null, 2));
+        .then(dataFromDb => {
+            if (dataFromDb != null) {
+                return dataFromDb;
+            }
+
+            return getWordDefinitionsFromWordnik(word).then(dataFromWordnik => {
+                saveWordDefinitionsToDynamoDb(word, dataFromWordnik);
+                return dataFromWordnik;
             });
-
-
-    });
+        });
 }
 
 //#region old code

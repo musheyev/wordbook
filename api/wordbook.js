@@ -20,6 +20,12 @@ function addWordbook(userIdToken, wordbookName, returnListWithPreview = false) {
             return resolve("");
         }
 
+        try {
+            wordbookName = _validateWordbookName(wordbookName);
+        } catch (err) {
+            return reject(err);
+        }
+
         getCurentUserFromToken(userIdToken).then(userName => {
             var params = {
                 TableName: "dictionary_wordbook",
@@ -218,6 +224,10 @@ function _deleteAllWordsInWordbook(userName, wordbookName) {
                             console.error("Error in _deleteAllWordsInWordbook");
                             reject(err);
                         });
+                } else {
+                    // Empty wordbook: nothing to delete (previously never settled,
+                    // so deleting or renaming an empty wordbook hung the request).
+                    resolve();
                 }
 
             })
@@ -481,10 +491,10 @@ function deleteWordFromWordbook(userIdToken, wordbookName, word) {
 /// private, list of items (words and cards) in a wordbook.
 /// Returns typed objects so the UI can tell words and cards apart:
 ///   word -> { type: "word", id: <word>,    title: <word> }
-///   card -> { type: "card", id: <card_id>, title: <card title> }
-/// Card titles are resolved from the dictionary_cards table (single source of
-/// truth) rather than denormalized onto the membership row, so editing a card
-/// updates its title in every wordbook.
+///   card -> { type: "card", id: <card_id>, title: <card title>, preview: <text> }
+/// Card titles/previews are resolved from the dictionary_cards table (single
+/// source of truth) rather than denormalized onto the membership row, so editing
+/// a card updates it in every wordbook.
 function _listOfWords(userName, wordbookName, limit = 0) {
     return new Promise((resolve, reject) => {
 
@@ -525,15 +535,16 @@ function _listOfWords(userName, wordbookName, limit = 0) {
                 .filter(item => item.item_type === "card")
                 .map(item => item.card_id);
 
-            cards._getCardTitles(userName, cardIds)
-                .then(titleMap => {
+            cards._getCardSummaries(userName, cardIds)
+                .then(summaries => {
                     const data = items.map(item => {
                         if (item.item_type === "card") {
-                            const title = titleMap[item.card_id];
+                            const summary = summaries[item.card_id] || {};
                             return {
                                 type: "card",
                                 id: item.card_id,
-                                title: (title != null && title !== "") ? title : "(untitled card)",
+                                title: summary.title ? summary.title : "(untitled card)",
+                                preview: summary.preview || "",
                             };
                         }
 
@@ -655,7 +666,8 @@ function _listOfWordbooksForWord(userName, word) {
                 ":word": word
             },
             KeyConditionExpression: "user_name = :userName",
-            FilterExpression: 'contains (word, :word)',
+            // Exact match: `contains` also matched "art" inside "artillery".
+            FilterExpression: 'word = :word',
             ProjectionExpression: "wordbook_name",
 
         };
@@ -913,102 +925,102 @@ function rename(userIdToken, wordbookName, newName) {
     });
 }
 
-function _rename(userName, wordbookName, newName) {
-    return new Promise((resolve, reject) => {
-        //reject if new name already exists
-        let paramsCheckIfNewNameExists = {
-            TableName: "dictionary_wordbook",
-            Key: {
-                "user_name": userName,
-                "wordbook_name": newName
-            }
+/// Wordbook names are stored as the prefix of "<wordbook>#<item>" keys, so a
+/// "#" in a name would make one wordbook's rows look like another's.
+function _validateWordbookName(name) {
+    const trimmed = (name || "").trim();
+    if (trimmed === "") {
+        throw new Error("Notebook name can't be empty");
+    }
+    if (trimmed.includes("#")) {
+        throw new Error("Notebook name can't contain #");
+    }
+    return trimmed;
+}
+
+/// All membership rows (words and cards) of a wordbook, with every attribute,
+/// following DynamoDB pagination. Rows of a different wordbook whose name merely
+/// starts with "<wordbookName>#" are excluded.
+async function _queryWordbookRows(userName, wordbookName) {
+    const prefix = wordbookName + "#";
+    const rows = [];
+    let lastKey;
+
+    do {
+        const params = {
+            TableName: "dictionary_wordbooks_words",
+            KeyConditionExpression: "user_name = :userName and begins_with(wordbook_name, :wordbook)",
+            ExpressionAttributeValues: {
+                ":userName": userName,
+                ":wordbook": prefix
+            },
         };
+        if (lastKey) {
+            params.ExclusiveStartKey = lastKey;
+        }
 
-        database.dynamoDbClientInstance().get(paramsCheckIfNewNameExists).promise()
-            .then(data => {
+        const data = await database.dynamoDbClientInstance().query(params).promise();
+        rows.push(...(data.Items || []));
+        lastKey = data.LastEvaluatedKey;
+    } while (lastKey);
 
-                if (data.Item != undefined) {
-                    reject(`${newName} already exists`);
-                }
+    return rows.filter(row => !row.wordbook_name.substring(prefix.length).includes("#"));
+}
 
-                //get the item with the old wordbook name
-                let paramsGetExistingWordbook = {
-                    TableName: "dictionary_wordbook",
-                    Key: {
-                        "user_name": userName,
-                        "wordbook_name": wordbookName
-                    }
-                };
+/// Rename = copy every row under the new name, then delete the old rows.
+/// Rows are copied whole: card rows carry item_type/card_id, and dropping those
+/// turns a card into a "word" whose text is the card's GUID.
+/// Old rows are only deleted after every copy succeeded, so a failure part-way
+/// leaves the original wordbook intact.
+async function _rename(userName, wordbookName, newName) {
+    newName = _validateWordbookName(newName);
+    if (newName === wordbookName) {
+        return "Done";
+    }
 
-                return database.dynamoDbClientInstance().get(paramsGetExistingWordbook).promise();
-            })
-            .then(data => {
+    const db = database.dynamoDbClientInstance();
 
-                let dictionaryWordbookItem = data.Item;
+    const existing = await db.get({
+        TableName: "dictionary_wordbook",
+        Key: { user_name: userName, wordbook_name: newName }
+    }).promise();
+    if (existing.Item) {
+        throw new Error(`A notebook named "${newName}" already exists`);
+    }
 
-                if (dictionaryWordbookItem == undefined) {
-                    reject(`Wordbook ${wordbookName} does not exist`);
-                    return;
-                }
+    const old = await db.get({
+        TableName: "dictionary_wordbook",
+        Key: { user_name: userName, wordbook_name: wordbookName }
+    }).promise();
+    if (!old.Item) {
+        throw new Error(`Notebook "${wordbookName}" doesn't exist`);
+    }
 
-                //add new record to dictionary_wordbook
-                dictionaryWordbookItem.wordbook_name = newName;
+    const rows = await _queryWordbookRows(userName, wordbookName);
+    const oldPrefix = wordbookName + "#";
 
-                let paramsAddNewItem = {
-                    TableName: "dictionary_wordbook",
-                    ConditionExpression: "attribute_not_exists(wordbook_name)",
+    await Promise.all(rows.map(row => db.put({
+        TableName: "dictionary_wordbooks_words",
+        Item: { ...row, wordbook_name: newName + "#" + row.wordbook_name.substring(oldPrefix.length) }
+    }).promise()));
 
-                    Item: dictionaryWordbookItem
-                };
+    await db.put({
+        TableName: "dictionary_wordbook",
+        ConditionExpression: "attribute_not_exists(wordbook_name)",
+        Item: { ...old.Item, wordbook_name: newName }
+    }).promise();
 
-                return database.dynamoDbClientInstance().put(paramsAddNewItem).promise();
-            })
-            .then(_ => {
-                let paramsGetWordbookWords = {
-                    TableName: "dictionary_wordbooks_words",
-                    KeyConditionExpression: `user_name = :userName and begins_with(wordbook_name, :wordbook)`,
-                    ExpressionAttributeValues: {
-                        ":userName": userName,
-                        ":wordbook": wordbookName + "#"
-                    },
-                    ProjectionExpression: "added_datetime,word,sort_order",
+    await Promise.all(rows.map(row => db.delete({
+        TableName: "dictionary_wordbooks_words",
+        Key: { user_name: userName, wordbook_name: row.wordbook_name }
+    }).promise()));
 
-                };
+    await db.delete({
+        TableName: "dictionary_wordbook",
+        Key: { user_name: userName, wordbook_name: wordbookName }
+    }).promise();
 
-                return database.dynamoDbClientInstance().query(paramsGetWordbookWords).promise();
-            })
-            .then(data => {
-                if (data.Items != undefined) {
-                    let databaseUpdatePromises = [];
-
-                    data.Items.map(dataItem => {
-                        params = {
-                            TableName: "dictionary_wordbooks_words",
-                            Item: {
-                                user_name: userName,
-                                wordbook_name: newName + "#" + dataItem.word,
-                                word: dataItem.word,
-                                added_datetime: dataItem.added_datetime,
-                            }
-                        };
-
-                        databaseUpdatePromises.push(database.dynamoDbClientInstance().put(params).promise());
-
-                    });
-
-                    if (databaseUpdatePromises.length > 0) {
-                        return Promise.all(databaseUpdatePromises)
-                    }
-                }
-
-                return Promise.resolve();
-            })
-            .then(_ => {
-                return _deleteWordbook(userName, wordbookName, false, false);
-            })
-            .then(_ => resolve("Done"))
-            .catch(err => reject(err));
-    });
+    return "Done";
 }
 
 
