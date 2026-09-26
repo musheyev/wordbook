@@ -23,36 +23,48 @@ function createCard(userIdToken, title, content) {
         }
 
         getCurentUserFromToken(userIdToken)
-            .then((userName) => {
-                const cardId = crypto.randomUUID();
-                const now = new Date().toISOString();
-
-                const params = {
-                    TableName: CARDS_TABLE,
-                    Item: {
-                        user_name: userName,
-                        card_id: cardId,
-                        title: title || "",
-                        content: content || "",
-                        added_datetime: now,
-                        updated_datetime: now,
-                    },
-                };
-
-                database
-                    .dynamoDbClientInstance()
-                    .put(params)
-                    .promise()
-                    .then(() =>
-                        resolve({ card_id: cardId, title: title || "", content: content || "" })
-                    )
-                    .catch((err) => reject(err));
-            })
-            .catch((error) => {
-                console.log("error from getCurentUserFromToken");
-                reject(error);
-            });
+            .then((userName) => _createCardForUser(userName, title, content))
+            .then((card) => resolve(card))
+            .catch((error) => reject(error));
     });
+}
+
+/**
+ * Write a new card owned by `userName`. The shared core of creating a card:
+ * createCard uses it for the signed-in user, and inbox.js uses it to give a
+ * recipient their own copy of a shared note.
+ *
+ * Not user-facing (no token check): callers must already know who the owner
+ * is from a verified token.
+ *
+ * @param {string} userName owner of the new card
+ * @param {string} title
+ * @param {string} content sanitized HTML body
+ * @param {object} [extra] additional attributes to store, e.g.
+ *   { shared_by, shared_at } for a note that came from someone's share
+ * @returns {Promise<{card_id: string, title: string, content: string}>}
+ */
+async function _createCardForUser(userName, title, content, extra = {}) {
+    const cardId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await database
+        .dynamoDbClientInstance()
+        .put({
+            TableName: CARDS_TABLE,
+            Item: {
+                ...extra,
+                user_name: userName,
+                card_id: cardId,
+                title: title || "",
+                content: content || "",
+                added_datetime: now,
+                updated_datetime: now,
+            },
+        })
+        .promise();
+
+    return { card_id: cardId, title: title || "", content: content || "" };
 }
 
 function updateCard(userIdToken, cardId, title, content) {
@@ -134,6 +146,28 @@ function getCard(userIdToken, cardId) {
                 reject(error);
             });
     });
+}
+
+/**
+ * Read one card owned by `userName`, or null if that user has no such card.
+ * Used by inbox.js to load the note being shared — only from the *sender's*
+ * own cards, so nobody can share a note they don't own.
+ *
+ * Not user-facing (no token check), like _createCardForUser.
+ *
+ * @param {string} userName
+ * @param {string} cardId
+ * @returns {Promise<{card_id: string, title: string, content: string}|null>}
+ */
+async function _getCardForUser(userName, cardId) {
+    const data = await database
+        .dynamoDbClientInstance()
+        .get({ TableName: CARDS_TABLE, Key: { user_name: userName, card_id: cardId } })
+        .promise();
+    if (!data.Item) {
+        return null;
+    }
+    return { card_id: data.Item.card_id, title: data.Item.title || "", content: data.Item.content || "" };
 }
 
 function listCards(userIdToken) {
@@ -290,4 +324,7 @@ module.exports = {
     listCards,
     deleteCard,
     _getCardSummaries,
+    _createCardForUser,
+    _getCardForUser,
+    _previewText,
 };

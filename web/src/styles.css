@@ -1904,3 +1904,75 @@ nav-button-as-link {
     max-height: none;
   }
 }
+
+/* ===========================================================================
+   Sharing and the Inbox
+   =========================================================================== */
+
+/* The "‹ Inbox" back bar on an inbox item. The notebook back bar (.nb-back)
+   is phone-only because desktop has the rail; the Inbox has no rail list, so
+   this one shows everywhere. */
+@media (min-width: 769px) {
+  .nb-back--always {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-bottom: 1px solid var(--cb-border);
+  }
+  .nb-back--always .nb-back__link {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--cb-ink); font-weight: 600; text-decoration: none;
+  }
+  .nb-back--always .nb-back__link i.icon { margin: 0; font-size: 0.9rem; color: var(--cb-accent); }
+}
+
+/* Inbox list page header */
+.inbox-head { display: flex; align-items: center; gap: 4px; padding: 14px 16px 8px 6px; }
+.inbox-head__title { font-size: 1.3rem; font-weight: 600; color: var(--cb-ink); margin: 0; }
+@media (min-width: 769px) {
+  .inbox-head { padding: 22px 26px 10px 16px; }
+  .inbox-head .cb-mbar__back {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; color: var(--cb-accent);
+  }
+  .inbox-head .cb-mbar__back i.icon { margin: 0; }
+}
+
+/* Pinned Inbox card on My Notebooks */
+.inbox-card {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 14px; padding: 14px 16px;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius); color: var(--cb-ink); text-decoration: none;
+}
+.inbox-card:hover { border-color: var(--cb-border-strong); color: var(--cb-ink); }
+.inbox-card__icon {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: var(--cb-radius-sm);
+  background: var(--cb-accent-weak); color: var(--cb-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.inbox-card__icon i.icon { margin: 0; }
+.inbox-card__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.inbox-card__title { font-size: 1.05rem; font-weight: 600; }
+.inbox-card__sub { font-size: 0.85rem; color: var(--cb-ink-2); }
+.inbox-card__chev { margin: 0 !important; color: var(--cb-ink-3); font-size: 0.8rem !important; }
+
+/* Count badges: on the Inbox card, and on the nav icon */
+.inbox-badge, .nav-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  background: var(--cb-accent); color: var(--cb-accent-ink);
+  font-size: 0.72rem; font-weight: 600; line-height: 1;
+}
+.nav-icon-wrap { position: relative; display: inline-flex; }
+.nav-badge { position: absolute; top: -8px; right: -12px; min-width: 18px; height: 18px; padding: 0 5px; font-size: 0.66rem; }
+
+/* Share dialog */
+.share-sheet__label { display: block; font-size: 0.85rem; color: var(--cb-ink-2); margin-bottom: 6px; }
+.share-sheet__done { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 0.95rem; color: var(--cb-ink); line-height: 1.5; }
+.share-sheet__done i.icon { margin: 2px 0 0; color: #15803d; }
+
+/* Inbox item page */
+.inbox-item__from { font-size: 0.85rem; color: var(--cb-ink-2); margin-top: -4px; }
+.inbox-item__move { gap: 8px; }
+.inbox-item__move i.icon { margin: 0; font-size: 0.7rem; }
+.inbox-item__error { margin: 0 0 12px; }
+.inbox-item__nobooks { display: block; padding: 8px 10px; color: var(--cb-accent); text-decoration: none; }

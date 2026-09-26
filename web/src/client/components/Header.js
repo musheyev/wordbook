@@ -14,7 +14,7 @@ const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
 // Cardbook navigation. A left rail on desktop, a bottom tab bar on mobile.
 // Inside a cardbook the rail becomes contextual (desktop only): notebook
 // menu, add, and the item list — so there is a single left panel.
-const Header = ({ auth, isAdmin, logoutCurrentUser }) => {
+const Header = ({ auth, isAdmin, inboxCount, logoutCurrentUser }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -75,6 +75,20 @@ const Header = ({ auth, isAdmin, logoutCurrentUser }) => {
                     </NavLink>
                 )}
 
+                {userExists && (
+                    <NavLink to="/inbox" className={navClass}>
+                        <span className="nav-icon-wrap">
+                            <i className="inbox icon"></i>
+                            {inboxCount > 0 && (
+                                <span className="nav-badge" aria-label={`${inboxCount} new`}>
+                                    {inboxCount > 99 ? '99+' : inboxCount}
+                                </span>
+                            )}
+                        </span>
+                        <span className="nav-label">Inbox</span>
+                    </NavLink>
+                )}
+
                 {userExists && isAdmin && (
                     <NavLink to="/users" className={navClass}>
                         <i className="users icon"></i>
@@ -124,8 +138,8 @@ const Header = ({ auth, isAdmin, logoutCurrentUser }) => {
     );
 };
 
-function mapStateToProps({ auth, isAdmin }) {
-    return { auth, isAdmin };
+function mapStateToProps({ auth, isAdmin, inbox }) {
+    return { auth, isAdmin, inboxCount: Array.isArray(inbox) ? inbox.length : 0 };
 }
 
 export default connect(mapStateToProps, { logoutCurrentUser })(Header);

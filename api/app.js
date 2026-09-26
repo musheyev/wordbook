@@ -19,6 +19,7 @@ const authRouter = require("./routes/authRouter");
 const wordbookRouter = require("./routes/wordbookRouter");
 const usersRouter = require("./routes/usersRouter");
 const adminsRouter = require("./routes/adminsRouter");
+const inboxRouter = require("./routes/inboxRouter");
 
 const app = express();
 
@@ -46,5 +47,6 @@ app.use("/wordbook", wordbookRouter);
 app.use("/auth", authRouter);
 app.use("/users", usersRouter);
 app.use("/admins", adminsRouter);
+app.use("/inbox", inboxRouter);
 
 module.exports = app;

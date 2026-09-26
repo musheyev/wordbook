@@ -533,6 +533,78 @@ export const fetchWordbookWords = (wordbookName) => async (dispatch, getState, a
   });
 };
 
+// ---------------------------------------------------------------------------
+// Sharing and the Inbox (API: api/routes/inboxRouter.js)
+//
+// The inbox list lives in the store (reducers/inboxReducer.js) so the nav
+// badge, My Notebooks and the Inbox page all show the same count. Single
+// items and the share/move/remove calls return their results to the caller
+// instead, since only the component that asked needs them.
+// ---------------------------------------------------------------------------
+
+export const FETCH_INBOX = 'fetch_inbox';
+
+// Turn an API error into a message to show the user: the server's own text
+// when it sent one (e.g. "You can share up to 20 items a day"), else a
+// generic fallback.
+const apiErrorMessage = (err, fallback) =>
+  err.response && typeof err.response.data === 'string' && err.response.data
+    ? err.response.data
+    : fallback;
+
+// Load the signed-in user's inbox (newest first) into the store. Failures are
+// ignored: a missing badge count isn't worth an error message.
+export const fetchInbox = () => async (dispatch, getState, api) => {
+  try {
+    const res = await api.get('/inbox');
+    dispatch({ type: FETCH_INBOX, payload: res.data });
+  } catch (err) {
+    // logged out or offline — keep whatever we had
+  }
+};
+
+// Share a word or note with another user. `item` is { type: 'word'|'card', id }.
+// Resolves when sent; rejects with an Error whose message can be shown as-is.
+export const shareItem = (to, item) => async (dispatch, getState, api) => {
+  try {
+    await api.post('/inbox/share', { to, item }, JSON_HEADERS);
+  } catch (err) {
+    throw new Error(apiErrorMessage(err, "Couldn't share it. Try again."));
+  }
+};
+
+// One inbox item in full (a note includes its content).
+export const fetchInboxItem = (id) => async (dispatch, getState, api) => {
+  try {
+    const res = await api.post('/inbox/get', { id }, JSON_HEADERS);
+    return res.data;
+  } catch (err) {
+    throw new Error(apiErrorMessage(err, "Couldn't open that item."));
+  }
+};
+
+// Move an inbox item into a notebook. Resolves to { type, id } of the item as
+// it now appears in that notebook, so the caller can open it there.
+export const moveInboxItem = (id, wordbook) => async (dispatch, getState, api) => {
+  try {
+    const res = await api.post('/inbox/move', { id, wordbook }, JSON_HEADERS);
+    dispatch(fetchInbox());
+    return res.data;
+  } catch (err) {
+    throw new Error(apiErrorMessage(err, "Couldn't move it. Try again."));
+  }
+};
+
+// Delete an inbox item.
+export const removeInboxItem = (id) => async (dispatch, getState, api) => {
+  try {
+    await api.post('/inbox/remove', { id }, JSON_HEADERS);
+    dispatch(fetchInbox());
+  } catch (err) {
+    throw new Error(apiErrorMessage(err, "Couldn't remove it. Try again."));
+  }
+};
+
 export const FETCH_WORD_WORDBOOKS = 'fetch_word_wordbooks';
 export const fetchWordWordbooks = (word) => async (dispatch, getState, api) => {
   console.log("fetchWordWordbooks called");
