@@ -1,15 +1,43 @@
+/**
+ * Authentication routes (mounted at /auth): sign in, who's signed in, sign out.
+ *
+ * The app doesn't handle passwords itself. Sign-in happens on Cognito's
+ * hosted login page, using the OAuth 2.0 "authorization code" flow:
+ *
+ *   1. Browser  -> GET /auth/login
+ *      We redirect the browser to Cognito's login page (LOGIN_URL), saying
+ *      who we are (client_id) and where to come back to (redirect_uri).
+ *   2. User signs in on Cognito's page (password, sign-up, forgot password…).
+ *   3. Cognito  -> redirects the browser to GET /auth?code=XYZ
+ *      The `code` is a one-time, short-lived ticket — not a token yet.
+ *   4. Server   -> POST Cognito /oauth2/token with the code + our client
+ *      secret. Only our server knows the secret, so only it can turn the code
+ *      into tokens; someone who intercepts the code in the URL can't.
+ *   5. Cognito returns an ID token and a refresh token. We store them in
+ *      httpOnly cookies (see session.js) and redirect to the app.
+ *
+ * From then on the browser sends the cookies with every API request.
+ * session.js's refreshSession middleware renews the ID token as it expires,
+ * and GET /auth/logout ends the session.
+ */
 const express = require("express");
 const axios = require('axios');
 const log = require("../logger");
 const decodeToken = require("../auth").decodeToken;
+const session = require("../session");
 
 const COGNITO_DOMAIN = process.env.COGNITO_DOMAIN || "https://auth.musheye.com";
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID || "31i8vt5m567ch5ciedmeskpk67";
 const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:4000";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+// Where Cognito sends the browser after sign-in (step 3). Must exactly match a
+// "callback URL" registered on the Cognito app client, or Cognito refuses.
 const REDIRECT_URI = `${BACKEND_URL}/auth`;
 
+// Cognito's hosted login page (step 1). `response_type=code` asks for the
+// authorization code flow; `scope` lists what the tokens may be used for
+// (`openid` is what makes Cognito include an ID token).
 const LOGIN_URL =
     `${COGNITO_DOMAIN}/login?client_id=${COGNITO_CLIENT_ID}` +
     "&response_type=code&scope=aws.cognito.signin.user.admin+email+openid+profile" +
@@ -17,14 +45,25 @@ const LOGIN_URL =
 
 let authRouter = express.Router();
 
+/**
+ * GET /auth/login — step 1: send the browser to Cognito's login page.
+ */
 authRouter.get("/login", function (req, res) {
     log("Recieved request on " + req.path);
     res.redirect(301, LOGIN_URL);
 });
 
+/**
+ * GET /auth?code=… — steps 3 to 5: the login callback.
+ *
+ * Cognito redirects here after a successful sign-in. We exchange the one-time
+ * code for tokens, verify the ID token's signature (decodeToken) so we never
+ * store a forged token, save both tokens as cookies, and send the browser on
+ * to the app. On any failure the user lands back on the app, logged out.
+ *
+ * Further reading: https://aws.amazon.com/premiumsupport/knowledge-center/decode-verify-cognito-json-token/
+ */
 authRouter.get("", function (req, res) {
-
-    //READ: https://aws.amazon.com/premiumsupport/knowledge-center/decode-verify-cognito-json-token/
 
     log("/auth got " + JSON.stringify(req.query));
     let authCode = req.query.code;
@@ -46,6 +85,7 @@ authRouter.get("", function (req, res) {
         .then((result) => {
 
             const token = result.data.id_token;
+            const refreshToken = result.data.refresh_token;
 
             decodeToken(token)
                 .then(decodedToken => {
@@ -53,9 +93,15 @@ authRouter.get("", function (req, res) {
                     const expireTime = new Date(decodedToken.exp * 1000);
                     console.log(`Expiration Time = ${expireTime}`);
 
-                    //NOTE: cookie options at http://expressjs.com/en/api.html#res.cookie
-                    res.cookie('id_token', token, { httpOnly: true, expires: expireTime });
-                    res.redirect(301, FRONTEND_URL);
+                    // ID token for the routes; refresh token so the session
+                    // renews itself when the ID token expires (see session.js).
+                    session.setIdTokenCookie(res, token);
+                    if (refreshToken) {
+                        session.setRefreshTokenCookie(res, refreshToken);
+                    }
+                    // 302 = "temporary" redirect. A 301 ("permanent") would
+                    // let the browser cache it and skip this route next time.
+                    res.redirect(302, FRONTEND_URL);
                 })
                 .catch((err) => {
                     if (err.response != null && err.response.data != null) {
@@ -83,6 +129,15 @@ authRouter.get("", function (req, res) {
 
 });
 
+/**
+ * GET /auth/current_user — who is signed in?
+ *
+ * The frontend calls this when it starts (App.js fetchCurrentUser). Because
+ * the cookies are httpOnly, page JavaScript can't look at them itself — it has
+ * to ask the server. Responds with { username, isAdmin }, or an empty username
+ * when logged out. If the ID token has expired, refreshSession has already
+ * renewed it before this handler runs.
+ */
 authRouter.get("/current_user", function (req, res) {
     log("Received request on /current_user");
 
@@ -108,7 +163,7 @@ authRouter.get("/current_user", function (req, res) {
                     console.log(err, null, 2);
                 };
 
-                res.clearCookie("id_token");
+                session.clearSessionCookies(res);
                 res.json({ username: "", isAdmin: false });
             });
 
@@ -120,12 +175,25 @@ authRouter.get("/current_user", function (req, res) {
 
 });
 
-authRouter.get("/logout", function (req, res) {
+/**
+ * GET /auth/logout — end the session.
+ *
+ * Deleting cookies only logs out *this* browser. So we first ask Cognito to
+ * revoke the refresh token, which makes every copy of it worthless, then
+ * clear both cookies.
+ *
+ * Finally it calls Cognito's /logout endpoint. Note that this request comes
+ * from our server, so it can't clear the login cookie Cognito's hosted page
+ * keeps in the *browser*: if that cookie is still valid, the next sign-in may
+ * skip the password prompt. Clearing it would mean redirecting the browser
+ * itself to Cognito's /logout.
+ */
+authRouter.get("/logout", async function (req, res) {
     log("Received request on /logout");
 
-    if (Object.keys(req.cookies).length != 0) {
-        res.clearCookie("id_token");
-    }
+    // Revoke first so a copied refresh cookie stops working, then drop both.
+    await session.revokeRefreshToken(req.cookies[session.REFRESH_COOKIE]);
+    session.clearSessionCookies(res);
 
     const awsCognitoLogoutEndPoint =
         `${COGNITO_DOMAIN}/logout?client_id=${COGNITO_CLIENT_ID}&logout_uri=${FRONTEND_URL}`;
