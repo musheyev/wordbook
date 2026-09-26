@@ -605,6 +605,27 @@ export const removeInboxItem = (id) => async (dispatch, getState, api) => {
   }
 };
 
+// Save a new order for a notebook's items after a drag. `items` is the full
+// list ({ type, id, title, … }) in its new order.
+//
+// This is an *optimistic update*: the new order goes into the store straight
+// away, so the dragged row stays where it was dropped instead of snapping
+// back while the request runs. The server then saves it and returns the list
+// as stored. If saving fails, reloading the list puts back the order the
+// server actually has, so the screen never shows an order that wasn't saved.
+export const reorderWordbookItems = (wordbook, items) => async (dispatch, getState, api) => {
+  dispatch({ type: FETCH_WORDBOOK_WORDS, payload: { data: items } });
+  try {
+    const res = await api.post('/wordbook/words/reorder',
+      { wordbook, items: items.map((item) => item.id), needWordList: 'y' }, JSON_HEADERS);
+    if (getState().currentWordbook === wordbook && Array.isArray(res.data)) {
+      dispatch({ type: FETCH_WORDBOOK_WORDS, payload: res });
+    }
+  } catch (err) {
+    dispatch(fetchWordbookWords(wordbook));
+  }
+};
+
 export const FETCH_WORD_WORDBOOKS = 'fetch_word_wordbooks';
 export const fetchWordWordbooks = (word) => async (dispatch, getState, api) => {
   console.log("fetchWordWordbooks called");
