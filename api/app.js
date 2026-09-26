@@ -11,6 +11,7 @@ const express = require("express");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const { refreshSession } = require("./session");
 
 const rootRouter = require("./routes/rootRouter");
 const dictionaryRouter = require("./routes/dictionaryRouter");
@@ -26,6 +27,8 @@ app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+// Renew an expired login from the refresh token before any route reads it.
+app.use(refreshSession);
 app.use(cors());
 
 app.set("view engine", "ejs");

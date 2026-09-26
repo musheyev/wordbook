@@ -2,6 +2,7 @@ const express = require("express");
 const axios = require('axios');
 const log = require("../logger");
 const decodeToken = require("../auth").decodeToken;
+const session = require("../session");
 
 const COGNITO_DOMAIN = process.env.COGNITO_DOMAIN || "https://auth.musheye.com";
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID || "31i8vt5m567ch5ciedmeskpk67";
@@ -46,6 +47,7 @@ authRouter.get("", function (req, res) {
         .then((result) => {
 
             const token = result.data.id_token;
+            const refreshToken = result.data.refresh_token;
 
             decodeToken(token)
                 .then(decodedToken => {
@@ -53,9 +55,13 @@ authRouter.get("", function (req, res) {
                     const expireTime = new Date(decodedToken.exp * 1000);
                     console.log(`Expiration Time = ${expireTime}`);
 
-                    //NOTE: cookie options at http://expressjs.com/en/api.html#res.cookie
-                    res.cookie('id_token', token, { httpOnly: true, expires: expireTime });
-                    res.redirect(301, FRONTEND_URL);
+                    // ID token for the routes; refresh token so the session
+                    // renews itself when the ID token expires (see session.js).
+                    session.setIdTokenCookie(res, token);
+                    if (refreshToken) {
+                        session.setRefreshTokenCookie(res, refreshToken);
+                    }
+                    res.redirect(302, FRONTEND_URL);
                 })
                 .catch((err) => {
                     if (err.response != null && err.response.data != null) {
@@ -108,7 +114,7 @@ authRouter.get("/current_user", function (req, res) {
                     console.log(err, null, 2);
                 };
 
-                res.clearCookie("id_token");
+                session.clearSessionCookies(res);
                 res.json({ username: "", isAdmin: false });
             });
 
@@ -120,12 +126,12 @@ authRouter.get("/current_user", function (req, res) {
 
 });
 
-authRouter.get("/logout", function (req, res) {
+authRouter.get("/logout", async function (req, res) {
     log("Received request on /logout");
 
-    if (Object.keys(req.cookies).length != 0) {
-        res.clearCookie("id_token");
-    }
+    // Revoke first so a copied refresh cookie stops working, then drop both.
+    await session.revokeRefreshToken(req.cookies[session.REFRESH_COOKIE]);
+    session.clearSessionCookies(res);
 
     const awsCognitoLogoutEndPoint =
         `${COGNITO_DOMAIN}/logout?client_id=${COGNITO_CLIENT_ID}&logout_uri=${FRONTEND_URL}`;
