@@ -2013,3 +2013,54 @@ nav-button-as-link {
 
 /* While editing: show which cells are selected (dragging across cells). */
 .rte-content .ProseMirror .selectedCell { background: var(--cb-accent-weak); }
+
+/* ===========================================================================
+   Drag to reorder (SortableList): a notebook's items on phones and in the
+   desktop rail
+   =========================================================================== */
+
+/* Phone list: [grip][row link]. The wrapper carries the row borders so the
+   grip and the link read as one row. (The Inbox list uses .nb-row on its own
+   and keeps .nb-row's borders.) */
+.nb-row-wrap {
+  display: flex; align-items: stretch;
+  border-top: 1px solid var(--cb-border);
+  background: var(--cb-bg);
+}
+.nb-list__rows li:last-child .nb-row-wrap { border-bottom: 1px solid var(--cb-border); }
+.nb-row-wrap .nb-row { flex: 1; min-width: 0; border: none; padding-left: 4px; }
+.nb-list__rows li:last-child .nb-row-wrap .nb-row { border-bottom: none; }
+
+/* The grip. `touch-action: none` tells the browser not to scroll the page
+   when a finger drags *on the grip*, so the drag gets the movement instead.
+   Everywhere else on the row, a swipe still scrolls as usual. */
+.nb-row__grip {
+  flex-shrink: 0; width: 40px; padding: 0;
+  border: none; background: none; color: var(--cb-ink-3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab; touch-action: none;
+}
+.nb-row__grip i.icon { margin: 0; }
+.nb-row__grip:focus-visible { outline: 2px solid var(--cb-accent); outline-offset: -4px; border-radius: 6px; }
+
+/* The row being dragged lifts above the others. */
+.sortable-row--dragging .nb-row-wrap,
+.sortable-row--dragging .word-chip {
+  background: var(--cb-surface-2);
+  box-shadow: 0 8px 20px rgba(15, 20, 35, 0.16);
+  cursor: grabbing;
+}
+.sortable-row--dragging .nb-row__grip { cursor: grabbing; color: var(--cb-accent); }
+
+/* Desktop rail: the list is now a <ul>; drop the default bullets and indent. */
+ul.word-chips { list-style: none; margin: 0; padding: 0; }
+.word-chip__label { flex: 1; min-width: 0; }
+.word-chip__grip {
+  display: inline-flex; visibility: hidden; flex-shrink: 0;
+  margin-left: -6px; color: var(--cb-ink-3); cursor: grab; touch-action: none;
+}
+.word-chip__grip i.icon { margin: 0; font-size: 0.85rem; }
+/* Shown on hover (like ×), and when focused with the keyboard. */
+.word-chip:hover .word-chip__grip,
+.word-chip__grip:focus-visible,
+.sortable-row--dragging .word-chip__grip { visibility: visible; }
