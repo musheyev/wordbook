@@ -5,6 +5,7 @@ const {
     CognitoIdentityProviderClient,
     ListUsersCommand,
     ListUsersInGroupCommand,
+    AdminGetUserCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
 const REGION =
@@ -90,4 +91,29 @@ async function listUsersInGroup(group) {
     return users;
 }
 
-module.exports = { requireAdmin, listAllUsers, listUsersInGroup, POOL_ID };
+/**
+ * Look up one user by username, for sharing (api/inbox.js).
+ *
+ * Returns the username exactly as Cognito stores it, which matters because
+ * every table is keyed by that exact string: if the pool treats usernames as
+ * case-insensitive, "Bob" typed by a sender must still land in "bob"'s inbox.
+ *
+ * @param {string} username as typed by the sender
+ * @returns {Promise<string|null>} canonical username, or null if there's no
+ *   such user or the account is disabled
+ */
+async function findUsername(username) {
+    try {
+        const out = await client.send(
+            new AdminGetUserCommand({ UserPoolId: POOL_ID, Username: username })
+        );
+        return out.Enabled === false ? null : out.Username;
+    } catch (err) {
+        if (err.name === "UserNotFoundException") {
+            return null;
+        }
+        throw err;
+    }
+}
+
+module.exports = { requireAdmin, listAllUsers, listUsersInGroup, findUsername, POOL_ID };

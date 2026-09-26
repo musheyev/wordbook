@@ -597,6 +597,61 @@ function addCardToWordbook(userIdToken, wordbookName, cardId) {
     });
 }
 
+/**
+ * Does `userName` have a wordbook with this exact name?
+ * Not user-facing (no token check).
+ *
+ * @param {string} userName
+ * @param {string} wordbookName
+ * @returns {Promise<boolean>}
+ */
+async function _wordbookExists(userName, wordbookName) {
+    if (typeof wordbookName !== "string" || wordbookName === "") {
+        return false;
+    }
+    const data = await database.dynamoDbClientInstance().get({
+        TableName: "dictionary_wordbook",
+        Key: { user_name: userName, wordbook_name: wordbookName }
+    }).promise();
+    return Boolean(data.Item);
+}
+
+/**
+ * Put an item (word or card) into one of `userName`'s wordbooks, after
+ * checking that wordbook exists. Used by inbox.js when a recipient moves a
+ * shared item into a notebook.
+ *
+ * Writes the same membership row shape as addWordToWordbook /
+ * addCardToWordbook, so the item behaves exactly like one added by hand.
+ * Not user-facing (no token check): the caller already resolved userName.
+ *
+ * @param {string} userName
+ * @param {string} wordbookName
+ * @param {{type: "word"|"card", id: string}} item a word's text, or a card_id
+ * @returns {Promise<boolean>} false if the wordbook doesn't exist (nothing written)
+ */
+async function _addItemForUser(userName, wordbookName, item) {
+    const db = database.dynamoDbClientInstance();
+
+    if (!await _wordbookExists(userName, wordbookName)) {
+        return false;
+    }
+
+    const row = {
+        user_name: userName,
+        wordbook_name: wordbookName + "#" + item.id,
+        word: item.id,
+        added_datetime: (new Date()).toISOString(),
+    };
+    if (item.type === "card") {
+        row.item_type = "card";
+        row.card_id = item.id;
+    }
+
+    await db.put({ TableName: "dictionary_wordbooks_words", Item: row }).promise();
+    return true;
+}
+
 /// Remove a card from a single wordbook (deletes only the membership row; the
 /// card itself and its other memberships are untouched).
 function removeCardFromWordbook(userIdToken, wordbookName, cardId) {
@@ -1037,6 +1092,8 @@ module.exports = {
     listOfWordbooksForWord,
     reorder,
     reorderWords,
-    rename
+    rename,
+    _addItemForUser,
+    _wordbookExists
 
 }

@@ -28,6 +28,9 @@ const DYNAMO_TABLES = [
   'dictionary_examples',
   // Manual notes/cards content (api/cards.js). PK user_name, SK card_id.
   'dictionary_cards',
+  // Items shared with a user (api/inbox.js). PK user_name (recipient),
+  // SK inbox_id; also holds per-sender daily share counters.
+  'dictionary_inbox',
 ];
 
 export class WordbookStack extends cdk.Stack {
@@ -135,15 +138,16 @@ export class WordbookStack extends cdk.Stack {
       })
     );
 
-    // Admin endpoints (/users, /admins) list Cognito users via the pool. Grant
-    // the Lambda read access to the user pool it's configured against. Scoped to
+    // Admin endpoints (/users, /admins) list Cognito users via the pool, and
+    // sharing (/inbox/share) looks up the recipient with AdminGetUser. Grant the
+    // Lambda read access to the user pool it's configured against. Scoped to
     // that one pool; skipped if the pool id isn't set (e.g. before .env is filled).
     const userPoolId = process.env.COGNITO_USER_POOL_ID;
     const cognitoRegion = process.env.COGNITO_REGION ?? 'us-east-1';
     if (userPoolId) {
       apiFn.addToRolePolicy(
         new iam.PolicyStatement({
-          actions: ['cognito-idp:ListUsers', 'cognito-idp:ListUsersInGroup'],
+          actions: ['cognito-idp:ListUsers', 'cognito-idp:ListUsersInGroup', 'cognito-idp:AdminGetUser'],
           resources: [
             `arn:aws:cognito-idp:${cognitoRegion}:${this.account}:userpool/${userPoolId}`,
           ],
