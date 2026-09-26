@@ -22,17 +22,24 @@ const adminsRouter = require("./routes/adminsRouter");
 
 const app = express();
 
-app.use(helmet());
-app.use(express.static("public"));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(cookieParser());
+// Middleware chain. Every request passes through these app.use() handlers in
+// the order they're registered, each doing one job and calling next(), before
+// it reaches a router below. Order matters: a handler can only use what the
+// ones before it have set up.
+app.use(helmet());                                // security-related response headers
+app.use(express.static("public"));                // serve files in public/ as-is
+app.use(express.urlencoded({ extended: true }));  // parse HTML form bodies into req.body
+app.use(express.json());                          // parse JSON bodies into req.body
+app.use(cookieParser());                          // parse the Cookie header into req.cookies
 // Renew an expired login from the refresh token before any route reads it.
+// Must come after cookieParser (it reads req.cookies) and before the routers
+// (so they see the renewed id_token). See session.js.
 app.use(refreshSession);
-app.use(cors());
+app.use(cors());                                  // allow cross-origin requests
 
 app.set("view engine", "ejs");
 
+// Routers: each handles every path under its prefix, e.g. /wordbook/list.
 app.use("/", rootRouter);
 app.use("/dictionary", dictionaryRouter);
 app.use("/wordbook", wordbookRouter);
