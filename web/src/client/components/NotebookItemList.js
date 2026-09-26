@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import { reorderWordbookItems } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
 import SortableList from './SortableList';
+import GripIcon from './GripIcon';
 
 // A notebook's items as tappable rows (the page a notebook opens on, on
 // phones). Drag a row's grip (⋮⋮) up or down to change the order; the new
@@ -32,7 +33,7 @@ function NotebookItemList({ wordbook, items, reorderWordbookItems }) {
                                 so dragging never also counts as opening the item. */}
                             <button type="button" className="nb-row__grip"
                                 aria-label={`Reorder ${item.title}`} {...handleProps}>
-                                <i className="grip vertical icon" aria-hidden="true"></i>
+                                <GripIcon size={18} />
                             </button>
                             <Link className="nb-row" to={itemPath(wordbook, item)}>
                                 <span className={`nb-row__icon nb-row__icon--${item.type}`} aria-hidden="true">

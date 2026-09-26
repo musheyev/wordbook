@@ -2036,11 +2036,13 @@ nav-button-as-link {
    Everywhere else on the row, a swipe still scrolls as usual. */
 .nb-row__grip {
   flex-shrink: 0; width: 40px; padding: 0;
-  border: none; background: none; color: var(--cb-ink-3);
+  border: none; background: none; color: var(--cb-ink-2);
   display: flex; align-items: center; justify-content: center;
   cursor: grab; touch-action: none;
+  /* iOS: a press-and-hold would otherwise start selecting text or open the
+     long-press callout menu, which interrupts the drag. */
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
-.nb-row__grip i.icon { margin: 0; }
 .nb-row__grip:focus-visible { outline: 2px solid var(--cb-accent); outline-offset: -4px; border-radius: 6px; }
 
 /* The row being dragged lifts above the others. */
@@ -2058,8 +2060,8 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .word-chip__grip {
   display: inline-flex; visibility: hidden; flex-shrink: 0;
   margin-left: -6px; color: var(--cb-ink-3); cursor: grab; touch-action: none;
+  user-select: none; -webkit-user-select: none;
 }
-.word-chip__grip i.icon { margin: 0; font-size: 0.85rem; }
 /* Shown on hover (like ×), and when focused with the keyboard. */
 .word-chip:hover .word-chip__grip,
 .word-chip__grip:focus-visible,

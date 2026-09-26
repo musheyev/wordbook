@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { deleteWordbookWord, deleteWordbookCard } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
+import GripIcon from './GripIcon';
 
 // Renders one item in a notebook's list. `item` is a typed object:
 //   { type: 'word'|'card', id, title }
@@ -49,7 +50,7 @@ const WordWithDelete = ({ item, wordbook, selected, handleProps, deleteWordbookW
                     {...handleProps}
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => { handleProps.onKeyDown && handleProps.onKeyDown(e); e.stopPropagation(); }}>
-                    <i className="grip vertical icon" aria-hidden="true"></i>
+                    <GripIcon size={14} />
                 </span>
             )}
             <span className="word-chip__label">{item.title}</span>
