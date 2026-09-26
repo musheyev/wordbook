@@ -50,7 +50,7 @@ function getWordPictures(word) {
                     let googleSearchURL = "https://www.googleapis.com/customsearch/v1?" +
                         "key=" + GOOGLE_SEARCH_KEY + "&cx=" + GOOGLE_SEARCH_CX +
                         "&num=5" +
-                        "&searchType=image&q=" + word;
+                        "&searchType=image&q=" + encodeURIComponent(word);
 
                     axios.get(googleSearchURL)
                         .then(response => {

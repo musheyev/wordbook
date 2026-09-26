@@ -16,6 +16,8 @@ const rootRouter = require("./routes/rootRouter");
 const dictionaryRouter = require("./routes/dictionaryRouter");
 const authRouter = require("./routes/authRouter");
 const wordbookRouter = require("./routes/wordbookRouter");
+const usersRouter = require("./routes/usersRouter");
+const adminsRouter = require("./routes/adminsRouter");
 
 const app = express();
 
@@ -32,5 +34,7 @@ app.use("/", rootRouter);
 app.use("/dictionary", dictionaryRouter);
 app.use("/wordbook", wordbookRouter);
 app.use("/auth", authRouter);
+app.use("/users", usersRouter);
+app.use("/admins", adminsRouter);
 
 module.exports = app;

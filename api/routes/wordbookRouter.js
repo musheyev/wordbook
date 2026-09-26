@@ -29,8 +29,9 @@ wordbookRouter.post("/add", function (req, res) {
             console.log(err);
 
             let errorMessage = err.message;
-            if (err.code == "ConditionalCheckFailedException") {
-                errorMessage = `Wordbook "${wordbookName}" already exists`;
+            // AWS SDK v3 reports the error type in `name` (v2 used `code`).
+            if (err.name == "ConditionalCheckFailedException" || err.code == "ConditionalCheckFailedException") {
+                errorMessage = `A notebook named "${wordbookName}" already exists`;
             }
             res.status(400).end(errorMessage);
         })
@@ -170,7 +171,7 @@ wordbookRouter.post("/word/wordbooks", function (req, res) {
         .catch(err => {
             //console.log(`listWordbooksWithIdTokenCheck error: ${err.code}`);
             console.log(err);
-            res.status(400).end(errorMessage);
+            res.status(400).end(err.message);
         })
 });
 

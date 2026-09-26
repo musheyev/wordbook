@@ -102,9 +102,10 @@ dictionaryRouter.get("/history", function (req, res) {
     //console.log(`token=${token}`);
 
     uh.getUserHistory(token).then(data => {
-        // getUserHistory returns "" when there is no token; only arrays are reversible.
+        // getUserHistory now returns words most-recently-searched first, so send
+        // as-is (no reverse).
         const history = Array.isArray(data) ? data : [];
-        res.send(JSON.stringify(history.reverse()));
+        res.send(JSON.stringify(history));
     })
         .catch(error => {
             log("Error handling request to /dictionary/history: " + error.name);

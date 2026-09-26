@@ -226,10 +226,28 @@ function deleteCard(userIdToken, cardId) {
     });
 }
 
-// Given a set of card ids, return { card_id: title }. Used by wordbook.js to
-// resolve titles for the chip list without denormalizing them onto membership
-// rows. Not user-facing (no token check) — callers already resolved userName.
-function _getCardTitles(userName, cardIds) {
+const PREVIEW_LENGTH = 120;
+
+// Plain-text start of a card's HTML body, for the one-line preview in lists.
+function _previewText(html) {
+    const text = (html || "")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, "&")
+        .replace(/\s+/g, " ")
+        .trim();
+    return text.length > PREVIEW_LENGTH ? text.substring(0, PREVIEW_LENGTH) + "…" : text;
+}
+
+// Given a set of card ids, return { card_id: { title, preview } }. Used by
+// wordbook.js to resolve titles and previews for item lists without
+// denormalizing them onto membership rows. Not user-facing (no token check) —
+// callers already resolved userName.
+function _getCardSummaries(userName, cardIds) {
     return new Promise((resolve) => {
         const unique = [...new Set(cardIds)];
         if (unique.length === 0) {
@@ -242,8 +260,8 @@ function _getCardTitles(userName, cardIds) {
                 .get({
                     TableName: CARDS_TABLE,
                     Key: { user_name: userName, card_id: cardId },
-                    ProjectionExpression: "card_id, #title",
-                    ExpressionAttributeNames: { "#title": "title" },
+                    ProjectionExpression: "card_id, #title, #content",
+                    ExpressionAttributeNames: { "#title": "title", "#content": "content" },
                 })
                 .promise()
                 .then((data) => (data.Item ? data.Item : null))
@@ -254,7 +272,10 @@ function _getCardTitles(userName, cardIds) {
             const map = {};
             items.forEach((item) => {
                 if (item) {
-                    map[item.card_id] = item.title || "";
+                    map[item.card_id] = {
+                        title: item.title || "",
+                        preview: _previewText(item.content),
+                    };
                 }
             });
             resolve(map);
@@ -268,5 +289,5 @@ module.exports = {
     getCard,
     listCards,
     deleteCard,
-    _getCardTitles,
+    _getCardSummaries,
 };

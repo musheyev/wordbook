@@ -1,61 +1,65 @@
 import React, { useState } from "react";
 import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
-import { deleteWordbook, renameWordbook } from '../actions';
+import { deleteWordbook } from '../actions';
+import RenameNotebookDialog from './RenameNotebookDialog';
+import { notebookPath } from '../utils/notebookPaths';
 
-function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook }) {
+function WordbookItemConfig({ name, id, preview, deleteWordbook }) {
     const [renaming, setRenaming] = useState(false);
-    const [draftName, setDraftName] = useState(name);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [remindersOpen, setRemindersOpen] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [menuUp, setMenuUp] = useState(false);
 
-    const onRenameSubmit = (e) => {
-        e.preventDefault();
-        const next = draftName.trim();
-        if (next && next !== name) {
-            renameWordbook(name, next);
-        }
-        setRenaming(false);
+    // Open the menu upward when there isn't room below the button (e.g. the
+    // last notebook on a phone, where the bottom tab bar would cover it).
+    const MENU_HEIGHT = 150;
+    const TAB_BAR_HEIGHT = 64;
+    const toggleMenu = (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setMenuUp(window.innerHeight - rect.bottom < MENU_HEIGHT + TAB_BAR_HEIGHT);
+        setMenuOpen((v) => !v);
     };
 
     const startRename = () => {
-        setDraftName(name);
         setRenaming(true);
     };
 
     return (
-        <div className="wb-card">
-            <div className="wb-card__row">
-                {renaming ? (
-                    <form className="wb-rename" onSubmit={onRenameSubmit}>
-                        <input autoFocus type="text" value={draftName}
-                            onChange={(e) => setDraftName(e.target.value)} />
-                        <button type="submit" className="wb-btn wb-btn--primary">Save</button>
-                        <button type="button" className="wb-btn" onClick={() => setRenaming(false)}>Cancel</button>
-                    </form>
-                ) : (
-                    <>
-                        {/* The wordbook name itself is the link (opens the wordbook). */}
-                        <div className="wb-card__info">
-                            <Link className="wb-card__title" to={`/wordbook/${name}`}>
-                                {name}
-                            </Link>
-                            <div className="wb-card__preview">{preview ? preview : 'No words yet'}</div>
-                        </div>
+        <div className="cb-book">
+            <RenameNotebookDialog open={renaming} name={name}
+                onClose={() => setRenaming(false)} onRenamed={() => setRenaming(false)} />
+            <div className="cb-book__row">
+                    {/* The cardbook name is the link that opens it. */}
+                    <div className="cb-book__info">
+                        <Link className="cb-book__title" to={notebookPath(name)}>{name}</Link>
+                        <div className="cb-book__preview">{preview ? preview : 'Empty'}</div>
+                    </div>
 
-                        <div className="wb-actions">
-                            <button className="wb-action" onClick={() => setRemindersOpen((v) => !v)}>
-                                <i className="bell outline icon"></i>Reminders
-                            </button>
-                            <button className="wb-action" onClick={startRename}>
-                                <i className="edit icon"></i>Rename
-                            </button>
-                            <button className="wb-action wb-action--danger" onClick={() => setConfirmDelete(true)}>
-                                <i className="trash icon"></i>Delete
-                            </button>
-                        </div>
-                    </>
-                )}
+                    <div className="cb-menu">
+                        <button className="cb-menu__btn" aria-label="Notebook options"
+                            onClick={toggleMenu}>
+                            <i className="ellipsis vertical icon"></i>
+                        </button>
+                        {menuOpen && (
+                            <>
+                                <div className="cb-menu__backdrop" onMouseDown={() => setMenuOpen(false)} />
+                                <div className={`cb-menu__list${menuUp ? ' cb-menu__list--up' : ''}`}>
+                                    <button onClick={() => { setRemindersOpen((v) => !v); setMenuOpen(false); }}>
+                                        <i className="bell outline icon"></i>Reminders
+                                    </button>
+                                    <button onClick={() => { startRename(); setMenuOpen(false); }}>
+                                        <i className="edit icon"></i>Rename
+                                    </button>
+                                    <button className="cb-menu__danger"
+                                        onClick={() => { setConfirmDelete(true); setMenuOpen(false); }}>
+                                        <i className="trash icon"></i>Delete
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
             </div>
 
             {remindersOpen && (
@@ -79,7 +83,7 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, renameWordbook 
             {confirmDelete && (
                 <div className="wb-panel wb-confirm">
                     <div className="wb-confirm__msg">
-                        Delete "{name}" and all its words? This can't be undone.
+                        Delete "{name}" and all its notes? This can't be undone.
                     </div>
                     <div className="wb-confirm__actions">
                         <button className="wb-btn" onClick={() => setConfirmDelete(false)}>Cancel</button>
@@ -100,4 +104,4 @@ function mapStatetoProps({ auth, wordbookPreviews }, ownProps) {
     };
 }
 
-export default connect(mapStatetoProps, { deleteWordbook, renameWordbook })(WordbookItemConfig);
+export default connect(mapStatetoProps, { deleteWordbook })(WordbookItemConfig);

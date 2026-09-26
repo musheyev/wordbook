@@ -1,21 +1,19 @@
 import React from "react";
+import { useNavigate } from 'react-router-dom';
 import { connect } from 'react-redux';
-import { fetchWordData, fetchCardData, deleteWordbookWord, deleteWordbookCard } from '../actions';
+import { deleteWordbookWord, deleteWordbookCard } from '../actions';
+import { itemPath } from '../utils/notebookPaths';
 
-// Renders one item chip in a wordbook. `item` is a typed object:
+// Renders one item in a notebook's list. `item` is a typed object:
 //   { type: 'word'|'card', id, title }
-// Cards get a distinct look (📝 + accent) and route clicks/deletes to the
-// card-specific actions. The × removes the item from THIS wordbook only.
-const WordWithDelete = ({ item, wordbook, selected, fetchWordData, fetchCardData, deleteWordbookWord, deleteWordbookCard }) => {
-
+// Clicking opens the item's URL (WordbookPage loads it). The × removes the
+// item from THIS notebook only.
+const WordWithDelete = ({ item, wordbook, selected, deleteWordbookWord, deleteWordbookCard }) => {
+    const navigate = useNavigate();
     const isCard = item.type === 'card';
 
     const onClick = () => {
-        if (isCard) {
-            fetchCardData(item.id);
-        } else {
-            fetchWordData(item.id);
-        }
+        navigate(itemPath(wordbook, item));
     };
 
     const onDelete = (e) => {
@@ -35,7 +33,7 @@ const WordWithDelete = ({ item, wordbook, selected, fetchWordData, fetchCardData
     };
 
     const removeTitle = isCard
-        ? `Remove card from ${wordbook}`
+        ? `Remove note from ${wordbook}`
         : `Remove ${item.title}`;
 
     return (
@@ -57,4 +55,4 @@ function mapStatetoProps({ currentWord }, ownProps) {
     };
 }
 
-export default connect(mapStatetoProps, { fetchWordData, fetchCardData, deleteWordbookWord, deleteWordbookCard })(WordWithDelete);
+export default connect(mapStatetoProps, { deleteWordbookWord, deleteWordbookCard })(WordWithDelete);

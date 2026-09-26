@@ -127,7 +127,7 @@ function getWordExamplesFromWordnik(word) {
 
         //make a request to wordnik
         let wordnikURL = "https://api.wordnik.com/v4/word.json/" +
-            wordAdjusted + "/examples?" +
+            encodeURIComponent(wordAdjusted) + "/examples?" +
             "useCanonical=true" +
             "&api_key=" + WORDNIK_API_KEY;
 

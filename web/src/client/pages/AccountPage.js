@@ -12,15 +12,28 @@ class AccountPage extends Component {
     }
 
     render() {
+        const wordbooks = this.props.wordbooks;
+        const hasBooks = Array.isArray(wordbooks) && wordbooks.length > 0;
+
         return (
-            <div className="ui container" style={{ marginTop: '10px' }}>
-                <h3>Account settings for {this.props.auth}</h3>
+            <div className="cb-account">
+                <div className="cb-account__head">
+                    <h1 className="cb-page-title">My Notebooks</h1>
+                </div>
 
                 <AddWordbook />
 
-                {Array.isArray(this.props.wordbooks) ? this.props.wordbooks.map((wordbook, index) => (
-                    <WordbookItemConfig key={wordbook} name={wordbook} id={index} />
-                )) : ""}
+                {hasBooks ? (
+                    <div className="cb-grid">
+                        {wordbooks.map((wordbook, index) => (
+                            <WordbookItemConfig key={wordbook} name={wordbook} id={index} />
+                        ))}
+                    </div>
+                ) : Array.isArray(wordbooks) ? (
+                    <div className="cb-empty">
+                        No notebooks yet — create one above to start collecting words and notes.
+                    </div>
+                ) : ""}
             </div>
         );
     }

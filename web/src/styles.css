@@ -2,6 +2,133 @@
     box-sizing: border-box;
   }
 
+/* ===========================================================================
+   Cardbook design tokens (UI redesign)
+   =========================================================================== */
+:root {
+  --cb-accent: #2563eb;
+  --cb-accent-ink: #ffffff;
+  --cb-accent-weak: #eaf1fe;
+  --cb-ink: #1f2430;
+  --cb-ink-2: #545c6b;
+  --cb-ink-3: #99a1af;
+  --cb-bg: #ffffff;
+  --cb-surface: #f6f8fb;
+  --cb-surface-2: #ffffff;
+  --cb-border: #e6e9ef;
+  --cb-border-strong: #d4d9e2;
+  --cb-danger: #dc2626;
+  --cb-radius: 12px;
+  --cb-radius-sm: 8px;
+}
+
+/* App shell: nav rail (desktop) + content, becomes a bottom tab bar on mobile */
+.app-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-rail {
+  display: flex;
+  flex-direction: column;
+  width: 212px;
+  flex-shrink: 0;
+  background: var(--cb-surface);
+  border-right: 1px solid var(--cb-border);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 16px 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--cb-ink);
+  text-decoration: none;
+}
+.nav-brand i.icon { margin: 0; color: var(--cb-accent); }
+
+.nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px 12px;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--cb-radius-sm);
+  color: var(--cb-ink-2);
+  text-decoration: none;
+  font-size: 0.95rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.nav-item i.icon { margin: 0; width: 1.2em; font-size: 1.05rem; }
+.nav-item:hover { background: var(--cb-accent-weak); color: var(--cb-accent); }
+.nav-item.on { background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 500; }
+
+.nav-spacer { flex: 1; }
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  color: var(--cb-ink-3);
+  font-size: 0.85rem;
+}
+.nav-user i.icon { margin: 0; font-size: 1.05rem; }
+
+/* Mobile: rail becomes a fixed bottom tab bar */
+@media (max-width: 768px) {
+  .app-shell { flex-direction: column; }
+  .nav-rail {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    width: auto;
+    height: 58px;
+    flex-direction: row;
+    border-right: none;
+    border-top: 1px solid var(--cb-border);
+    z-index: 200;
+  }
+  .nav-brand { display: none; }
+  .nav-items { flex-direction: row; padding: 0; gap: 0; }
+  .nav-item {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    border-radius: 0;
+    padding: 6px 2px;
+    font-size: 0.68rem;
+  }
+  .nav-item i.icon { font-size: 1.25rem; width: auto; }
+  .nav-item:hover { background: transparent; }
+  .nav-item.on { background: transparent; }
+  .nav-spacer { display: none; }
+  .nav-user { display: none; }
+  .app-main { padding-bottom: 64px; }
+  /* No bottom tab bar before login, so no reserved space for it. */
+  .app-shell--norail .app-main { padding-bottom: 0; }
+}
+
 .ui.menu {
     border-radius: 0;
 }
@@ -31,66 +158,135 @@ nav-button-as-link {
   }
 
 /* Clear float=left setting of the search elements */
-.history {
-  clear: both;
-  margin-left: 10px;
-  margin-top: 40px;
-  font-family: "Lato,'Helvetica Neue',Arial,Helvetica,sans-serif";
-  font-weight: normal;
+/* ---- Home / Search (page 2) ---- */
+.home-page { padding: 24px 20px 40px; }
+
+.cb-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  background: var(--cb-surface-2);
+  border: 1px solid var(--cb-border-strong);
+  border-radius: 999px;
+  padding: 4px 5px 4px 14px;
+}
+.cb-search:focus-within {
+  border-color: var(--cb-accent);
+  box-shadow: 0 0 0 3px var(--cb-accent-weak);
+}
+.cb-search__icon { margin: 0; color: var(--cb-ink-3); font-size: 0.9rem; }
+.cb-search__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  /* >=16px so iOS Safari does not auto-zoom (and shove the layout out of
+     bounds) when the field is focused. */
   font-size: 16px;
+  color: var(--cb-ink);
+  padding: 4px 0;
+}
+.cb-search__input::placeholder { color: var(--cb-ink-3); }
+.cb-search__go {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: var(--cb-accent);
+  color: var(--cb-accent-ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cb-search__go i.icon { margin: 0; font-size: 0.85rem; }
+.cb-search__go:hover { filter: brightness(0.94); }
+
+/* iOS: keep every editable field >=16px on phones so focusing one never
+   triggers Safari's auto-zoom, which pushes the whole layout off-screen. */
+@media (max-width: 768px) {
+  .cb-search__input,
+  .card-editor__title,
+  .a2c__filter input,
+  .a2c__new input,
+  .cb-step__input,
+  .cb-addwb input,
+  .wb-rename input,
+  .rte-content .ProseMirror {
+    font-size: 16px;
+  }
 }
 
-  /* Style the search field */
-  form.search input[type=text] {
-    padding: 10px;
-    font-size: 15px;
-    border: 1px solid grey;
-    float: left;
-    max-width: 400px;
-    width: 70%;
-    background: #f1f1f1;
-    margin-left: 10px;
-    margin-top: 0px;
-  }
+/* Mobile: a compact, contained search bar — narrower than the screen so it
+   never runs to the right edge / out of bounds. */
+@media (max-width: 768px) {
+  .cb-search { max-width: 280px; box-sizing: border-box; }
+}
 
-    /* Style the submit button */
-    form.search button {
-      
-      width: 50px;
-      padding: 10px;
-      background: #2196F3;;
-      color: white;
-      font-size: 17px;
-      border: 1px solid grey;
-      
-      cursor: pointer;
-      margin-left: 2px;
-      margin-top: 0px;
-    }
-
-form.search button:hover {
-    background: #0b7dda;
-  }
+/* Recently searched words */
+.history { margin-top: 32px; }
+.history__label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cb-ink-3);
+  margin-bottom: 10px;
+}
+.history__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.history-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 999px;
+  background: var(--cb-accent-weak);
+  color: var(--cb-accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.history-chip:hover { border-color: var(--cb-accent); }
+.history-chip__x {
+  font-style: normal;
+  font-size: 0.95rem;
+  line-height: 1;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--cb-ink-3);
+}
+.history-chip__x:hover { background: rgba(0,0,0,0.06); color: var(--cb-danger); }
+.history__more { margin-top: 12px; font-size: 0.85rem; color: var(--cb-accent); }
 
   .search-result {
-    clear: left;
     position: relative;
-    top: 20px;
-    left: 10px;
-
-    line-height: 1.4;
-
+    line-height: 1.5;
   }
 
   .search-result h2 {
-   font-size: 14px;
-
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--cb-ink);
+    margin: 0;
   }
 
   .source-dictionary {
-    color: rgb(53, 50, 50);
-    background-color: honeydew;
-    
+    display: inline-block;
+    color: var(--cb-ink-2);
+    background: var(--cb-surface);
+    border: 1px solid var(--cb-border);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-style: normal;
+    margin: 12px 0 4px;
   }
 
   img {
@@ -218,45 +414,213 @@ form.search button:hover {
 }
 
 /* wordbook page */
-#wordbook {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-
-  
+/* ---- Cardbook detail (page 4) ---- */
+.cb-detail { display: flex; flex-direction: column; }
+#worddefinition { padding: 20px 26px; min-width: 0; }
+.cb-detail__empty {
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--cb-ink-3);
+  font-size: 1rem;
 }
 
-#wordbookmain {
-  display: flex;
-  flex-direction: row;
-  padding: 10px;
-  
+/* Desktop: the left rail becomes the cardbook's context (single left panel) */
+.nav-ctx { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 16px 6px 6px; }
+.nav-ctx__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 8px; }
+.nav-ctx__title { font-size: 1.05rem; font-weight: 600; color: var(--cb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-ctx__add {
+  flex-shrink: 0; width: 28px; height: 28px; border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm); background: var(--cb-surface-2); color: var(--cb-accent);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.nav-ctx__add i.icon { margin: 0; }
+.nav-ctx__add:hover { background: var(--cb-accent-weak); }
+.nav-ctx__label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--cb-ink-3); padding: 0 8px 6px; }
+.nav-ctx__list { flex: 1; min-height: 0; overflow-y: auto; }
+
+@media (min-width: 769px) {
+  .nav-rail--ctx .nav-brand { display: none; }
+  .nav-rail--ctx .nav-items { flex: 0 0 auto; border-top: 1px solid var(--cb-border); }
+  .nav-rail--ctx .nav-items .nav-spacer { display: none; }
+}
+@media (max-width: 768px) {
+  .nav-ctx { display: none; }
 }
 
-#worddefinition {
-  padding: 10px 20px;
+/* Mobile: the notebook opens on its header (title menu + Add) and item list.
+   On desktop both live in the left rail instead. */
+.cb-mbar { display: none; }
+.cb-detail__pick { display: none; }
+@media (min-width: 769px) {
+  .cb-detail__pick { display: block; }
+}
+@media (max-width: 768px) {
+  .cb-mbar { display: block; }
+  .cb-mbar__head { display: flex; align-items: center; gap: 4px; padding: 14px 16px 4px 6px; }
+  .cb-mbar__head .nb-menu { margin-left: 0; margin-right: auto; }
+  .cb-mbar__back {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: var(--cb-radius-sm); color: var(--cb-accent);
+  }
+  .cb-mbar__back:hover, .cb-mbar__back:active { background: var(--cb-surface); color: var(--cb-accent); }
+  .cb-mbar__back i.icon { margin: 0; font-size: 1rem; }
+  .cb-mbar__add {
+    flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;
+    padding: 7px 14px; border: none; border-radius: 999px;
+    background: var(--cb-accent-weak); color: var(--cb-accent);
+    font-size: 0.95rem; font-weight: 500; font-family: inherit; cursor: pointer;
+  }
+  .cb-mbar__add i.icon { margin: 0; font-size: 0.85rem; }
 }
 
-#wordbookwords {
-  padding: 10px 20px;
+/* Notebook title as a menu button (rename / all notebooks / delete) */
+/* The -6px offset (to line the text up with the page edge) sits on the wrapper:
+   a negative margin on the button shrank it below its text, truncating even
+   short names ("test1" -> "te…"). */
+.nb-menu { position: relative; min-width: 0; margin-left: -6px; }
+.nb-menu__title {
+  display: flex; align-items: center; gap: 6px; max-width: 100%;
+  padding: 4px 6px;
+  border: none; background: none; border-radius: var(--cb-radius-sm);
+  font-family: inherit; font-size: 1.3rem; font-weight: 600; color: var(--cb-ink);
+  cursor: pointer; text-align: left;
+}
+.nb-menu__title:hover { background: var(--cb-surface); }
+.nb-menu__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-menu__title i.icon { margin: 0; flex-shrink: 0; font-size: 0.75rem; color: var(--cb-ink-3); }
+.nb-menu__list { left: 0; right: auto; min-width: 200px; }
+.nb-menu--rail { margin-left: -4px; }
+.nb-menu--rail .nb-menu__title { font-size: 1.05rem; padding: 4px; }
+.nb-menu--rail .nb-menu__title:hover { background: var(--cb-surface-2); }
+
+/* Mobile item list */
+.nb-list__count { font-size: 0.8rem; color: var(--cb-ink-3); padding: 0 16px 8px; }
+.nb-list__rows { list-style: none; margin: 0; padding: 0; }
+.nb-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-top: 1px solid var(--cb-border);
+  color: var(--cb-ink); text-decoration: none;
+}
+.nb-list__rows li:last-child .nb-row { border-bottom: 1px solid var(--cb-border); }
+.nb-row:hover, .nb-row:active { background: var(--cb-surface); color: var(--cb-ink); }
+.nb-row__icon {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: var(--cb-radius-sm);
+  display: flex; align-items: center; justify-content: center;
+}
+.nb-row__icon i.icon { margin: 0; }
+.nb-row__icon--card { background: #fdf3dc; color: #b7791f; }
+.nb-row__icon--word { background: var(--cb-accent-weak); color: var(--cb-accent); }
+.nb-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nb-row__title { font-size: 1rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-row__sub { font-size: 0.82rem; color: var(--cb-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-row__chev { margin: 0 !important; flex-shrink: 0; color: var(--cb-ink-3); font-size: 0.8rem !important; }
+
+/* Mobile item view: back to the list + previous/next */
+.nb-back { display: none; }
+@media (max-width: 768px) {
+  .nb-back {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 12px; border-bottom: 1px solid var(--cb-border);
+  }
+  .cb-detail--editing .nb-back { display: none; }
+  .nb-back__link {
+    display: flex; align-items: center; gap: 8px; min-width: 0;
+    color: var(--cb-ink); font-size: 1rem; font-weight: 600; text-decoration: none;
+    padding: 4px 8px 4px 2px; border-radius: var(--cb-radius-sm);
+  }
+  .nb-back__link:hover, .nb-back__link:active { color: var(--cb-ink); background: var(--cb-surface); }
+  .nb-back__link i.icon { margin: 0; font-size: 0.9rem; color: var(--cb-accent); height: auto; line-height: 1; position: relative; top: -1px; }
+  .nb-back__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nb-back__nav { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .nb-back__pos { font-size: 0.8rem; color: var(--cb-ink-3); margin-right: 4px; }
+  .nb-back__step {
+    width: 34px; height: 34px; border: none; border-radius: 50%;
+    background: var(--cb-surface); color: var(--cb-ink-2); cursor: pointer;
+  }
+  .nb-back__step:hover, .nb-back__step:active { background: var(--cb-border); color: var(--cb-ink); }
+  .nb-back__step i.icon { margin: 0; }
+  .nb-back__step:disabled { background: transparent; color: var(--cb-ink-3); opacity: 0.45; cursor: default; }
+  .cb-detail--item #worddefinition { padding: 16px; }
 }
 
+/* Dialog that becomes a bottom sheet on phones (rename, add) */
+.cb-sheet__overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(15, 20, 35, 0.38);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.cb-sheet {
+  width: 100%; max-width: 420px;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius); box-shadow: 0 16px 40px rgba(15, 20, 35, 0.24);
+  padding: 18px 20px 16px;
+}
+.cb-sheet__grab { display: none; }
+.cb-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.cb-sheet__head .cb-sheet__title { margin: 0; }
+.cb-sheet__title { margin: 0 0 12px; font-size: 1.05rem; font-weight: 600; color: var(--cb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-sheet__input {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  font-size: 1rem; color: var(--cb-ink); background: var(--cb-surface-2);
+}
+.cb-sheet__input:focus { outline: none; border-color: var(--cb-accent); box-shadow: 0 0 0 3px var(--cb-accent-weak); }
+.cb-sheet__error { margin-top: 8px; font-size: 0.85rem; color: var(--cb-danger); }
+.cb-sheet__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+@media (max-width: 768px) {
+  .cb-sheet__overlay { align-items: flex-end; padding: 0; }
+  .cb-sheet {
+    max-width: none; border-radius: 16px 16px 0 0; border-bottom: none;
+    padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -8px 28px rgba(15, 20, 35, 0.22);
+  }
+  .cb-sheet__grab {
+    display: block; width: 36px; height: 4px; border-radius: 2px;
+    background: var(--cb-border-strong); margin: 2px auto 12px;
+  }
+  .cb-sheet__input { font-size: 16px; }
+  .cb-sheet__actions .cb-btn { flex: 1; padding: 11px 16px; }
+}
+
+/* Add sheet: look up a word, or write a note */
+.cb-search--sheet { max-width: none; }
+.add-sheet__result { min-height: 8px; margin: 10px 0 4px; }
+.add-sheet__hint { font-size: 0.88rem; color: var(--cb-ink-3); padding: 8px 2px; }
+.add-sheet__row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border: 1px solid var(--cb-border); border-radius: var(--cb-radius-sm);
+}
+.add-sheet__text { flex: 1; min-width: 0; }
+.add-sheet__word { font-size: 1rem; font-weight: 600; color: var(--cb-ink); }
+.add-sheet__def {
+  font-size: 0.85rem; color: var(--cb-ink-2); line-height: 1.4; margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.add-sheet__btn { flex-shrink: 0; gap: 4px; }
+.add-sheet__btn i.icon { margin: 0; }
+.add-sheet__note {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  margin-top: 6px; padding: 12px 4px;
+  border: none; border-top: 1px solid var(--cb-border); background: none;
+  color: var(--cb-accent); font-family: inherit; font-size: 0.95rem; font-weight: 500;
+  cursor: pointer; text-align: left;
+}
+.add-sheet__note i.icon { margin: 0; }
+
+/* Title on its own row, actions on a separate row below (no competing). */
 .current-word-container {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px 15px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
-/* push the "Add to Wordbook" button (and the card toolbar) to the far right */
-.current-word-container > div:last-child {
-  margin-left: auto;
-}
+/* Word (dictionary) view: extra room between the word and the bookmark button
+   so the word is easy to select/long-press without hitting the button. */
+.search-result:not(.search-result--card) .current-word-container { gap: 20px; }
 
-/* Card header toolbar: Edit / Delete icon buttons + Add to Wordbook. */
-.card-heading { min-width: 0; }
+.card-heading { min-width: 0; max-width: 100%; }
 .card-header-actions {
   display: flex;
   align-items: center;
@@ -269,15 +633,32 @@ form.search button:hover {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border: 1px solid #d9dbe0;
-  border-radius: 6px;
-  background: #fff;
-  color: #2f6fb3;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  background: var(--cb-surface-2);
+  color: var(--cb-accent);
   cursor: pointer;
 }
 .card-tool i.icon { margin: 0; }
-.card-tool:hover { background: #eef4fb; border-color: #b5d4f4; }
-.card-tool--danger { color: #c0392b; }
+.card-tool:hover { background: var(--cb-accent-weak); border-color: var(--cb-accent); }
+.card-tool--google { color: #4285f4; text-decoration: none; }
+.card-tool--google:hover { color: #4285f4; }
+.card-tool--sentence { color: #0f9d58; text-decoration: none; }
+.card-tool--sentence:hover { color: #0f9d58; }
+/* "Translate ⌄" dropdown next to G and T (Google Translate links) */
+.card-tool--translate {
+  width: auto; padding: 0 10px; gap: 6px;
+  font-family: inherit; font-size: 0.88rem; font-weight: 500; color: var(--cb-ink-2);
+}
+.card-tool--translate i.icon { margin: 0; font-size: 0.7rem; height: auto; line-height: 1; color: var(--cb-ink-3); }
+.translate-menu { left: 0; right: auto; min-width: 150px; }
+.translate-menu a {
+  display: block; padding: 8px 10px; border-radius: 6px;
+  font-size: 0.9rem; color: var(--cb-ink); text-decoration: none;
+}
+.translate-menu a:hover { background: var(--cb-surface); color: var(--cb-ink); }
+.card-tool__g { font-family: Arial, Helvetica, sans-serif; font-size: 1.05rem; font-weight: 700; line-height: 1; }
+.card-tool--danger { color: var(--cb-danger); }
 .card-tool--danger:hover { background: #fbeaea; border-color: #e0b4b0; }
 
 /* Inline delete confirmation (replaces the native confirm dialog). */
@@ -553,18 +934,7 @@ form.search button:hover {
   }
 }
 
-/* wordbook word chips — shares the visual language of the search-history chips */
-.word-chips__toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 6px;
-}
-
-.word-chips__edit {
-  font-size: 0.8rem;
-  color: #2f6fb3;
-}
-
+/* wordbook word chips (desktop rail list) */
 .word-chips {
   display: flex;
   flex-direction: column;
@@ -576,28 +946,27 @@ form.search button:hover {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 7px 12px;
-  min-height: 40px;
+  padding: 8px 12px;
+  min-height: 38px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--cb-radius-sm);
   background: transparent;
-  color: #2f6fb3;
+  color: var(--cb-accent);
   cursor: pointer;
   white-space: nowrap;
   outline: none;
 }
 
 .word-chip:hover {
-  background: #fff;
+  background: var(--cb-surface-2);
 }
 
 .word-chip:focus-visible {
-  box-shadow: 0 0 0 2px #b5d4f4;
+  box-shadow: 0 0 0 2px var(--cb-accent-weak);
 }
 
 .word-chip.selected {
-  background: #e6f1fb;
-  border-color: #b5d4f4;
+  background: var(--cb-accent-weak);
   font-weight: 500;
 }
 
@@ -620,52 +989,10 @@ form.search button:hover {
   color: #c0392b;
 }
 
-/* show the remove control in edit mode (works on touch + desktop) */
-.word-chips.editing .word-chip__x {
-  display: inline-flex;
-}
-
-/* desktop: word list is a fixed side column; reveal remove on hover */
+/* desktop: reveal the remove control on hover */
 @media (min-width: 769px) {
-  #wordbookwords {
-    width: 260px;
-    flex-shrink: 0;
-  }
-
   .word-chip:hover .word-chip__x {
     display: inline-flex;
-  }
-}
-
-/* mobile: stack the page and turn the word list into a horizontal pill strip */
-@media (max-width: 768px) {
-  #wordbookmain {
-    flex-direction: column;
-  }
-
-  #wordbookwords {
-    width: 100%;
-  }
-
-  .word-chips {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 8px;
-    padding-bottom: 6px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .word-chip {
-    flex-shrink: 0;
-    border-radius: 999px;
-    border-color: #d9dbe0;
-    background: #fff;
-  }
-
-  .word-chip.selected {
-    border-color: #b5d4f4;
-    background: #e6f1fb;
   }
 }
 
@@ -733,6 +1060,384 @@ form.search button:hover {
 
 
 /* ---- Rich text editor (TipTap) ---- */
+/* ---------------------------------------------------------------------------
+   In-place card editor (replaces the old modal)
+   --------------------------------------------------------------------------- */
+.card-editor {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Title on its own row so a long title has the full width. */
+.card-editor__title {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--cb-ink);
+  padding: 8px 12px;
+  border: 1px solid var(--cb-border-strong);
+  border-radius: var(--cb-radius-sm);
+  background: var(--cb-surface-2);
+}
+.card-editor__title:focus {
+  outline: none;
+  border-color: var(--cb-accent);
+  box-shadow: 0 0 0 3px var(--cb-accent-weak);
+}
+
+/* Action icons grouped together, left-aligned, on the row below the title. */
+.card-editor__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.card-tool--save { color: #15803d; }
+.card-tool--save { border-color: #bbe7c6; }
+.card-tool--save:hover { background: #e8f7ec; border-color: #15803d; }
+.card-tool:disabled { opacity: 0.45; cursor: default; }
+.card-tool:disabled:hover { background: var(--cb-surface-2); border-color: var(--cb-border); }
+
+/* Give the editor body room to grow toward the bottom of the pane on desktop. */
+.card-editor .rte-content { max-height: calc(100vh - 320px); }
+
+/* While editing on mobile, the in-place editor owns the pane: hide the
+   cardbook title / add / swipe-strip bar. */
+@media (max-width: 768px) {
+  .cb-detail--editing .cb-mbar { display: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Branded confirmation dialog (replaces window.confirm)
+   --------------------------------------------------------------------------- */
+.cb-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 20, 35, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.cb-dialog {
+  width: 100%;
+  max-width: 360px;
+  background: var(--cb-surface-2);
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  box-shadow: 0 16px 40px rgba(15, 20, 35, 0.24);
+  padding: 20px 20px 16px;
+}
+.cb-dialog__title { margin: 0 0 8px; font-size: 1.05rem; font-weight: 600; color: var(--cb-ink); }
+.cb-dialog__msg { margin: 0 0 18px; font-size: 0.9rem; line-height: 1.5; color: var(--cb-ink-2); }
+.cb-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+.cb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--cb-radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+.cb-btn--ghost {
+  background: var(--cb-surface-2);
+  border-color: var(--cb-border-strong);
+  color: var(--cb-ink-2);
+}
+.cb-btn--ghost:hover { background: var(--cb-surface); }
+.cb-btn--accent { background: var(--cb-accent); color: var(--cb-accent-ink); }
+.cb-btn--accent:hover { background: #1d4ed8; }
+.cb-btn--danger { background: var(--cb-danger); color: #ffffff; }
+.cb-btn--danger:hover { background: #b91c1c; }
+
+/* ---------------------------------------------------------------------------
+   New-user onboarding ("Get started") on the Words page
+   --------------------------------------------------------------------------- */
+.cb-onboard { max-width: 680px; margin: 20px 0 0; }
+.cb-onboard__head { margin-bottom: 14px; }
+.cb-onboard__title { font-size: 1.3rem; font-weight: 600; color: var(--cb-ink); margin-bottom: 4px; }
+.cb-onboard__sub { font-size: 0.95rem; color: var(--cb-ink-2); }
+.cb-onboard__steps { display: flex; flex-direction: column; gap: 10px; }
+.cb-step {
+  display: flex; align-items: flex-start; gap: 14px;
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+  padding: 14px 16px; background: var(--cb-surface);
+}
+.cb-step__num {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--cb-accent-weak); color: var(--cb-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; font-weight: 600;
+}
+.cb-step__body { flex: 1; min-width: 0; }
+.cb-step__title { font-size: 0.95rem; font-weight: 600; color: var(--cb-ink); }
+.cb-step__text { font-size: 0.85rem; color: var(--cb-ink-2); line-height: 1.5; margin-top: 2px; }
+.cb-step__action { flex-shrink: 0; align-self: center; }
+.cb-step__form { display: flex; gap: 8px; margin-top: 10px; }
+.cb-step__input {
+  flex: 1; min-width: 0; padding: 8px 12px;
+  border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  font-size: 0.9rem; color: var(--cb-ink);
+}
+.cb-step__input:focus { outline: none; border-color: var(--cb-accent); box-shadow: 0 0 0 2px var(--cb-accent-weak); }
+.cb-step--locked { opacity: 0.7; }
+.cb-step--locked .cb-step__num {
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border-strong); color: var(--cb-ink-3);
+}
+.cb-btn:disabled { opacity: 0.5; cursor: default; }
+@media (max-width: 768px) {
+  .cb-step { flex-wrap: wrap; }
+  .cb-step__action { width: 100%; margin-top: 8px; }
+}
+
+/* ---------------------------------------------------------------------------
+   Word of the day (fills the signed-in Words page when no word is selected)
+   --------------------------------------------------------------------------- */
+.wotd { max-width: 680px; margin: 24px 0 0; }
+.wotd__label {
+  font-size: 0.68rem; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--cb-ink-3); margin-bottom: 10px;
+}
+.wotd__card {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+  background: var(--cb-surface); padding: 14px 16px;
+}
+.wotd__word { font-size: 1.05rem; font-weight: 600; color: var(--cb-ink); margin-bottom: 3px; }
+.wotd__def { font-size: 0.88rem; color: var(--cb-ink-2); line-height: 1.5; }
+.wotd__go { flex-shrink: 0; }
+@media (max-width: 768px) {
+  .wotd__card { flex-direction: column; align-items: flex-start; }
+  .wotd__go { width: 100%; }
+}
+
+/* ---------------------------------------------------------------------------
+   Landing (empty-state) intro on the Words page
+   --------------------------------------------------------------------------- */
+.cb-landing { max-width: 680px; margin: 0 auto; padding: 8px 0 40px; }
+.cb-landing__hero { text-align: center; padding: 16px 12px 4px; }
+.cb-landing__eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--cb-accent); font-size: 0.85rem; font-weight: 500; margin-bottom: 12px;
+}
+.cb-landing__eyebrow i.icon { margin: 0; }
+.cb-landing__title {
+  font-size: 1.7rem; font-weight: 600; color: var(--cb-ink);
+  margin: 0 0 10px; line-height: 1.2;
+}
+.cb-landing__sub {
+  font-size: 1rem; color: var(--cb-ink-2); line-height: 1.6;
+  margin: 0 auto; max-width: 520px;
+}
+
+.cb-landing__features {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  padding: 24px 0 8px;
+}
+.cb-landing__feature {
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+  padding: 16px; background: var(--cb-surface);
+}
+.cb-landing__feature i.icon { margin: 0; color: var(--cb-accent); font-size: 1.2rem; }
+.cb-landing__feature h3 { font-size: 0.95rem; font-weight: 600; color: var(--cb-ink); margin: 8px 0 4px; }
+.cb-landing__feature p { font-size: 0.85rem; color: var(--cb-ink-2); line-height: 1.5; margin: 0; }
+
+.cb-landing__preview {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px 0 4px;
+}
+.cb-landing__pv { border: 1px solid var(--cb-border); border-radius: var(--cb-radius); overflow: hidden; }
+.cb-landing__pv-cap {
+  font-size: 0.68rem; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--cb-ink-3); padding: 8px 12px; border-bottom: 1px solid var(--cb-border);
+}
+.cb-landing__pv-body { padding: 12px; }
+.cb-landing__pv-card {
+  border-left: 3px solid #f0b429; background: #fffdf7;
+  padding: 10px 12px; border-radius: 4px;
+}
+.cb-landing__pv-title { font-size: 0.95rem; font-weight: 600; color: var(--cb-ink); margin-bottom: 3px; }
+.cb-landing__pv-text { font-size: 0.82rem; color: var(--cb-ink-2); line-height: 1.5; }
+
+.cb-landing__cta {
+  display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 20px; padding: 18px;
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius); background: var(--cb-surface);
+}
+.cb-landing__cta span { font-size: 0.92rem; color: var(--cb-ink-2); }
+
+@media (max-width: 768px) {
+  .cb-landing__features { grid-template-columns: 1fr; }
+  .cb-landing__preview { grid-template-columns: 1fr; }
+  .cb-landing__title { font-size: 1.4rem; }
+
+  /* Reorder so the sign-up / log-in row sits right under the hero (no scroll),
+     with the feature tiles and preview below it. */
+  .cb-landing { display: flex; flex-direction: column; }
+  .cb-landing__hero { order: 0; }
+  .cb-landing__cta { order: 1; }
+  .cb-landing__features { order: 2; }
+  .cb-landing__preview { order: 3; }
+
+  /* Buttons on one row; drop the band look and the helper text on mobile. */
+  .cb-landing__cta {
+    flex-direction: row;
+    gap: 10px;
+    margin-top: 4px;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+  .cb-landing__cta span { display: none; }
+  .cb-landing__cta .cb-btn { flex: 1; width: auto; }
+}
+
+/* ---------------------------------------------------------------------------
+   Add-to-cardbook picker: desktop popover / mobile bottom sheet
+   --------------------------------------------------------------------------- */
+.a2c__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: transparent;
+}
+/* Wraps the bookmark button so the popover can anchor directly under it. */
+.a2c-anchor { position: relative; display: inline-flex; }
+
+.a2c__panel {
+  position: absolute;
+  z-index: 41;
+  top: calc(100% + 6px);   /* just under the bookmark button */
+  width: 290px;
+  max-width: calc(100vw - 20px);
+  background: var(--cb-surface-2);
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  box-shadow: 0 10px 28px rgba(20, 25, 40, 0.16);
+  overflow: hidden;
+}
+/* A little to the right of the icon's left edge (default), or right-aligned. */
+.a2c--left .a2c__panel { left: 4px; }
+.a2c--right .a2c__panel { right: 0; }
+
+.a2c__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--cb-border);
+}
+.a2c__title { font-size: 0.95rem; font-weight: 600; color: var(--cb-ink); }
+.a2c__close {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--cb-ink-3); padding: 2px; line-height: 1;
+}
+.a2c__close i.icon { margin: 0; }
+.a2c__close:hover { color: var(--cb-ink); }
+
+.a2c__filter {
+  display: flex; align-items: center; gap: 6px;
+  margin: 8px 10px 4px;
+  padding: 5px 9px;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+}
+.a2c__filter i.icon { margin: 0; color: var(--cb-ink-3); font-size: 0.85rem; }
+.a2c__filter input {
+  border: none; outline: none; background: transparent;
+  font-size: 0.88rem; color: var(--cb-ink); width: 100%;
+}
+
+.a2c__list { max-height: 210px; overflow-y: auto; padding: 4px 6px; }
+.a2c__row {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; text-align: left;
+  padding: 9px 10px; margin-bottom: 2px;
+  border: none; border-radius: var(--cb-radius-sm);
+  background: transparent; color: var(--cb-ink-2);
+  font-size: 0.88rem; cursor: pointer;
+}
+.a2c__row:hover { background: var(--cb-surface); }
+.a2c__row.on {
+  background: var(--cb-accent-weak);
+  color: var(--cb-accent);
+  font-weight: 500;
+}
+.a2c__row.locked { cursor: default; }
+.a2c__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.a2c__row i.icon { margin: 0; }
+.a2c__tag {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--cb-ink-3); font-weight: 500;
+}
+.a2c__empty { color: var(--cb-ink-3); font-size: 0.85rem; padding: 10px; text-align: center; }
+
+.a2c__foot { border-top: 1px solid var(--cb-border); padding: 6px; }
+.a2c__newbtn {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 9px 10px;
+  border: none; border-radius: var(--cb-radius-sm);
+  background: transparent; color: var(--cb-accent);
+  font-size: 0.88rem; font-weight: 500; cursor: pointer;
+}
+.a2c__newbtn:hover { background: var(--cb-accent-weak); }
+.a2c__newbtn i.icon { margin: 0; }
+.a2c__new { display: flex; gap: 6px; padding: 4px; }
+.a2c__new input {
+  flex: 1; min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--cb-border-strong);
+  border-radius: var(--cb-radius-sm);
+  font-size: 0.88rem; color: var(--cb-ink);
+}
+.a2c__new input:focus { outline: none; border-color: var(--cb-accent); box-shadow: 0 0 0 2px var(--cb-accent-weak); }
+.a2c__new-add {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border: none; border-radius: var(--cb-radius-sm);
+  background: var(--cb-accent); color: var(--cb-accent-ink);
+  font-size: 0.85rem; font-weight: 500; cursor: pointer;
+}
+
+/* Done button is bottom-sheet only (desktop uses × / click-outside). */
+.a2c__done { display: none; }
+
+/* Mobile: the picker becomes a bottom sheet. */
+@media (max-width: 768px) {
+  .a2c__backdrop { background: rgba(15, 20, 35, 0.38); }
+  .a2c__panel {
+    position: fixed;
+    left: 0; right: 0; bottom: 0; top: auto;
+    width: auto; max-width: none;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 28px rgba(15, 20, 35, 0.22);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .a2c__list { max-height: 46vh; }
+  .a2c__row { padding: 12px; font-size: 0.95rem; }
+  .a2c__done {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 4px 12px 12px;
+    padding: 12px;
+    border: 1px solid var(--cb-border-strong);
+    border-radius: var(--cb-radius-sm);
+    background: var(--cb-surface-2);
+    color: var(--cb-ink);
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
+}
+
 .rte {
   border: 1px solid #d9dbe0;
   border-radius: 6px;
@@ -1069,3 +1774,133 @@ form.search button:hover {
   cursor: pointer;
 }
 .card-modal__save:disabled { opacity: 0.5; cursor: not-allowed; }
+/* ===========================================================================
+   My Cardbooks (page 3)
+   =========================================================================== */
+.cb-account { padding: 24px 20px 44px; max-width: 1040px; }
+.cb-account__head { margin-bottom: 16px; }
+.cb-page-title { font-size: 1.6rem; font-weight: 600; color: var(--cb-ink); margin: 0; }
+.cb-page-sub { font-size: 0.85rem; color: var(--cb-ink-3); margin-top: 2px; }
+
+/* Admin: users list (/users) */
+.cb-users { padding: 24px 20px 44px; max-width: 720px; }
+.cb-users__head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+.cb-users__count { font-size: 0.85rem; color: var(--cb-ink-3); }
+.cb-users__hint { color: var(--cb-ink-3); font-size: 0.95rem; padding: 8px 2px; }
+.cb-users__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cb-user {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius); padding: 12px 14px;
+}
+.cb-user:hover { border-color: var(--cb-border-strong); }
+.cb-user__avatar {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--cb-accent-weak); color: var(--cb-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; font-weight: 600;
+}
+.cb-user__meta { display: flex; flex-direction: column; min-width: 0; }
+.cb-user__name { font-size: 0.95rem; font-weight: 500; color: var(--cb-ink); }
+.cb-user__sub { font-size: 0.8rem; color: var(--cb-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cb-addwb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--cb-surface);
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  padding: 12px 14px;
+}
+.cb-addwb .form-inline { flex: 1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cb-addwb label { font-size: 0.9rem; color: var(--cb-ink-2); margin: 0; font-weight: 500; }
+.cb-addwb input {
+  flex: 1; min-width: 160px; width: auto;
+  border: 1px solid var(--cb-border-strong);
+  border-radius: var(--cb-radius-sm);
+  padding: 9px 12px;
+  background: var(--cb-surface-2);
+  font-size: 0.9rem;
+}
+.cb-addwb input:focus { outline: none; border-color: var(--cb-accent); box-shadow: 0 0 0 3px var(--cb-accent-weak); }
+.cb-addwb button {
+  border: none; background: var(--cb-accent); color: var(--cb-accent-ink);
+  padding: 9px 18px; border-radius: var(--cb-radius-sm); font-size: 0.9rem; cursor: pointer;
+}
+.cb-addwb button:hover { filter: brightness(0.94); }
+
+.cb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.cb-empty {
+  margin-top: 18px; padding: 28px; text-align: center; color: var(--cb-ink-3);
+  border: 1px dashed var(--cb-border-strong); border-radius: var(--cb-radius); font-size: 0.95rem;
+}
+
+.cb-book {
+  background: var(--cb-surface-2);
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  padding: 14px 16px;
+  transition: border-color .12s ease;
+}
+.cb-book:hover { border-color: var(--cb-border-strong); }
+.cb-book__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.cb-book__info { min-width: 0; }
+.cb-book__title { font-size: 1.05rem; font-weight: 600; color: var(--cb-accent); text-decoration: none; }
+.cb-book__title:hover { text-decoration: underline; }
+.cb-book__preview {
+  margin-top: 4px; font-size: 0.85rem; color: var(--cb-ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.cb-menu { position: relative; flex-shrink: 0; }
+.cb-menu__btn {
+  width: 32px; height: 32px; border: none; background: none;
+  border-radius: var(--cb-radius-sm); color: var(--cb-ink-3); cursor: pointer;
+}
+.cb-menu__btn i.icon { margin: 0; }
+.cb-menu__btn:hover { background: var(--cb-surface); color: var(--cb-ink-2); }
+.cb-menu__backdrop { position: fixed; inset: 0; z-index: 30; }
+.cb-menu__list {
+  position: absolute; right: 0; top: 100%; margin-top: 4px;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: 10px; box-shadow: 0 10px 26px rgba(0,0,0,0.14);
+  padding: 6px; z-index: 31; min-width: 156px; display: flex; flex-direction: column;
+}
+.cb-menu__list--up { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px; }
+.cb-menu__list button {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border: none; background: none; border-radius: 6px; font-size: 0.9rem;
+  color: var(--cb-ink); cursor: pointer; text-align: left; font-family: inherit;
+}
+.cb-menu__list button:hover { background: var(--cb-surface); }
+.cb-menu__list i.icon { margin: 0; width: 1.1em; }
+.cb-menu__danger { color: var(--cb-danger); }
+
+/* Desktop: cardbook detail fills the viewport; card content scrolls to bottom */
+@media (min-width: 769px) {
+  .cb-detail { height: 100vh; }
+  #worddefinition {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .search-result--card {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .search-result--card .card-content--scroll {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+}

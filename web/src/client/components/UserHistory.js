@@ -4,28 +4,6 @@ import { fetchUserHistory, deleteHistoryWord } from '../actions';
 
 const CAP = 8;
 
-const chipStyle = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '5px 12px',
-    border: '1px solid #d9dbe0',
-    borderRadius: '999px',
-    background: '#fff',
-    fontSize: '0.85rem',
-    color: '#2f6fb3',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-};
-
-const xStyle = {
-    fontStyle: 'normal',
-    fontSize: '1rem',
-    lineHeight: 1,
-    color: '#9a9a9a',
-    cursor: 'pointer',
-};
-
 function UserHistory({ userHistory, auth, fetchUserHistory, deleteHistoryWord, onSearchWordDefinition }) {
     const [expanded, setExpanded] = useState(false);
 
@@ -43,24 +21,22 @@ function UserHistory({ userHistory, auth, fetchUserHistory, deleteHistoryWord, o
     const extra = userHistory.length - CAP;
 
     return (
-        <div className="history" style={{ marginBottom: '10px' }}>
-            <div style={{ marginBottom: '8px' }}>
-                <span style={{ fontStyle: 'italic', fontWeight: 'bold' }}>Recently searched words</span>
-            </div>
+        <div className="history">
+            <div className="history__label">Recently searched</div>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <div className="history__chips">
                 {shown.map((word, index) => (
-                    <span key={`${word}${index}`} style={chipStyle}
-                        onClick={() => onSearchWordDefinition(word)}>
+                    <span key={`${word}${index}`} className="history-chip"
+                        onClick={() => { onSearchWordDefinition(word); setExpanded(false); }}>
                         {word}
-                        <i style={xStyle} title={`Remove ${word}`}
+                        <i className="history-chip__x" title={`Remove ${word}`} aria-label={`Remove ${word}`}
                             onClick={(e) => { e.stopPropagation(); deleteHistoryWord(word); }}>×</i>
                     </span>
                 ))}
             </div>
 
             {extra > 0 && (
-                <button className="button-as-link" style={{ marginTop: '10px', fontSize: '0.85rem' }}
+                <button className="button-as-link history__more"
                     onClick={() => setExpanded(!expanded)}>
                     {expanded ? 'Show less' : `Show ${extra} more`}
                 </button>

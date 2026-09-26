@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { connect } from 'react-redux';
 import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard } from '../actions';
 import Definition from './Definition';
-import WordbookSelection from './WordbookSelection';
+import AddToCardbook from './AddToCardbook';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
+import TranslateMenu from './TranslateMenu';
 
 function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, auth, wordbooks,
     fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard }) {
-    const [wordbookSelectionPopupPosition, setPopupPosition] = useState(0);
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -42,21 +42,19 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     // the selected id) show a blank pane rather than the raw card_id (a GUID).
     const cardReady = isCard && currentCard != null && currentCard.card_id === currentWord;
 
-    // Shared "Add to wordbook" icon button + popup (used by both words and cards).
-    // Recompute the popup position on every click so it always opens next to the
-    // button (the old one-time capture went stale when the button moved).
-    const addToWordbookButton = (
-        <button className="card-tool" title="Add to wordbook" aria-label="Add to wordbook"
-            onClick={() => setShouldDisplayPopup((v) => !v)}>
-            <i className="bookmark outline icon"></i>
-        </button>
+    // Shared "Add to cardbook" bookmark button + popover (used by both words and
+    // cards). The popover is anchored to the button so it drops right under it.
+    const addToWordbookControl = (
+        <span className="a2c-anchor">
+            <button className="card-tool" title="Add to notebook" aria-label="Add to notebook"
+                onClick={() => setShouldDisplayPopup((v) => !v)}>
+                <i className="bookmark outline icon"></i>
+            </button>
+            {shouldDisplayPopup && (
+                <AddToCardbook align="left" onClose={() => setShouldDisplayPopup(false)} />
+            )}
+        </span>
     );
-
-    const wordbookPopup = shouldDisplayPopup ? (
-        <WordbookSelection left={wordbookSelectionPopupPosition}
-            wordbooks={wordbooks}
-            onDone={() => setShouldDisplayPopup(false)} />
-    ) : "";
 
     // ---- Card view ---------------------------------------------------------
     if (isCard) {
@@ -73,22 +71,22 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     <div className="card-header-actions">
                         {/* Edit / Delete live up here (as a toolbar) so they stay
                             visible no matter how long the card is. */}
-                        <button className="card-tool" title="Edit card" aria-label="Edit card"
+                        <button className="card-tool" title="Edit note" aria-label="Edit note"
                             onClick={() => openCardEditor({ mode: 'edit', card: currentCard })}>
                             <i className="edit icon"></i>
                         </button>
-                        <button className="card-tool card-tool--danger" title="Delete card" aria-label="Delete card"
+                        <button className="card-tool card-tool--danger" title="Delete note" aria-label="Delete note"
                             onClick={() => setConfirmingDelete(true)}>
                             <i className="trash alternate outline icon"></i>
                         </button>
-                        {addToWordbookButton}
+                        {addToWordbookControl}
                     </div>
                 </div>
 
                 {confirmingDelete && (
                     <div className="card-confirm">
                         <span className="card-confirm__msg">
-                            Delete "{currentCard.title}" from every wordbook? This can't be undone.
+                            Delete "{currentCard.title}" from every notebook? This can't be undone.
                         </span>
                         <span className="card-confirm__actions">
                             <button className="card-confirm__cancel"
@@ -98,8 +96,6 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         </span>
                     </div>
                 )}
-
-                {wordbookPopup}
 
                 {/* Scrollbar lives on the card content so the header/toolbar stays put. */}
                 <div className="card-content card-content--scroll" ref={cardRef}
@@ -117,10 +113,24 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     <>
                         <div className="current-word-container">
                             <div><h2>{currentWord}</h2> </div>
-                            {addToWordbookButton}
+                            <div className="card-header-actions">
+                                {addToWordbookControl}
+                                {/* Google's own definition box can't be fetched or
+                                    embedded, so open its "define" search instead. */}
+                                <a className="card-tool card-tool--google" title="Define on Google"
+                                    aria-label="Define on Google" target="_blank" rel="noopener noreferrer"
+                                    href={`https://www.google.com/search?q=${encodeURIComponent(`define ${currentWord}`)}`}>
+                                    <span className="card-tool__g" aria-hidden="true">G</span>
+                                </a>
+                                {/* Example sentences: Google search for use "<word>" in a sentence. */}
+                                <a className="card-tool card-tool--sentence" title="See it used in a sentence"
+                                    aria-label="See it used in a sentence" target="_blank" rel="noopener noreferrer"
+                                    href={`https://www.google.com/search?q=${encodeURIComponent(`use "${currentWord}" in a sentence`)}`}>
+                                    <span className="card-tool__g" aria-hidden="true">T</span>
+                                </a>
+                                <TranslateMenu word={currentWord} />
+                            </div>
                         </div>
-
-                        {wordbookPopup}
                     </>
                     : ""}
 

@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 import { connect } from 'react-redux';
 import WordWithDelete from './WordWithDelete';
 
+// The notebook's items in the desktop rail. Hovering an item reveals × to
+// remove it from this notebook.
 const WordList = (props) => {
-    const [editing, setEditing] = useState(false);
     const words = props.wordbookWords || [];
 
     if (words.length === 0) {
@@ -11,20 +12,11 @@ const WordList = (props) => {
     }
 
     return (
-        <div>
-            <div className="word-chips__toolbar">
-                <button className="button-as-link word-chips__edit"
-                    onClick={() => setEditing((e) => !e)}>
-                    {editing ? 'Done' : 'Edit'}
-                </button>
-            </div>
-
-            <div className={`word-chips${editing ? ' editing' : ''}`}>
-                {words.map((item, index) => (
-                    <WordWithDelete key={`wordWithDelete${item.type}${item.id}${index}`}
-                        item={item} id={index} wordbook={props.wordbook} />
-                ))}
-            </div>
+        <div className="word-chips">
+            {words.map((item, index) => (
+                <WordWithDelete key={`wordWithDelete${item.type}${item.id}${index}`}
+                    item={item} id={index} wordbook={props.wordbook} />
+            ))}
         </div>
     );
 };
