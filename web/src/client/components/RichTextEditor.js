@@ -3,6 +3,9 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, nodeInputRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Mathematics } from '@tiptap/extension-mathematics';
+import { TableKit } from '@tiptap/extension-table';
+import { Markdown } from '@tiptap/markdown';
+import { MarkdownPaste } from './editor/markdownPaste';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
@@ -54,13 +57,25 @@ const renderTex = (tex) => {
     }
 };
 
-// Rich-text editor for card bodies. Built on TipTap (ProseMirror). StarterKit
-// (v3) bundles bold, italic, underline, code, code block, headings, lists,
-// link and undo/redo. Mathematics adds KaTeX-rendered LaTeX: type $…$ inline or
-// $$…$$ for a block, or use the fx button.
+// Rich-text editor for card bodies. Built on TipTap (ProseMirror).
+//
+// An editor only understands the kinds of content its *schema* lists; anything
+// else is dropped when you paste. The extensions below build that schema:
+//   StarterKit    bold, italic, underline, code, code block, headings, lists,
+//                 link and undo/redo (TipTap v3 bundles these)
+//   Mathematics   KaTeX-rendered LaTeX: type $…$ inline or $$…$$ for a block,
+//                 or use the fx button
+//   TableKit      tables (table, row, header cell, cell). Without it a pasted
+//                 table lost its structure and became loose text
+//   Markdown      a Markdown parser (editor.markdown) that MarkdownPaste uses;
+//                 it changes nothing on its own
+//   MarkdownPaste turns pasted Markdown into formatted content; see
+//                 editor/markdownPaste.js and the "M↓" toggle below
 const RichTextEditor = ({ value, onChange }) => {
     // Toggles the formula help/examples reference without inserting anything.
     const [showHelp, setShowHelp] = React.useState(false);
+    // "M↓" toggle: while on, plain-text pastes are parsed as Markdown.
+    const [markdownPaste, setMarkdownPaste] = React.useState(false);
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
@@ -74,8 +89,16 @@ const RichTextEditor = ({ value, onChange }) => {
                 blockOptions: { katexOptions: { throwOnError: false } },
             }),
             MathInputRules,
+            // Column resizing is off: widths set by dragging would be saved into
+            // the note and fight the reader's screen width on phones.
+            TableKit.configure({ table: { resizable: false } }),
+            Markdown,
+            MarkdownPaste,
         ],
+        // Saved notes are HTML. Say so explicitly, since with the Markdown
+        // extension loaded a string could otherwise be read as Markdown.
         content: value || '',
+        contentType: 'html',
         onUpdate: ({ editor }) => onChange(editor.getHTML()),
     });
 
@@ -145,6 +168,13 @@ const RichTextEditor = ({ value, onChange }) => {
         editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     };
 
+    const toggleMarkdownPaste = () => {
+        const next = !markdownPaste;
+        editor.storage.markdownPaste.enabled = next;
+        setMarkdownPaste(next);
+        editor.commands.focus();
+    };
+
     // onMouseDown preventDefault keeps the editor selection while clicking a button.
     const Btn = ({ label, onClick, active, title }) => (
         <button
@@ -184,6 +214,11 @@ const RichTextEditor = ({ value, onChange }) => {
                     onClick={onFxClick} />
                 <Btn label="?" active={showHelp} title="Formula examples"
                     onClick={() => setShowHelp((v) => !v)} />
+                {/* The toggle's state lives in React (to redraw the button)
+                    and in the extension's storage (read at paste time). */}
+                <Btn label="M↓" active={markdownPaste}
+                    title={markdownPaste ? 'Paste as Markdown: on' : 'Paste as Markdown: off'}
+                    onClick={toggleMarkdownPaste} />
                 <span className="rte-toolbar__spacer" />
                 <Btn label="↶" title="Undo" onClick={() => editor.chain().focus().undo().run()} />
                 <Btn label="↷" title="Redo" onClick={() => editor.chain().focus().redo().run()} />

@@ -1976,3 +1976,40 @@ nav-button-as-link {
 .inbox-item__move i.icon { margin: 0; font-size: 0.7rem; }
 .inbox-item__error { margin: 0 0 12px; }
 .inbox-item__nobooks { display: block; padding: 8px 10px; color: var(--cb-accent); text-decoration: none; }
+
+/* ===========================================================================
+   Tables in notes: the same look while editing (.rte-content) and reading
+   (.card-content)
+   =========================================================================== */
+.card-content table,
+.rte-content .ProseMirror table {
+  border-collapse: collapse;       /* one shared border between cells, not two */
+  margin: 10px 0;
+  font-size: 0.92em;
+  line-height: 1.45;
+}
+.card-content th, .card-content td,
+.rte-content .ProseMirror th, .rte-content .ProseMirror td {
+  border: 1px solid var(--cb-border-strong);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+  min-width: 80px;
+}
+.card-content th,
+.rte-content .ProseMirror th {
+  background: var(--cb-surface);
+  font-weight: 600;
+}
+/* Cells hold paragraphs; drop their bottom margin so rows stay compact. */
+.card-content td p, .card-content th p,
+.rte-content .ProseMirror td p, .rte-content .ProseMirror th p { margin: 0; }
+
+/* Wide tables scroll sideways inside their own box instead of stretching the
+   page. Reading: `display: block` lets the table itself be the scroll box.
+   Editing: TipTap wraps each table in a div.tableWrapper for this. */
+.card-content table { display: block; max-width: 100%; overflow-x: auto; }
+.rte-content .ProseMirror .tableWrapper { max-width: 100%; overflow-x: auto; }
+
+/* While editing: show which cells are selected (dragging across cells). */
+.rte-content .ProseMirror .selectedCell { background: var(--cb-accent-weak); }
