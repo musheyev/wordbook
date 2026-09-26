@@ -233,10 +233,16 @@ wordbookRouter.post("/reorder", function (req, res) {
 
 });
 
+// Save a new order for a wordbook's items.
+// Body: { wordbook, items: [id, id, …] in the new order, needWordList: 'y' }.
+// `items` is an array; the older `words` comma-joined string is still accepted,
+// though it breaks for any item containing a comma.
 wordbookRouter.post("/words/reorder", function (req, res) {
 
     let wordbookName = req.body.wordbook;
-    let words = req.body.words;
+    let words = Array.isArray(req.body.items)
+        ? req.body.items.filter((id) => typeof id === "string")
+        : String(req.body.words || "").split(",").filter(Boolean);
     let needWordList = req.body.needWordList === 'y'
 
     console.log(`received post request on ${req.url}`);

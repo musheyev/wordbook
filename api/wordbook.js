@@ -488,6 +488,30 @@ function deleteWordFromWordbook(userIdToken, wordbookName, word) {
     });
 };
 
+/**
+ * Sort comparator for a wordbook's items: the order the user arranged them in.
+ *
+ * Items the user has placed have a numeric `sort_order` (0, 1, 2, … from the
+ * last drag-to-reorder) and come first, in that order. Items without one —
+ * everything from before reordering existed, and anything added since the
+ * last reorder — come after, oldest first by `added_datetime`, so a newly
+ * added item appears at the end of the list.
+ *
+ * (The old comparator compared `undefined` with numbers. Every such
+ * comparison is false in JavaScript, so it returned 0 — "equal" — and
+ * unordered items ended up wherever the sort happened to leave them.)
+ *
+ * A comparator returns a negative number to put `a` first, positive to put
+ * `b` first, and 0 to keep their current order.
+ */
+function compareItemOrder(a, b) {
+    const aPlaced = typeof a.sort_order === "number";
+    const bPlaced = typeof b.sort_order === "number";
+    if (aPlaced && bPlaced) return a.sort_order - b.sort_order;
+    if (aPlaced !== bPlaced) return aPlaced ? -1 : 1;
+    return String(a.added_datetime || "").localeCompare(String(b.added_datetime || ""));
+}
+
 /// private, list of items (words and cards) in a wordbook.
 /// Returns typed objects so the UI can tell words and cards apart:
 ///   word -> { type: "word", id: <word>,    title: <word> }
@@ -505,7 +529,7 @@ function _listOfWords(userName, wordbookName, limit = 0) {
                 ":userName": userName,
                 ":wordbook": wordbookName + "#"
             },
-            ProjectionExpression: "word, sort_order, item_type, card_id",
+            ProjectionExpression: "word, sort_order, item_type, card_id, added_datetime",
 
         };
 
@@ -519,17 +543,7 @@ function _listOfWords(userName, wordbookName, limit = 0) {
 
             const items = dataFromDb.Items || [];
 
-            items.sort((e1, e2) => {
-                if (e1.sort_order < e2.sort_order) {
-                    return -1;
-                }
-
-                if (e1.sort_order > e2.sort_order) {
-                    return 1;
-                }
-
-                return 0;
-            });
+            items.sort(compareItemOrder);
 
             const cardIds = items
                 .filter(item => item.item_type === "card")
@@ -862,56 +876,70 @@ function _setWordbookSortOrder(userName, wordbook, sortOrder) {
     });
 }
 
-function _orderWordbookWordsInDynamoDb(userName, wordbook, words) {
-    return new Promise((resolve, _) => {
-        console.log("called _orderWordbooksInDynamoDb");
-
-        let wordsArray = words.split(",");
-        let setSortOrderPromiseArray = [];
-
-        let sortOrder = 0;
-        wordsArray.forEach(word => {
-            setSortOrderPromiseArray.push(_setWordbookWordSortOrder(userName, wordbook, word, sortOrder));
-            sortOrder++;
-        });
-
-        if (setSortOrderPromiseArray.length > 0) {
-            Promise.all(setSortOrderPromiseArray)
-                .then(_ => resolve());
-        } else {
-            resolve();
-        }
-
-    })
+/**
+ * Save a new order for a wordbook's items: each item's `sort_order` becomes
+ * its position in `ids` (0, 1, 2, …). _listOfWords sorts by that number.
+ *
+ * All updates run in parallel and this resolves only once every one has been
+ * saved, or rejects if any failed — so the caller never reports an order as
+ * saved when it wasn't.
+ *
+ * @param {string} userName
+ * @param {string} wordbook
+ * @param {string[]} ids item ids in the new order: a word's text or a card_id,
+ *   the same `id` the item list returns
+ * @returns {Promise<void>}
+ */
+async function _orderWordbookWordsInDynamoDb(userName, wordbook, ids) {
+    await Promise.all(ids.map((id, position) =>
+        _setWordbookWordSortOrder(userName, wordbook, id, position)));
 }
 
-function _setWordbookWordSortOrder(userName, wordbook, word, sortOrder) {
-    return new Promise((resolve, _) => {
-        let params = {
+/**
+ * Set one item's `sort_order`.
+ *
+ * DynamoDB's UpdateItem *creates* the item if the key doesn't exist ("upsert").
+ * Without a guard, a stale or mistyped id would add a half-empty membership
+ * row to the wordbook. The ConditionExpression makes the update apply only to
+ * a row that already exists; for a missing one DynamoDB throws
+ * ConditionalCheckFailedException, which is ignored here — an item removed
+ * while being reordered simply has nothing to reorder.
+ *
+ * @param {string} userName
+ * @param {string} wordbook
+ * @param {string} id word text or card_id
+ * @param {number} sortOrder position, starting at 0
+ * @returns {Promise<void>}
+ */
+async function _setWordbookWordSortOrder(userName, wordbook, id, sortOrder) {
+    try {
+        await database.dynamoDbClientInstance().update({
             TableName: "dictionary_wordbooks_words",
-            "Key": {
-                "user_name": userName,
-                "wordbook_name": wordbook + '#' + word,
+            Key: {
+                user_name: userName,
+                wordbook_name: wordbook + '#' + id,
             },
-            "UpdateExpression": "set sort_order = :val1",
-            "ExpressionAttributeValues": {
-                ":val1": sortOrder,
-            },
-            "ReturnValues": "NONE"
-        };
-
-        database.dynamoDbClientInstance().update(params, function (err, _) {
-            if (err) {
-                console.error(`Unable to set sort order for ${userName} wordbook: ${wordbook}, word: ${word}. Error JSON:`, JSON.stringify(err, null, 2));
-            } else {
-                console.log(`Set sort order for ${userName} wordbook: ${wordbook}`);
-            }
-        });
-
-        resolve();
-    });
+            UpdateExpression: "set sort_order = :position",
+            ConditionExpression: "attribute_exists(wordbook_name)",
+            ExpressionAttributeValues: { ":position": sortOrder },
+        }).promise();
+    } catch (err) {
+        if (err.name !== "ConditionalCheckFailedException") {
+            throw err;
+        }
+    }
 }
 
+/**
+ * Reorder a wordbook's items (POST /wordbook/words/reorder), after the user
+ * drags one to a new position.
+ *
+ * @param {string} userIdToken
+ * @param {string} wordbook
+ * @param {string[]} words item ids in their new order
+ * @param {boolean} needWordList resolve with the re-read item list, so the
+ *   caller can confirm the saved order
+ */
 function reorderWords(userIdToken, wordbook, words, needWordList) {
     return new Promise((resolve, reject) => {
         if (!userIdToken) {
