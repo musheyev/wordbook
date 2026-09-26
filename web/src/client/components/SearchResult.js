@@ -5,6 +5,7 @@ import Definition from './Definition';
 import AddToCardbook from './AddToCardbook';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
+import TranslateMenu from './TranslateMenu';
 
 function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, auth, wordbooks,
     fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard }) {
@@ -127,6 +128,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                                     href={`https://www.google.com/search?q=${encodeURIComponent(`use "${currentWord}" in a sentence`)}`}>
                                     <span className="card-tool__g" aria-hidden="true">T</span>
                                 </a>
+                                <TranslateMenu word={currentWord} />
                             </div>
                         </div>
                     </>
