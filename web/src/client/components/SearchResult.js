@@ -6,11 +6,13 @@ import AddToCardbook from './AddToCardbook';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
 import TranslateMenu from './TranslateMenu';
+import ShareDialog from './ShareDialog';
 
 function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, auth, wordbooks,
     fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard }) {
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [sharing, setSharing] = useState(false);
 
     // Render any KaTeX math in the card body after the HTML is in the DOM.
     const cardRef = React.useRef(null);
@@ -56,6 +58,21 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
         </span>
     );
 
+    // Share button + dialog (used by both words and cards): sends a copy of
+    // the current item to another user's Inbox.
+    const shareItemInfo = isCard
+        ? { type: 'card', id: currentWord, title: cardReady ? currentCard.title : '' }
+        : { type: 'word', id: currentWord, title: currentWord };
+    const shareControl = (
+        <>
+            <button className="card-tool" title="Share with someone" aria-label="Share with someone"
+                onClick={() => setSharing(true)}>
+                <i className="paper plane outline icon"></i>
+            </button>
+            <ShareDialog open={sharing} item={shareItemInfo} onClose={() => setSharing(false)} />
+        </>
+    );
+
     // ---- Card view ---------------------------------------------------------
     if (isCard) {
         // Card selected but its content hasn't loaded yet: blank pane, no GUID.
@@ -80,6 +97,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             <i className="trash alternate outline icon"></i>
                         </button>
                         {addToWordbookControl}
+                        {shareControl}
                     </div>
                 </div>
 
@@ -115,6 +133,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             <div><h2>{currentWord}</h2> </div>
                             <div className="card-header-actions">
                                 {addToWordbookControl}
+                                {shareControl}
                                 {/* Google's own definition box can't be fetched or
                                     embedded, so open its "define" search instead. */}
                                 <a className="card-tool card-tool--google" title="Define on Google"

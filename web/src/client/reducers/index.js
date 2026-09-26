@@ -16,6 +16,7 @@ import wordbookPreviewsReducer from './wordbookPreviewsReducer';
 import wordbookWordsReducer, { wordbookWordsInProgressReducer } from './wordbookWordsReducer';
 import wordWordbooksReducer from './wordWordbooksReducer';
 import errorReducer from './errorReducer';
+import inboxReducer from './inboxReducer';
 
 export default combineReducers({
     users: usersReducer,
@@ -34,6 +35,7 @@ export default combineReducers({
     errorAPI: errorReducer,
     wordbookWords: wordbookWordsReducer,
     wordbookWordsInProgress: wordbookWordsInProgressReducer,
-    wordWorkbooks: wordWordbooksReducer
-    
+    wordWorkbooks: wordWordbooksReducer,
+    inbox: inboxReducer
+
 });

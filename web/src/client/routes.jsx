@@ -4,6 +4,7 @@ import App from './App';
 import HomePage from './pages/HomePage';
 import AccountPage from './pages/AccountPage';
 import WordbookPage from './pages/WordbookPage';
+import InboxPage from './pages/InboxPage';
 import UsersListPage from './pages/UsersListPage';
 import AdminsListPage from './pages/AdminsListPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -30,6 +31,8 @@ export const routes = [
       { path: 'account', Component: AccountPage },
       { path: 'wordbook/:name', Component: WordbookPage },
       { path: 'wordbook/:name/:type/:id', Component: WordbookPage },
+      { path: 'inbox', Component: InboxPage },
+      { path: 'inbox/:id', Component: InboxPage },
       { path: 'users', Component: UsersListPage },
       { path: 'admins', Component: AdminsListPage },
       { path: 'login', Component: LoginRedirect },
