@@ -18,6 +18,7 @@ const {
     DeleteCommand,
     UpdateCommand,
     BatchWriteCommand,
+    ScanCommand,
 } = require("@aws-sdk/lib-dynamodb");
 
 const COMMANDS = {
@@ -27,6 +28,9 @@ const COMMANDS = {
     delete: DeleteCommand,
     update: UpdateCommand,
     batchWrite: BatchWriteCommand,
+    // Reads a whole table, page by page. Only for small, admin-only
+    // listings (image curation): unlike query, it touches every item.
+    scan: ScanCommand,
 };
 
 let adapter = null;

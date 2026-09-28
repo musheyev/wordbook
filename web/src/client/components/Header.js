@@ -8,6 +8,7 @@ import NotebookMenu from './NotebookMenu';
 import AddItemSheet from './AddItemSheet';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
 import { notebookFromPathname } from '../utils/notebookPaths';
+import { ADMIN_PAGES } from '../pages/AdminPage';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
 
@@ -22,6 +23,9 @@ const Header = ({ auth, isAdmin, inboxCount, logoutCurrentUser }) => {
 
     const cardbookName = notebookFromPathname(location.pathname);
     const inCardbook = cardbookName !== '';
+    // The phone Admin tab stays highlighted on every admin page.
+    const inAdminArea = ADMIN_PAGES.some((page) => location.pathname.startsWith(page.to))
+        || location.pathname === '/admin';
 
     const [confirmingLogout, setConfirmingLogout] = React.useState(false);
     const [addOpen, setAddOpen] = React.useState(false);
@@ -89,11 +93,27 @@ const Header = ({ auth, isAdmin, inboxCount, logoutCurrentUser }) => {
                     </NavLink>
                 )}
 
+                {/* Admin area, admins only. Desktop rail: an "Admin" group
+                    listing each admin page. Phone tab bar: one Admin tab that
+                    opens the /admin hub, so the bar doesn't grow. CSS shows
+                    one or the other (.nav-admin-group / .nav-admin-tab). */}
                 {userExists && isAdmin && (
-                    <NavLink to="/users" className={navClass}>
-                        <i className="users icon"></i>
-                        <span className="nav-label">Users</span>
-                    </NavLink>
+                    <>
+                        <div className="nav-admin-group">
+                            <div className="nav-group-label">Admin</div>
+                            {ADMIN_PAGES.map((page) => (
+                                <NavLink key={page.to} to={page.to} className={navClass}>
+                                    <i className={`${page.icon} icon`}></i>
+                                    <span className="nav-label">{page.label}</span>
+                                </NavLink>
+                            ))}
+                        </div>
+                        <NavLink to="/admin" end={false}
+                            className={() => `nav-item nav-admin-tab${inAdminArea ? ' on' : ''}`}>
+                            <i className="shield alternate icon"></i>
+                            <span className="nav-label">Admin</span>
+                        </NavLink>
+                    </>
                 )}
 
                 <div className="nav-spacer" />

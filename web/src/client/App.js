@@ -13,6 +13,34 @@ const App = ({ auth, fetchCurrentUser, fetchInbox }) => {
         fetchCurrentUser();
     }, [fetchCurrentUser]);
 
+    // Stop mobile keyboards from auto-capitalizing the first letter in any text
+    // box. Applied globally (once, plus a MutationObserver for fields mounted
+    // later) so every input, textarea and rich-text editor is covered without
+    // annotating each one. A field can still opt in by setting its own
+    // autocapitalize attribute.
+    useEffect(() => {
+        const SELECTOR = 'input, textarea, [contenteditable="true"]';
+        const set = (el) => {
+            if (el.matches && el.matches(SELECTOR) && !el.hasAttribute('autocapitalize')) {
+                el.setAttribute('autocapitalize', 'none');
+            }
+        };
+        const scan = (root) => {
+            set(root);
+            if (root.querySelectorAll) root.querySelectorAll(SELECTOR).forEach(set);
+        };
+        scan(document.body);
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                m.addedNodes.forEach((node) => {
+                    if (node.nodeType === 1) scan(node);
+                });
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        return () => observer.disconnect();
+    }, []);
+
     // Logged out has no nav rail / bottom tab bar (see Header), so the shell
     // runs full-width.
     const loggedIn = auth != null && auth !== '' && auth !== false;
