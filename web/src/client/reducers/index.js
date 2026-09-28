@@ -17,6 +17,7 @@ import wordbookWordsReducer, { wordbookWordsInProgressReducer } from './wordbook
 import wordWordbooksReducer from './wordWordbooksReducer';
 import errorReducer from './errorReducer';
 import inboxReducer from './inboxReducer';
+import wordNoteReducer from './wordNoteReducer';
 
 export default combineReducers({
     users: usersReducer,
@@ -36,6 +37,7 @@ export default combineReducers({
     wordbookWords: wordbookWordsReducer,
     wordbookWordsInProgress: wordbookWordsInProgressReducer,
     wordWorkbooks: wordWordbooksReducer,
-    inbox: inboxReducer
+    inbox: inboxReducer,
+    wordNote: wordNoteReducer
 
 });

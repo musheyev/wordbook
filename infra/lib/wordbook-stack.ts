@@ -31,6 +31,8 @@ const DYNAMO_TABLES = [
   // Items shared with a user (api/inbox.js). PK user_name (recipient),
   // SK inbox_id; also holds per-sender daily share counters.
   'dictionary_inbox',
+  // A personal note attached to a word (api/word-notes.js). PK user_name, SK word.
+  'dictionary_word_notes',
 ];
 
 export class WordbookStack extends cdk.Stack {

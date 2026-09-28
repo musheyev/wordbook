@@ -57,6 +57,11 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
     dispatch({ type: PROMOTE_HISTORY_WORD, payload: normalized });
   }
 
+  // The user's personal note for this word (logged-in only), shown above defs.
+  if (getState().auth) {
+    dispatch(fetchWordNote(word));
+  }
+
   const res = await api.get(`/dictionary?search=${encodeURIComponent(word)}&json=y`);
 
   //console.log("word search result:");
@@ -66,6 +71,32 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
     type: FETCH_WORD_DATA,
     payload: res
   });
+};
+
+// ---------------------------------------------------------------------------
+// Per-word notes: a personal note attached to a dictionary word.
+// ---------------------------------------------------------------------------
+export const SET_WORD_NOTE = 'set_word_note';
+
+export const fetchWordNote = (word) => async (dispatch, getState, api) => {
+  // Clear any prior word's note first so a stale one never shows.
+  dispatch({ type: SET_WORD_NOTE, payload: { word, content: null } });
+  try {
+    const res = await api.get(`/dictionary/note?word=${encodeURIComponent(word)}`);
+    dispatch({ type: SET_WORD_NOTE, payload: { word, content: (res.data && res.data.content) || null } });
+  } catch (err) {
+    // leave it empty
+  }
+};
+
+export const saveWordNote = (word, content) => async (dispatch, getState, api) => {
+  const res = await api.post('/dictionary/note', { word, content }, JSON_HEADERS);
+  dispatch({ type: SET_WORD_NOTE, payload: { word, content: (res.data && res.data.content) || null } });
+};
+
+export const deleteWordNote = (word) => async (dispatch, getState, api) => {
+  await api.post('/dictionary/note/delete', { word }, JSON_HEADERS);
+  dispatch({ type: SET_WORD_NOTE, payload: { word, content: null } });
 };
 
 // Look a word up without selecting it or touching search history. Used by the
