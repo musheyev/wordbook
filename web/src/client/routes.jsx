@@ -5,6 +5,8 @@ import HomePage from './pages/HomePage';
 import AccountPage from './pages/AccountPage';
 import WordbookPage from './pages/WordbookPage';
 import InboxPage from './pages/InboxPage';
+import AdminPage from './pages/AdminPage';
+import AdminImagesPage from './pages/AdminImagesPage';
 import UsersListPage from './pages/UsersListPage';
 import AdminsListPage from './pages/AdminsListPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -33,6 +35,8 @@ export const routes = [
       { path: 'wordbook/:name/:type/:id', Component: WordbookPage },
       { path: 'inbox', Component: InboxPage },
       { path: 'inbox/:id', Component: InboxPage },
+      { path: 'admin', Component: AdminPage },
+      { path: 'admin/images', Component: AdminImagesPage },
       { path: 'users', Component: UsersListPage },
       { path: 'admins', Component: AdminsListPage },
       { path: 'login', Component: LoginRedirect },

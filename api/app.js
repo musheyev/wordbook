@@ -20,6 +20,7 @@ const wordbookRouter = require("./routes/wordbookRouter");
 const usersRouter = require("./routes/usersRouter");
 const adminsRouter = require("./routes/adminsRouter");
 const inboxRouter = require("./routes/inboxRouter");
+const { adminRouter } = require("./routes/adminRouter");
 
 const app = express();
 
@@ -48,5 +49,6 @@ app.use("/auth", authRouter);
 app.use("/users", usersRouter);
 app.use("/admins", adminsRouter);
 app.use("/inbox", inboxRouter);
+app.use("/admin", adminRouter);
 
 module.exports = app;

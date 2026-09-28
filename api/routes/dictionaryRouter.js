@@ -3,10 +3,43 @@ const wordnik = require("../wordnik");
 const wp = require("../word-pictures");
 const ex = require("../word-examples");
 const uh = require("../user-history");
+const curation = require("../image-curation");
+const { requireAdmin } = require("../cognitoUsers");
+const { handle: curationHandle } = require("./adminRouter");
+
+// Words are cached lower-cased and trimmed (see the lookup route below), so
+// curation must address them the same way.
+const normalizeWord = (word) => String(word || "").trim().toLowerCase();
 
 const log = require("../logger");
 
 let dictionaryRouter = express.Router();
+
+// ---------------------------------------------------------------------------
+// Image curation on a word page (admins only; see image-curation.js).
+// Images are shared by every user, so changing them needs an admin. The
+// requireAdmin check here is the real protection; the app only hides the
+// controls from other users.
+// ---------------------------------------------------------------------------
+
+// Body: { word, url }. Responds with the word's images after the change.
+dictionaryRouter.post("/images/delete", requireAdmin, curationHandle(async (req, res) => {
+    res.json({ images: await curation.deleteImage(normalizeWord(req.body.word), req.body.url) });
+}));
+
+// Undo a delete. Body: { word, url }.
+dictionaryRouter.post("/images/restore", requireAdmin, curationHandle(async (req, res) => {
+    res.json({ images: await curation.restoreImage(normalizeWord(req.body.word), req.body.url) });
+}));
+
+// Body: { word, count } or { word, replaceAll: true }.
+// Responds with { images, added, requested }.
+dictionaryRouter.post("/images/refresh", requireAdmin, curationHandle(async (req, res) => {
+    res.json(await curation.refreshImages(normalizeWord(req.body.word), {
+        count: req.body.count,
+        replaceAll: req.body.replaceAll === true,
+    }));
+}));
 
 dictionaryRouter.post("", function (req, res) {
 

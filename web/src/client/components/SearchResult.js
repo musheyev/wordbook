@@ -7,6 +7,7 @@ import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
 import TranslateMenu from './TranslateMenu';
 import ShareDialog from './ShareDialog';
+import WordImages from './WordImages';
 
 function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, auth, wordbooks,
     fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard }) {
@@ -171,15 +172,9 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                 }
             </div>
 
-            <div className="image-search-result">
-                {wordSearchResult == null || Object.keys(wordSearchResult).length === 0 || wordSearchResult.images == null || wordSearchResult.images.length === 0 ? "" :
-                    wordSearchResult.images.map((imageURL, index) => (
-                        <img key={index + 100} src={imageURL} alt="image"></img>
-
-
-                    ))
-                }
-            </div>
+            {currentWord != "" && wordSearchResult && Array.isArray(wordSearchResult.images) && (
+                <WordImages word={currentWord} images={wordSearchResult.images} />
+            )}
         </>
     );
 }

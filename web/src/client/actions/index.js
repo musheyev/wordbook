@@ -626,6 +626,81 @@ export const reorderWordbookItems = (wordbook, items) => async (dispatch, getSta
   }
 };
 
+// ---------------------------------------------------------------------------
+// Image curation (admins only; API: api/image-curation.js)
+//
+// Images are shared by every user, so these change what everyone sees. The
+// server checks the user is an admin; the app only shows the controls to
+// admins.
+// ---------------------------------------------------------------------------
+
+export const SET_WORD_IMAGES = 'set_word_images';
+
+// Replace the current word's image list in the store (the word page reads it
+// from state.word.images).
+export const setWordImages = (images) => ({ type: SET_WORD_IMAGES, payload: images });
+
+// Server message for a failed curation request. Admin checks answer with JSON
+// ({ error }), curation errors with plain text; fall back to a generic line.
+const curationErrorMessage = (err, fallback) => {
+  const data = err.response && err.response.data;
+  if (typeof data === 'string' && data) return data;
+  if (data && typeof data.error === 'string') return data.error;
+  return fallback;
+};
+
+const postCuration = async (api, url, body, fallback) => {
+  try {
+    const res = await api.post(url, body, JSON_HEADERS);
+    return res.data;
+  } catch (err) {
+    throw new Error(curationErrorMessage(err, fallback));
+  }
+};
+
+// Delete one image from a word. Optimistic: it disappears at once; if the
+// request fails, the previous list comes back and the error is re-thrown.
+export const deleteWordImage = (word, url) => async (dispatch, getState, api) => {
+  const before = (getState().word && getState().word.images) || [];
+  dispatch(setWordImages(before.filter((image) => image !== url)));
+  try {
+    const data = await postCuration(api, '/dictionary/images/delete', { word, url }, "Couldn't delete the image.");
+    dispatch(setWordImages(data.images));
+  } catch (err) {
+    dispatch(setWordImages(before));
+    throw err;
+  }
+};
+
+// Undo a delete.
+export const restoreWordImage = (word, url) => async (dispatch, getState, api) => {
+  const data = await postCuration(api, '/dictionary/images/restore', { word, url }, "Couldn't restore the image.");
+  dispatch(setWordImages(data.images));
+};
+
+// Fetch new images: `options` is { count } or { replaceAll: true }.
+// Resolves to { added, requested } so the dialog can say what happened.
+export const refreshWordImages = (word, options) => async (dispatch, getState, api) => {
+  const data = await postCuration(api, '/dictionary/images/refresh', { word, ...options }, "Couldn't get new images.");
+  dispatch(setWordImages(data.images));
+  return { added: data.added, requested: data.requested };
+};
+
+// Admin Images page: one page of every image in the system.
+// Resolves to { images: [{ word, url }], cursor, total? }.
+export const fetchAdminImages = (cursor) => async (dispatch, getState, api) => {
+  try {
+    const res = await api.get(`/admin/images${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`);
+    return res.data;
+  } catch (err) {
+    throw new Error(curationErrorMessage(err, "Couldn't load images."));
+  }
+};
+
+// Admin Images page: delete the selected images ([{ word, url }]).
+export const deleteAdminImages = (items) => async (dispatch, getState, api) =>
+  postCuration(api, '/admin/images/delete', { items }, "Couldn't delete the images.");
+
 export const FETCH_WORD_WORDBOOKS = 'fetch_word_wordbooks';
 export const fetchWordWordbooks = (word) => async (dispatch, getState, api) => {
   console.log("fetchWordWordbooks called");
