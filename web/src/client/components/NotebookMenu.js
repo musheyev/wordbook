@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import { deleteWordbook } from '../actions';
 import RenameNotebookDialog from './RenameNotebookDialog';
 import ConfirmDialog from './ConfirmDialog';
+import ShareDialog from './ShareDialog';
 import { notebookPath } from '../utils/notebookPaths';
 
 // The notebook title as a menu button: tap it to rename, go to all notebooks,
@@ -13,6 +14,7 @@ function NotebookMenu({ name, className = '', deleteWordbook }) {
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
     const [renaming, setRenaming] = useState(false);
+    const [sharing, setSharing] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     // Keep whatever item is open (/wordbook/<old>/card/x -> /wordbook/<new>/card/x).
@@ -43,6 +45,9 @@ function NotebookMenu({ name, className = '', deleteWordbook }) {
                         <button role="menuitem" onClick={() => { setMenuOpen(false); setRenaming(true); }}>
                             <i className="pencil alternate icon"></i>Rename notebook
                         </button>
+                        <button role="menuitem" onClick={() => { setMenuOpen(false); setSharing(true); }}>
+                            <i className="paper plane outline icon"></i>Share notebook
+                        </button>
                         <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/account'); }}>
                             <i className="clone outline icon"></i>All notebooks
                         </button>
@@ -56,6 +61,9 @@ function NotebookMenu({ name, className = '', deleteWordbook }) {
 
             <RenameNotebookDialog open={renaming} name={name}
                 onClose={() => setRenaming(false)} onRenamed={onRenamed} />
+
+            <ShareDialog open={sharing} item={{ type: 'notebook', id: name, title: name }}
+                onClose={() => setSharing(false)} />
 
             <ConfirmDialog
                 open={confirmingDelete}

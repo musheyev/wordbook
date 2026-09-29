@@ -8,7 +8,7 @@ import {
 import Definition from '../components/Definition';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
-import { itemPath } from '../utils/notebookPaths';
+import { itemPath, notebookPath } from '../utils/notebookPaths';
 import { timeAgo } from '../utils/timeAgo';
 
 // The Inbox: words and notes other users shared with you.
@@ -57,13 +57,13 @@ function InboxList({ inbox, fetchInbox }) {
                                 <li key={item.id}>
                                     <Link className="nb-row" to={inboxItemPath(item.id)}>
                                         <span className={`nb-row__icon nb-row__icon--${item.type}`} aria-hidden="true">
-                                            <i className={`${isCard ? 'sticky note outline' : 'font'} icon`}></i>
+                                            <i className={`${item.type === 'card' ? 'sticky note outline' : item.type === 'notebook' ? 'book' : 'font'} icon`}></i>
                                         </span>
                                         <span className="nb-row__text">
                                             <span className="nb-row__title">{item.title}</span>
                                             <span className="nb-row__sub">
                                                 from <strong>{item.from}</strong> · {timeAgo(item.sharedAt)}
-                                                {isCard && item.preview ? ` · ${item.preview}` : ''}
+                                                {item.preview ? ` · ${item.preview}` : ''}
                                             </span>
                                         </span>
                                         <i className="chevron right icon nb-row__chev" aria-hidden="true"></i>
@@ -87,6 +87,7 @@ function InboxItem({ id, wordbooks, fetchInboxItem, moveInboxItem, removeInboxIt
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [newName, setNewName] = useState('');   // for accepting a shared notebook
     const contentRef = useRef(null);
 
     // Load the item (and, for a word, its definitions) whenever the id changes.
@@ -105,6 +106,9 @@ function InboxItem({ id, wordbooks, fetchInboxItem, moveInboxItem, removeInboxIt
                     lookupWord(data.title)
                         .then((result) => { if (!cancelled) setDefinitions(result && result.definitions); })
                         .catch(() => {});
+                } else if (data.type === 'notebook') {
+                    // Prefill the rename field with the original name.
+                    setNewName(data.title || '');
                 }
             })
             .catch((err) => { if (!cancelled) setError(err.message); });
@@ -123,6 +127,22 @@ function InboxItem({ id, wordbooks, fetchInboxItem, moveInboxItem, removeInboxIt
             const moved = await moveInboxItem(id, wordbook);
             // Open the item in its new notebook.
             navigate(itemPath(wordbook, moved), { replace: true });
+        } catch (err) {
+            setError(err.message);
+            setBusy(false);
+        }
+    };
+
+    // Accept a shared notebook: it becomes a new notebook of your own (named
+    // here), then open it.
+    const onAcceptNotebook = async (e) => {
+        e.preventDefault();
+        const name = newName.trim();
+        if (name === '') { setError('Enter a name for the notebook.'); return; }
+        setBusy(true);
+        try {
+            const moved = await moveInboxItem(id, name);
+            navigate(notebookPath(moved.name), { replace: true });
         } catch (err) {
             setError(err.message);
             setBusy(false);
@@ -162,38 +182,55 @@ function InboxItem({ id, wordbooks, fetchInboxItem, moveInboxItem, removeInboxIt
                                 Shared by <strong>{item.from}</strong> · {timeAgo(item.sharedAt)}
                             </div>
                             <div className="card-header-actions">
-                                <span className="cb-menu">
-                                    <button type="button" className="cb-btn cb-btn--accent inbox-item__move"
-                                        disabled={busy} aria-haspopup="menu" aria-expanded={menuOpen}
-                                        onClick={() => setMenuOpen((v) => !v)}>
-                                        Move to notebook
-                                        <i className={`chevron ${menuOpen ? 'up' : 'down'} icon`} aria-hidden="true"></i>
-                                    </button>
-                                    {menuOpen && (
-                                        <>
-                                            <div className="cb-menu__backdrop" onMouseDown={() => setMenuOpen(false)} />
-                                            <div className="cb-menu__list translate-menu" role="menu">
-                                                {notebooks.length === 0 ? (
-                                                    <Link to="/account" className="inbox-item__nobooks">
-                                                        Create a notebook first
-                                                    </Link>
-                                                ) : notebooks.map((name) => (
-                                                    <button key={name} type="button" role="menuitem"
-                                                        onClick={() => onMove(name)}>
-                                                        {name}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </span>
+                                {item.type === 'notebook' ? (
+                                    // A shared notebook becomes a new notebook of your own — name it here.
+                                    <form className="inbox-accept" onSubmit={onAcceptNotebook}>
+                                        <input className="cb-sheet__input inbox-accept__name" type="text" autoFocus
+                                            placeholder="Notebook name" autoComplete="off" autoCapitalize="none"
+                                            value={newName} onChange={(e) => { setNewName(e.target.value); setError(''); }} />
+                                        <button type="submit" className="cb-btn cb-btn--accent" disabled={busy}>
+                                            {busy ? 'Adding…' : 'Add to my notebooks'}
+                                        </button>
+                                    </form>
+                                ) : (
+                                    <span className="cb-menu">
+                                        <button type="button" className="cb-btn cb-btn--accent inbox-item__move"
+                                            disabled={busy} aria-haspopup="menu" aria-expanded={menuOpen}
+                                            onClick={() => setMenuOpen((v) => !v)}>
+                                            Move to notebook
+                                            <i className={`chevron ${menuOpen ? 'up' : 'down'} icon`} aria-hidden="true"></i>
+                                        </button>
+                                        {menuOpen && (
+                                            <>
+                                                <div className="cb-menu__backdrop" onMouseDown={() => setMenuOpen(false)} />
+                                                <div className="cb-menu__list translate-menu" role="menu">
+                                                    {notebooks.length === 0 ? (
+                                                        <Link to="/account" className="inbox-item__nobooks">
+                                                            Create a notebook first
+                                                        </Link>
+                                                    ) : notebooks.map((name) => (
+                                                        <button key={name} type="button" role="menuitem"
+                                                            onClick={() => onMove(name)}>
+                                                            {name}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </span>
+                                )}
                                 <button type="button" className="cb-btn cb-btn--ghost" disabled={busy} onClick={onRemove}>
                                     Remove
                                 </button>
                             </div>
                         </div>
 
-                        {item.type === 'card' ? (
+                        {item.type === 'notebook' ? (
+                            <div className="inbox-notebook__summary">
+                                <i className="book icon" aria-hidden="true"></i>
+                                <span>{item.preview || 'Empty notebook'} — accepting copies these into a new notebook of your own.</span>
+                            </div>
+                        ) : item.type === 'card' ? (
                             // Someone else's HTML: always through the same
                             // DOMPurify sanitizer as your own notes, never raw.
                             <div className="card-content card-content--scroll" ref={contentRef}

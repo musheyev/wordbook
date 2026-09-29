@@ -1107,6 +1107,71 @@ async function _rename(userName, wordbookName, newName) {
 }
 
 
+/**
+ * Create a notebook for `userName` directly (no token). Used by inbox.js when a
+ * recipient accepts a shared notebook. Rejects with a coded error the caller
+ * can map to a user message: INVALID_NAME (bad name) or WORDBOOK_EXISTS (the
+ * user already has one by that name).
+ *
+ * @param {string} userName
+ * @param {string} name desired notebook name
+ * @returns {Promise<string>} the created (validated) name
+ */
+async function _addWordbookForUser(userName, name) {
+    let wordbookName;
+    try {
+        wordbookName = _validateWordbookName(name);
+    } catch (err) {
+        err.code = "INVALID_NAME";
+        throw err;
+    }
+    try {
+        await database.dynamoDbClientInstance().put({
+            TableName: "dictionary_wordbook",
+            ConditionExpression: "attribute_not_exists(wordbook_name)",
+            Item: {
+                wordbook_name: wordbookName,
+                user_name: userName,
+                added_datetime: (new Date()).toISOString(),
+            },
+        }).promise();
+    } catch (err) {
+        if (err.name === "ConditionalCheckFailedException") {
+            const e = new Error("A notebook with that name already exists.");
+            e.code = "WORDBOOK_EXISTS";
+            throw e;
+        }
+        throw err;
+    }
+    return wordbookName;
+}
+
+/**
+ * A copy-ready snapshot of one of `userName`'s notebooks: its words, and each
+ * note's title + content. Used by inbox.js to freeze a notebook at share time
+ * (like a single note, the recipient gets an independent copy).
+ *
+ * @param {string} userName
+ * @param {string} wordbookName
+ * @returns {Promise<{words: string[], cards: {title: string, content: string}[]}>}
+ */
+async function _notebookItemsForUser(userName, wordbookName) {
+    const items = await _listOfWords(userName, wordbookName);
+    const words = [];
+    const cardsOut = [];
+    for (const item of items) {
+        if (item.type === "card") {
+            const card = await cards._getCardForUser(userName, item.id);
+            if (card) {
+                cardsOut.push({ title: card.title, content: card.content });
+            }
+        } else {
+            words.push(item.id);
+        }
+    }
+    return { words, cards: cardsOut };
+}
+
 module.exports = {
     addWordbook,
     deleteWordbook,
@@ -1122,6 +1187,8 @@ module.exports = {
     reorderWords,
     rename,
     _addItemForUser,
-    _wordbookExists
+    _wordbookExists,
+    _addWordbookForUser,
+    _notebookItemsForUser
 
 }
