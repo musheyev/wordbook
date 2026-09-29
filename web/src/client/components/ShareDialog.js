@@ -54,7 +54,7 @@ function ShareDialog({ open, item, onClose, shareItem }) {
         }
     };
 
-    const kind = item.type === 'card' ? 'note' : 'word';
+    const kind = item.type === 'card' ? 'note' : item.type === 'notebook' ? 'notebook' : 'word';
 
     return (
         <div className="cb-sheet__overlay" onMouseDown={onClose}>

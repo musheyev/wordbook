@@ -141,8 +141,8 @@ async function countInbox(userName) {
  * @throws {InboxError} 400/404/413 for a bad, missing or oversized item
  */
 async function snapshotItem(sender, item) {
-    if (!item || (item.type !== "word" && item.type !== "card") || typeof item.id !== "string") {
-        throw new InboxError(400, "Choose a word or note to share.");
+    if (!item || !["word", "card", "notebook"].includes(item.type) || typeof item.id !== "string") {
+        throw new InboxError(400, "Choose a word, note or notebook to share.");
     }
 
     if (item.type === "word") {
@@ -151,6 +151,32 @@ async function snapshotItem(sender, item) {
             throw new InboxError(400, "That word can't be shared.");
         }
         return { item_type: "word", word };
+    }
+
+    // A whole notebook: freeze its words and its notes' content so the recipient
+    // gets an independent copy (same philosophy as sharing a single note).
+    if (item.type === "notebook") {
+        const name = item.id.trim();
+        if (name === "") {
+            throw new InboxError(400, "Choose a notebook to share.");
+        }
+        if (!await wordbook._wordbookExists(sender, name)) {
+            throw new InboxError(404, "That notebook doesn't exist.");
+        }
+        const notebook = await wordbook._notebookItemsForUser(sender, name);
+        if (notebook.words.length + notebook.cards.length === 0) {
+            throw new InboxError(400, "That notebook is empty.");
+        }
+        if (Buffer.byteLength(JSON.stringify(notebook), "utf8") > MAX_CONTENT_BYTES) {
+            throw new InboxError(413, "This notebook is too large to share.");
+        }
+        return {
+            item_type: "notebook",
+            title: name,
+            notebook,
+            word_count: notebook.words.length,
+            note_count: notebook.cards.length,
+        };
     }
 
     // Only the sender's own notes can be shared: we look the card up in their
@@ -229,7 +255,7 @@ async function listInbox(userName) {
             TableName: TABLE,
             KeyConditionExpression: "user_name = :u",
             ExpressionAttributeValues: { ":u": userName },
-            ProjectionExpression: "inbox_id, item_type, word, #title, preview, from_user, shared_at",
+            ProjectionExpression: "inbox_id, item_type, word, #title, preview, from_user, shared_at, word_count, note_count",
             // "title" isn't a DynamoDB reserved word, but aliasing attribute
             // names (#title) is a good habit: reserved words fail at runtime.
             ExpressionAttributeNames: { "#title": "title" },
@@ -245,6 +271,20 @@ async function listInbox(userName) {
 
 /** Shape an inbox row for the frontend's list (no note body). */
 function toListEntry(row) {
+    if (row.item_type === "notebook") {
+        const words = row.word_count || 0;
+        const notes = row.note_count || 0;
+        const part = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`;
+        return {
+            id: row.inbox_id,
+            type: "notebook",
+            title: row.title || "(untitled notebook)",
+            preview: [words ? part(words, 'word') : null, notes ? part(notes, 'note') : null]
+                .filter(Boolean).join(' · '),
+            from: row.from_user,
+            sharedAt: row.shared_at,
+        };
+    }
     const isCard = row.item_type === "card";
     return {
         id: row.inbox_id,
@@ -305,6 +345,12 @@ async function getItem(userName, inboxId) {
 async function moveItem(userName, inboxId, wordbookName) {
     const row = await readRow(userName, inboxId);
 
+    // A shared notebook becomes a brand-new notebook (the recipient names it),
+    // not an item moved into an existing one.
+    if (row.item_type === "notebook") {
+        return acceptNotebook(userName, row, wordbookName);
+    }
+
     // Check the target first, so a bad notebook name never leaves a stray
     // note copy behind.
     if (!await wordbook._wordbookExists(userName, wordbookName)) {
@@ -333,6 +379,48 @@ async function moveItem(userName, inboxId, wordbookName) {
 
     await removeItem(userName, inboxId);
     return item;
+}
+
+/**
+ * Accept a shared notebook: create a new notebook (named by the recipient),
+ * copy every word and a fresh independent copy of every note into it, then
+ * delete the inbox row. Creating the notebook first means a name clash is
+ * caught before anything is copied.
+ *
+ * @param {string} userName recipient
+ * @param {object} row the notebook inbox row (with row.notebook)
+ * @param {string} newName the recipient's chosen name
+ * @returns {Promise<{type: "notebook", name: string}>}
+ */
+async function acceptNotebook(userName, row, newName) {
+    const notebook = row.notebook || { words: [], cards: [] };
+
+    let name;
+    try {
+        name = await wordbook._addWordbookForUser(userName, newName);
+    } catch (err) {
+        if (err.code === "WORDBOOK_EXISTS") {
+            throw new InboxError(409, "You already have a notebook with that name. Choose another.");
+        }
+        if (err.code === "INVALID_NAME") {
+            throw new InboxError(400, err.message);
+        }
+        throw err;
+    }
+
+    for (const word of notebook.words) {
+        await wordbook._addItemForUser(userName, name, { type: "word", id: word });
+    }
+    for (const c of notebook.cards) {
+        const card = await cards._createCardForUser(userName, c.title, c.content, {
+            shared_by: row.from_user,
+            shared_at: row.shared_at,
+        });
+        await wordbook._addItemForUser(userName, name, { type: "card", id: card.card_id });
+    }
+
+    await removeItem(userName, row.inbox_id);
+    return { type: "notebook", name };
 }
 
 /**
