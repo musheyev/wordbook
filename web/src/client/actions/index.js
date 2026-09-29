@@ -753,6 +753,45 @@ export const fetchWordWordbooks = (word) => async (dispatch, getState, api) => {
   });
 };
 
+// ---------------------------------------------------------------------------
+// Tags: labels on items (a word or a note), cutting across notebooks.
+// ---------------------------------------------------------------------------
+export const SET_ITEM_TAGS = 'set_item_tags';
+export const SET_ALL_TAGS = 'set_all_tags';
+
+// The tags of one item; clears first so a previous item's tags never linger.
+export const fetchItemTags = (type, id) => async (dispatch, getState, api) => {
+  dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: [] } });
+  try {
+    const res = await api.get(`/tags?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`);
+    dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: (res.data && res.data.tags) || [] } });
+  } catch (err) {
+    // leave empty
+  }
+};
+
+// Replace an item's tags (title is stored so the tag browser can label it).
+export const setItemTags = (type, id, tags, title) => async (dispatch, getState, api) => {
+  const res = await api.post('/tags', { type, id, tags, title }, JSON_HEADERS);
+  dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: (res.data && res.data.tags) || [] } });
+};
+
+// Every tagged item (for the tag browser page).
+export const fetchAllTags = () => async (dispatch, getState, api) => {
+  try {
+    const res = await api.get('/tags/all');
+    dispatch({ type: SET_ALL_TAGS, payload: Array.isArray(res.data) ? res.data : [] });
+  } catch (err) {
+    dispatch({ type: SET_ALL_TAGS, payload: [] });
+  }
+};
+
+// Notebooks that contain an item (word or card). Used to open a tagged note.
+export const fetchItemNotebooks = (id) => async (dispatch, getState, api) => {
+  const res = await api.post('/wordbook/word/wordbooks', { word: id }, JSON_HEADERS);
+  return Array.isArray(res.data) ? res.data : [];
+};
+
 
 // export const fetchUsers = () => async dispatch => {
 //   const res = await axios.get('http://react-ssr-api.herokuapp.com/users');

@@ -18,6 +18,8 @@ import wordWordbooksReducer from './wordWordbooksReducer';
 import errorReducer from './errorReducer';
 import inboxReducer from './inboxReducer';
 import wordNoteReducer from './wordNoteReducer';
+import itemTagsReducer from './itemTagsReducer';
+import allTagsReducer from './allTagsReducer';
 
 export default combineReducers({
     users: usersReducer,
@@ -38,6 +40,8 @@ export default combineReducers({
     wordbookWordsInProgress: wordbookWordsInProgressReducer,
     wordWorkbooks: wordWordbooksReducer,
     inbox: inboxReducer,
-    wordNote: wordNoteReducer
+    wordNote: wordNoteReducer,
+    itemTags: itemTagsReducer,
+    allTags: allTagsReducer
 
 });

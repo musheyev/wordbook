@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { deleteWordbook } from '../actions';
 import RenameNotebookDialog from './RenameNotebookDialog';
+import ShareDialog from './ShareDialog';
 import { notebookPath } from '../utils/notebookPaths';
 
 function WordbookItemConfig({ name, id, preview, deleteWordbook }) {
     const [renaming, setRenaming] = useState(false);
+    const [sharing, setSharing] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [remindersOpen, setRemindersOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -30,6 +32,8 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook }) {
         <div className="cb-book">
             <RenameNotebookDialog open={renaming} name={name}
                 onClose={() => setRenaming(false)} onRenamed={() => setRenaming(false)} />
+            <ShareDialog open={sharing} item={{ type: 'notebook', id: name, title: name }}
+                onClose={() => setSharing(false)} />
             <div className="cb-book__row">
                     {/* The cardbook name is the link that opens it. */}
                     <div className="cb-book__info">
@@ -51,6 +55,9 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook }) {
                                     </button>
                                     <button onClick={() => { startRename(); setMenuOpen(false); }}>
                                         <i className="edit icon"></i>Rename
+                                    </button>
+                                    <button onClick={() => { setSharing(true); setMenuOpen(false); }}>
+                                        <i className="paper plane outline icon"></i>Share
                                     </button>
                                     <button className="cb-menu__danger"
                                         onClick={() => { setConfirmDelete(true); setMenuOpen(false); }}>

@@ -33,6 +33,8 @@ const DYNAMO_TABLES = [
   'dictionary_inbox',
   // A personal note attached to a word (api/word-notes.js). PK user_name, SK word.
   'dictionary_word_notes',
+  // Tags a user attaches to items (api/tags.js). PK user_name, SK item_key.
+  'dictionary_item_tags',
 ];
 
 export class WordbookStack extends cdk.Stack {

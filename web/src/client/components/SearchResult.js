@@ -4,6 +4,7 @@ import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWor
 import Definition from './Definition';
 import AddToCardbook from './AddToCardbook';
 import RichTextEditor from './RichTextEditor';
+import ItemTags from './ItemTags';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
 import TranslateMenu from './TranslateMenu';
@@ -131,6 +132,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     </div>
                 </div>
 
+                <ItemTags type="card" id={currentCard.card_id} title={currentCard.title} />
+
                 {confirmingDelete && (
                     <div className="card-confirm">
                         <span className="card-confirm__msg">
@@ -186,6 +189,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                                 <TranslateMenu word={currentWord} />
                             </div>
                         </div>
+                        <ItemTags type="word" id={currentWord} title={currentWord} />
                     </>
                     : ""}
 
