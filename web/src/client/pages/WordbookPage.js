@@ -4,14 +4,18 @@ import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
 import {
     SET_CURRENT_WORDBOOK, fetchWordbookWords, fetchCardData, fetchWordData,
-    clearCurrentSelection, closeCardEditor,
+    clearCurrentSelection, closeCardEditor, getCardContent,
 } from '../actions';
 import SearchResult from '../components/SearchResult';
 import CardEditorInline from '../components/CardEditorInline';
 import NotebookMenu from '../components/NotebookMenu';
 import NotebookItemList from '../components/NotebookItemList';
 import AddItemSheet from '../components/AddItemSheet';
+import ReadAloud from '../components/ReadAloud';
 import { itemPath, notebookPath } from '../utils/notebookPaths';
+import { htmlToChunks } from '../utils/tts';
+
+const HEBREW = /[֐-׿]/;
 
 // A notebook. With no item in the URL it shows the item list (on desktop the
 // list lives in the left rail, so the pane just invites a pick). With an item
@@ -62,6 +66,22 @@ function WordbookPage({
     }, [id, listReady, index, cardEditorOpen]);
 
     const goTo = (i) => navigate(itemPath(name, items[i]), { replace: true });
+
+    // Build the read-aloud queue for the whole notebook: each note's body (its
+    // first chunk tagged with the title so the lock screen updates per item) and
+    // each word read on its own.
+    const notebookChunks = async () => {
+        const out = [];
+        for (const item of items) {
+            if (item.type === 'card') {
+                const content = await dispatch(getCardContent(item.id));
+                htmlToChunks(content).forEach((c, i) => out.push({ ...c, title: i === 0 ? item.title : undefined }));
+            } else {
+                out.push({ text: item.title, lang: HEBREW.test(item.title) ? 'he-IL' : 'en-US', title: item.title });
+            }
+        }
+        return out;
+    };
 
     const emptyMessage = listReady && items.length === 0 ? (
         <div className="cb-detail__empty">
@@ -115,6 +135,9 @@ function WordbookPage({
                         <button type="button" className="cb-mbar__add" onClick={() => setAddOpen(true)}>
                             <i className="plus icon" aria-hidden="true"></i>Add
                         </button>
+                        {items.length > 0 && (
+                            <ReadAloud getChunks={notebookChunks} title={name} label="Play all" />
+                        )}
                     </div>
                     {items.length > 0 && <NotebookItemList wordbook={name} items={items} />}
                 </div>

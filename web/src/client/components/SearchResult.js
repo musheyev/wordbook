@@ -3,8 +3,10 @@ import { connect } from 'react-redux';
 import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard } from '../actions';
 import Definition from './Definition';
 import AddToCardbook from './AddToCardbook';
+import ReadAloud from './ReadAloud';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
+import { htmlToChunks, htmlToPlainText, textToChunks } from '../utils/tts';
 import TranslateMenu from './TranslateMenu';
 import ShareDialog from './ShareDialog';
 import WordImages from './WordImages';
@@ -97,6 +99,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             onClick={() => setConfirmingDelete(true)}>
                             <i className="trash alternate outline icon"></i>
                         </button>
+                        <ReadAloud getChunks={() => htmlToChunks(currentCard.content)} title={currentCard.title} />
                         {addToWordbookControl}
                         {shareControl}
                     </div>
@@ -133,6 +136,9 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         <div className="current-word-container">
                             <div><h2>{currentWord}</h2> </div>
                             <div className="card-header-actions">
+                                <ReadAloud title={currentWord}
+                                    getChunks={() => textToChunks(`${currentWord}. ${htmlToPlainText(
+                                        Object.values((wordSearchResult && wordSearchResult.definitions) || {}).flat().join(' '))}`)} />
                                 {addToWordbookControl}
                                 {shareControl}
                                 {/* Google's own definition box can't be fetched or

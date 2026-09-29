@@ -86,6 +86,13 @@ export const CLOSE_CARD_EDITOR = 'close_card_editor';
 export const openCardEditor = (payload = {}) => ({ type: OPEN_CARD_EDITOR, payload });
 export const closeCardEditor = () => ({ type: CLOSE_CARD_EDITOR });
 
+// Fetch a card's content without selecting it (used to build a notebook's
+// read-aloud queue).
+export const getCardContent = (cardId) => async (dispatch, getState, api) => {
+  const res = await api.post('/wordbook/card/get', { card_id: cardId }, JSON_HEADERS);
+  return res.data ? (res.data.content || '') : '';
+};
+
 // Load a card's content (lazy, on click) and make it the current selection.
 export const fetchCardData = (cardId) => async (dispatch, getState, api) => {
   dispatch({ type: SET_CURRENT_WORD, payload: cardId });
