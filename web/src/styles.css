@@ -1977,6 +1977,62 @@ nav-button-as-link {
 .inbox-item__error { margin: 0 0 12px; }
 .inbox-item__nobooks { display: block; padding: 8px 10px; color: var(--cb-accent); text-decoration: none; }
 
+/* ---------------------------------------------------------------------------
+   Tags: editor on an item, and the browse page
+   --------------------------------------------------------------------------- */
+.item-tags {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin: 10px 0 4px;
+}
+.item-tags > i.icon { margin: 0; color: var(--cb-ink-3); font-size: 0.9rem; }
+.item-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 6px 3px 10px; border-radius: 999px;
+  background: var(--cb-surface); border: 1px solid var(--cb-border);
+  color: var(--cb-ink-2); font-size: 0.8rem;
+}
+.item-tag__x {
+  border: none; background: none; cursor: pointer; padding: 0 2px;
+  color: var(--cb-ink-3); font-size: 1rem; line-height: 1;
+}
+.item-tag__x:hover { color: var(--cb-danger); }
+.item-tags__add { display: inline-flex; }
+.item-tags__add input {
+  border: none; background: none; outline: none;
+  font-size: 0.82rem; color: var(--cb-ink); width: 90px; padding: 3px 2px;
+}
+.item-tags__add input::placeholder { color: var(--cb-ink-3); }
+
+.tags-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 20px; }
+.tag-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--cb-border); background: var(--cb-surface-2);
+  color: var(--cb-ink-2); font-size: 0.85rem; cursor: pointer;
+}
+.tag-pill:hover { border-color: var(--cb-accent); color: var(--cb-accent); }
+.tag-pill.on { background: var(--cb-accent-weak); border-color: transparent; color: var(--cb-accent); font-weight: 500; }
+.tag-pill__count { font-size: 0.72rem; color: var(--cb-ink-3); }
+.tag-pill.on .tag-pill__count { color: var(--cb-accent); }
+
+.tags-error { margin-bottom: 12px; }
+.tags-sections { display: flex; flex-direction: column; gap: 20px; }
+.tags-section__label {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--cb-ink-3); margin-bottom: 8px;
+}
+.tags-section__items { display: flex; flex-wrap: wrap; gap: 8px; }
+.tags-item {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+  padding: 8px 12px; border-radius: var(--cb-radius-sm);
+  border: 1px solid var(--cb-border); background: var(--cb-surface-2);
+  color: var(--cb-ink); font-size: 0.88rem; cursor: pointer; text-align: left;
+}
+.tags-item:hover { border-color: var(--cb-accent); }
+.tags-item i.icon { margin: 0; color: var(--cb-ink-3); font-size: 0.9rem; flex-shrink: 0; }
+.tags-item--word i.icon { color: var(--cb-accent); }
+.tags-item__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ===========================================================================
    Tables in notes: the same look while editing (.rte-content) and reading
    (.card-content)

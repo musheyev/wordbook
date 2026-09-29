@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import AccountPage from './pages/AccountPage';
 import WordbookPage from './pages/WordbookPage';
 import InboxPage from './pages/InboxPage';
+import TagsPage from './pages/TagsPage';
 import AdminPage from './pages/AdminPage';
 import AdminImagesPage from './pages/AdminImagesPage';
 import UsersListPage from './pages/UsersListPage';
@@ -35,6 +36,7 @@ export const routes = [
       { path: 'wordbook/:name/:type/:id', Component: WordbookPage },
       { path: 'inbox', Component: InboxPage },
       { path: 'inbox/:id', Component: InboxPage },
+      { path: 'tags', Component: TagsPage },
       { path: 'admin', Component: AdminPage },
       { path: 'admin/images', Component: AdminImagesPage },
       { path: 'users', Component: UsersListPage },

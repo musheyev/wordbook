@@ -80,6 +80,13 @@ const Header = ({ auth, isAdmin, inboxCount, logoutCurrentUser }) => {
                 )}
 
                 {userExists && (
+                    <NavLink to="/tags" className={navClass}>
+                        <i className="tags icon"></i>
+                        <span className="nav-label">Tags</span>
+                    </NavLink>
+                )}
+
+                {userExists && (
                     <NavLink to="/inbox" className={navClass}>
                         <span className="nav-icon-wrap">
                             <i className="inbox icon"></i>
