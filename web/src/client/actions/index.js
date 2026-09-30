@@ -117,6 +117,18 @@ export const CLOSE_CARD_EDITOR = 'close_card_editor';
 export const openCardEditor = (payload = {}) => ({ type: OPEN_CARD_EDITOR, payload });
 export const closeCardEditor = () => ({ type: CLOSE_CARD_EDITOR });
 
+// Floating note windows (desktop). `mode` on = clicking a note opens it in a
+// draggable/resizable window instead of the main pane; several can be open.
+export const TOGGLE_NOTE_WINDOW_MODE = 'toggle_note_window_mode';
+export const OPEN_NOTE_WINDOW = 'open_note_window';
+export const CLOSE_NOTE_WINDOW = 'close_note_window';
+export const FOCUS_NOTE_WINDOW = 'focus_note_window';
+
+export const toggleNoteWindowMode = () => ({ type: TOGGLE_NOTE_WINDOW_MODE });
+export const openNoteWindow = (item) => ({ type: OPEN_NOTE_WINDOW, payload: { cardId: item.id, title: item.title } });
+export const closeNoteWindow = (id) => ({ type: CLOSE_NOTE_WINDOW, payload: id });
+export const focusNoteWindow = (id) => ({ type: FOCUS_NOTE_WINDOW, payload: id });
+
 // Fetch a card's content without selecting it (used to build a notebook's
 // read-aloud queue).
 export const getCardContent = (cardId) => async (dispatch, getState, api) => {

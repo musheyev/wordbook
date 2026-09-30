@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { connect } from 'react-redux';
-import { logoutCurrentUser } from '../actions';
+import { logoutCurrentUser, toggleNoteWindowMode } from '../actions';
 import WordList from './WordList';
 import ConfirmDialog from './ConfirmDialog';
 import NotebookMenu from './NotebookMenu';
+import NavRailResizer from './NavRailResizer';
 import AddItemSheet from './AddItemSheet';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
 import { notebookFromPathname } from '../utils/notebookPaths';
@@ -15,7 +16,7 @@ const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
 // Cardbook navigation. A left rail on desktop, a bottom tab bar on mobile.
 // Inside a cardbook the rail becomes contextual (desktop only): notebook
 // menu, add, and the item list — so there is a single left panel.
-const Header = ({ auth, isAdmin, inboxCount, logoutCurrentUser }) => {
+const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, toggleNoteWindowMode }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -58,7 +59,17 @@ const Header = ({ auth, isAdmin, inboxCount, logoutCurrentUser }) => {
                             <i className="plus icon"></i>
                         </button>
                     </div>
-                    <div className="nav-ctx__label">Notes</div>
+                    <div className="nav-ctx__labelrow">
+                        <span className="nav-ctx__label">Notes</span>
+                        <button type="button"
+                            className={`nav-ctx__winbtn${noteWindowMode ? ' on' : ''}`}
+                            aria-pressed={noteWindowMode}
+                            title={noteWindowMode ? 'Notes open in windows (click to turn off)' : 'Open notes in windows'}
+                            aria-label="Open notes in windows"
+                            onClick={toggleNoteWindowMode}>
+                            <i className="window maximize outline icon"></i>
+                        </button>
+                    </div>
                     <div className="nav-ctx__list">
                         <WordList wordbook={cardbookName} />
                     </div>
@@ -161,12 +172,19 @@ const Header = ({ auth, isAdmin, inboxCount, logoutCurrentUser }) => {
                 onConfirm={onLogoutConfirmed}
                 onCancel={() => setConfirmingLogout(false)}
             />
+
+            {/* Drag handle to resize the rail (desktop only; hidden on mobile). */}
+            <NavRailResizer />
         </nav>
     );
 };
 
-function mapStateToProps({ auth, isAdmin, inbox }) {
-    return { auth, isAdmin, inboxCount: Array.isArray(inbox) ? inbox.length : 0 };
+function mapStateToProps({ auth, isAdmin, inbox, noteWindows }) {
+    return {
+        auth, isAdmin,
+        inboxCount: Array.isArray(inbox) ? inbox.length : 0,
+        noteWindowMode: noteWindows.mode,
+    };
 }
 
-export default connect(mapStateToProps, { logoutCurrentUser })(Header);
+export default connect(mapStateToProps, { logoutCurrentUser, toggleNoteWindowMode })(Header);

@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from 'react-router-dom';
 import { connect } from 'react-redux';
-import { deleteWordbookWord, deleteWordbookCard } from '../actions';
+import { deleteWordbookWord, deleteWordbookCard, openNoteWindow } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
 import GripIcon from './GripIcon';
 
@@ -10,11 +10,17 @@ import GripIcon from './GripIcon';
 // Clicking opens the item's URL (WordbookPage loads it). The × removes the
 // item from THIS notebook only. `handleProps` (from SortableList) turns the
 // grip into a drag handle for reordering.
-const WordWithDelete = ({ item, wordbook, selected, handleProps, deleteWordbookWord, deleteWordbookCard }) => {
+const WordWithDelete = ({ item, wordbook, selected, handleProps, noteWindowMode, deleteWordbookWord, deleteWordbookCard, openNoteWindow }) => {
     const navigate = useNavigate();
     const isCard = item.type === 'card';
 
     const onClick = () => {
+        // Window mode (desktop only): notes open in a floating window instead of
+        // taking over the main pane. Words always use the normal page.
+        if (isCard && noteWindowMode && typeof window !== 'undefined' && window.innerWidth > 768) {
+            openNoteWindow(item);
+            return;
+        }
         navigate(itemPath(wordbook, item));
     };
 
@@ -60,12 +66,13 @@ const WordWithDelete = ({ item, wordbook, selected, handleProps, deleteWordbookW
     );
 };
 
-function mapStatetoProps({ currentWord }, ownProps) {
+function mapStatetoProps({ currentWord, noteWindows }, ownProps) {
     return {
         selected: currentWord === ownProps.item.id,
         item: ownProps.item,
         wordbook: ownProps.wordbook,
+        noteWindowMode: noteWindows.mode,
     };
 }
 
-export default connect(mapStatetoProps, { deleteWordbookWord, deleteWordbookCard })(WordWithDelete);
+export default connect(mapStatetoProps, { deleteWordbookWord, deleteWordbookCard, openNoteWindow })(WordWithDelete);

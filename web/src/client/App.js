@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { connect } from 'react-redux';
 import Header from './components/Header';
+import NoteWindows from './components/NoteWindows';
 import { fetchCurrentUser, fetchInbox } from './actions';
 
 // The card editor is now rendered in place inside the detail pane (see
@@ -65,6 +66,8 @@ const App = ({ auth, fetchCurrentUser, fetchInbox }) => {
             <main className="app-main">
                 <Outlet />
             </main>
+            {/* Floating note windows (desktop) render above everything. */}
+            <NoteWindows />
         </div>
     );
 };

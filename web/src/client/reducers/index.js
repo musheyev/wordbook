@@ -20,6 +20,7 @@ import inboxReducer from './inboxReducer';
 import wordNoteReducer from './wordNoteReducer';
 import itemTagsReducer from './itemTagsReducer';
 import allTagsReducer from './allTagsReducer';
+import noteWindowsReducer from './noteWindowsReducer';
 
 export default combineReducers({
     users: usersReducer,
@@ -42,6 +43,7 @@ export default combineReducers({
     inbox: inboxReducer,
     wordNote: wordNoteReducer,
     itemTags: itemTagsReducer,
-    allTags: allTagsReducer
+    allTags: allTagsReducer,
+    noteWindows: noteWindowsReducer
 
 });
