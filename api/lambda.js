@@ -4,4 +4,10 @@
 const serverlessHttp = require("serverless-http");
 const app = require("./app");
 
-module.exports.handler = serverlessHttp(app);
+// Tell serverless-http which responses are binary. Without this it returns the
+// body as a UTF-8 string with isBase64Encoded=false, which corrupts non-text
+// payloads (the /tts endpoint's audio/mpeg) so the browser can't decode them.
+// JSON/text responses are unaffected and still returned as-is.
+module.exports.handler = serverlessHttp(app, {
+    binary: ["audio/mpeg", "audio/*", "application/octet-stream"],
+});
