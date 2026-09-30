@@ -705,14 +705,22 @@ nav-button-as-link {
 .card-tool:hover { background: var(--cb-accent-weak); border-color: var(--cb-accent); }
 
 /* Read aloud: play/pause + stop + voice picker. */
-.read-aloud { display: inline-flex; align-items: center; gap: 6px; position: relative; }
-.read-aloud__voices-wrap { position: relative; display: inline-flex; }
+.read-aloud { display: inline-flex; align-items: center; gap: 6px; }
+.read-aloud__voices-wrap { display: inline-flex; }
+/* The voice menu anchors to the toolbar ROW (not the tiny chevron), so it drops
+   below the row and its right edge sits at the row's right edge -- it can't run
+   off either side regardless of where the chevron falls. */
+.card-header-actions, .cb-mbar__head { position: relative; }
 .read-aloud__voices { width: 26px; }
 .read-aloud__labelled { gap: 6px; }
 .read-aloud__labelled i.icon { margin: 0; }
-.read-aloud__menu {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 41;
-  width: 240px; max-width: calc(100vw - 20px);
+/* Higher specificity than .cb-menu__list so this wins the shared props (both
+   carry that class). Anchored to the toolbar row (see .card-header-actions /
+   .cb-mbar__head above): right-aligned to the row and width-clamped to the
+   viewport so it stays fully visible on narrow screens. */
+.read-aloud__voices-wrap .read-aloud__menu {
+  position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 41;
+  width: min(240px, calc(100vw - 24px)); max-width: none;
   background: var(--cb-surface-2); border: 1px solid var(--cb-border);
   border-radius: var(--cb-radius); box-shadow: 0 10px 28px rgba(20, 25, 40, 0.16);
   padding: 8px; max-height: 320px; overflow-y: auto;
