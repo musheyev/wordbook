@@ -52,8 +52,6 @@ dictionaryRouter.post("", function (req, res) {
 dictionaryRouter.get("/oldapi", function (req, res) {
 
     log("query: " + req.query.search);
-    log("headers: " + JSON.stringify(req.headers));
-
     let wordToSearch = req.query.search;
 
     let shouldSendJson = null;
@@ -240,8 +238,6 @@ dictionaryRouter.get("/examples", function (req, res) {
 dictionaryRouter.get("", function (req, res) {
 
     log("query: " + req.query.search);
-    log("headers: " + JSON.stringify(req.headers));
-
     let wordToSearch = req.query.search;
 
     let shouldSendJson = null;
