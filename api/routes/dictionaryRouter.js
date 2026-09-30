@@ -3,6 +3,7 @@ const wordnik = require("../wordnik");
 const wp = require("../word-pictures");
 const ex = require("../word-examples");
 const uh = require("../user-history");
+const wn = require("../word-notes");
 const curation = require("../image-curation");
 const { requireAdmin } = require("../cognitoUsers");
 const { handle: curationHandle } = require("./adminRouter");
@@ -173,6 +174,43 @@ dictionaryRouter.get("/history/delete", function (req, res) {
             log(error);
         })
 
+});
+
+// ---------------------------------------------------------------------------
+// Per-word notes: a personal note shown above the definitions on a word's page.
+// ---------------------------------------------------------------------------
+dictionaryRouter.get("/note", function (req, res) {
+    const token = req.cookies.id_token;
+    wn.getWordNote(token, req.query.word)
+        .then((content) => res.json({ content: content || null }))
+        .catch((error) => {
+            log("word note get error: " + error);
+            res.status(500).json({ content: null });
+        });
+});
+
+dictionaryRouter.post("/note", function (req, res) {
+    const token = req.cookies.id_token;
+    const word = req.body.word;
+    if (!word) return res.status(400).json({ error: "word is required" });
+    wn.saveWordNote(token, word, req.body.content)
+        .then((content) => res.json({ content }))
+        .catch((error) => {
+            log("word note save error: " + error);
+            res.status(500).json({ error: "Could not save note" });
+        });
+});
+
+dictionaryRouter.post("/note/delete", function (req, res) {
+    const token = req.cookies.id_token;
+    const word = req.body.word;
+    if (!word) return res.status(400).json({ error: "word is required" });
+    wn.deleteWordNote(token, word)
+        .then(() => res.json({ content: null }))
+        .catch((error) => {
+            log("word note delete error: " + error);
+            res.status(500).json({ error: "Could not delete note" });
+        });
 });
 
 dictionaryRouter.get("/examples", function (req, res) {

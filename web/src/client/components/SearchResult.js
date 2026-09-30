@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { connect } from 'react-redux';
-import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard } from '../actions';
+import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote } from '../actions';
 import Definition from './Definition';
 import AddToCardbook from './AddToCardbook';
+import RichTextEditor from './RichTextEditor';
 import ItemTags from './ItemTags';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
@@ -10,11 +11,38 @@ import TranslateMenu from './TranslateMenu';
 import ShareDialog from './ShareDialog';
 import WordImages from './WordImages';
 
-function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, auth, wordbooks,
-    fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard }) {
+// True when a note's HTML has no visible text (empty editor, whitespace only).
+function isEmptyHtml(html) {
+    return (html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() === '';
+}
+
+function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, wordNote, auth, wordbooks,
+    fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote }) {
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [sharing, setSharing] = useState(false);
+    const [editingNote, setEditingNote] = useState(false);
+    const [noteDraft, setNoteDraft] = useState('');
+
+    // The note belongs to this word only if it was fetched for it.
+    const noteContent = wordNote && wordNote.word === currentWord ? wordNote.content : null;
+    const hasNote = !!noteContent && !isEmptyHtml(noteContent);
+
+    // Render KaTeX math inside the word note after it's in the DOM.
+    const noteRef = React.useRef(null);
+    React.useEffect(() => { renderMathIn(noteRef.current); });
+
+    const startAddNote = () => { setNoteDraft(''); setEditingNote(true); };
+    const startEditNote = () => { setNoteDraft(noteContent || ''); setEditingNote(true); };
+    const onSaveNote = () => {
+        if (isEmptyHtml(noteDraft)) {
+            if (hasNote) deleteWordNote(currentWord);
+        } else {
+            saveWordNote(currentWord, noteDraft);
+        }
+        setEditingNote(false);
+    };
+    const onDeleteNote = () => { deleteWordNote(currentWord); setEditingNote(false); };
 
     // Render any KaTeX math in the card body after the HTML is in the DOM.
     const cardRef = React.useRef(null);
@@ -22,9 +50,10 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
         renderMathIn(cardRef.current);
     });
 
-    // Reset the delete confirmation whenever the selected item changes.
+    // Reset the delete confirmation and note editor whenever the selection changes.
     React.useEffect(() => {
         setConfirmingDelete(false);
+        setEditingNote(false);
     }, [currentWord]);
 
     if (auth != "") {
@@ -136,6 +165,12 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         <div className="current-word-container">
                             <div><h2>{currentWord}</h2> </div>
                             <div className="card-header-actions">
+                                {auth != "" && !hasNote && !editingNote && (
+                                    <button className="card-tool" title="Add note" aria-label="Add note"
+                                        onClick={startAddNote}>
+                                        <i className="sticky note outline icon"></i>
+                                    </button>
+                                )}
                                 {addToWordbookControl}
                                 {shareControl}
                                 {/* Google's own definition box can't be fetched or
@@ -157,6 +192,33 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         <ItemTags type="word" id={currentWord} title={currentWord} />
                     </>
                     : ""}
+
+                {/* Your personal note for this word, shown above the dictionary
+                    definitions. Hidden entirely when there's no note. */}
+                {currentWord != "" && editingNote ? (
+                    <div className="word-note word-note--edit">
+                        <div className="word-note__label">Your note</div>
+                        <RichTextEditor value={noteDraft} onChange={setNoteDraft} />
+                        <div className="word-note__actions">
+                            <button className="cb-btn cb-btn--ghost" onClick={() => setEditingNote(false)}>Cancel</button>
+                            <button className="cb-btn cb-btn--accent" onClick={onSaveNote}>Save</button>
+                        </div>
+                    </div>
+                ) : currentWord != "" && hasNote ? (
+                    <div className="word-note">
+                        <div className="word-note__head">
+                            <span className="word-note__label">Your note</span>
+                            <span className="word-note__tools">
+                                <button className="card-tool" title="Edit note" aria-label="Edit note"
+                                    onClick={startEditNote}><i className="edit icon"></i></button>
+                                <button className="card-tool card-tool--danger" title="Delete note" aria-label="Delete note"
+                                    onClick={onDeleteNote}><i className="trash alternate outline icon"></i></button>
+                            </span>
+                        </div>
+                        <div className="word-note__content" ref={noteRef}
+                            dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(noteContent) }} />
+                    </div>
+                ) : null}
 
                 {wordSearchResult == null || Object.keys(wordSearchResult).length === 0 || wordSearchResult.definitions == null || Object.keys(wordSearchResult.definitions).length === 0 ? "" :
                     Object.entries(wordSearchResult.definitions).map(([k, v]) => (
@@ -183,8 +245,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     );
 }
 
-function mapStatetoProps({ auth, currentWord, currentWordType, currentCard, word, wordbooks }, ownProps) {
-    return { auth, currentWord, currentWordType, currentCard, wordSearchResult: word, wordbooks };
+function mapStatetoProps({ auth, currentWord, currentWordType, currentCard, word, wordbooks, wordNote }, ownProps) {
+    return { auth, currentWord, currentWordType, currentCard, wordSearchResult: word, wordbooks, wordNote };
 }
 
-export default connect(mapStatetoProps, { fetchWordWordbooks, fetchWordbooks, openCardEditor, deleteCard })(SearchResult);
+export default connect(mapStatetoProps, { fetchWordWordbooks, fetchWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote })(SearchResult);
