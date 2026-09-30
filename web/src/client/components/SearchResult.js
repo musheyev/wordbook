@@ -3,10 +3,12 @@ import { connect } from 'react-redux';
 import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote } from '../actions';
 import Definition from './Definition';
 import AddToCardbook from './AddToCardbook';
+import ReadAloud from './ReadAloud';
 import RichTextEditor from './RichTextEditor';
 import ItemTags from './ItemTags';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
+import { htmlToChunks, htmlToPlainText, textToChunks } from '../utils/tts';
 import TranslateMenu from './TranslateMenu';
 import ShareDialog from './ShareDialog';
 import WordImages from './WordImages';
@@ -127,6 +129,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             onClick={() => setConfirmingDelete(true)}>
                             <i className="trash alternate outline icon"></i>
                         </button>
+                        <ReadAloud getChunks={() => htmlToChunks(currentCard.content)} title={currentCard.title} />
                         {addToWordbookControl}
                         {shareControl}
                     </div>
@@ -165,6 +168,9 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         <div className="current-word-container">
                             <div><h2>{currentWord}</h2> </div>
                             <div className="card-header-actions">
+                                <ReadAloud title={currentWord}
+                                    getChunks={() => textToChunks(`${currentWord}. ${htmlToPlainText(
+                                        Object.values((wordSearchResult && wordSearchResult.definitions) || {}).flat().join(' '))}`)} />
                                 {auth != "" && !hasNote && !editingNote && (
                                     <button className="card-tool" title="Add note" aria-label="Add note"
                                         onClick={startAddNote}>

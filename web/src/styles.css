@@ -703,6 +703,35 @@ nav-button-as-link {
 }
 .card-tool i.icon { margin: 0; }
 .card-tool:hover { background: var(--cb-accent-weak); border-color: var(--cb-accent); }
+
+/* Read aloud: play/pause + stop + voice picker. */
+.read-aloud { display: inline-flex; align-items: center; gap: 6px; position: relative; }
+.read-aloud__voices-wrap { position: relative; display: inline-flex; }
+.read-aloud__voices { width: 26px; }
+.read-aloud__labelled { gap: 6px; }
+.read-aloud__labelled i.icon { margin: 0; }
+.read-aloud__menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 41;
+  width: 240px; max-width: calc(100vw - 20px);
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius); box-shadow: 0 10px 28px rgba(20, 25, 40, 0.16);
+  padding: 8px; max-height: 320px; overflow-y: auto;
+}
+.read-aloud__lang { padding: 4px 0; }
+.read-aloud__lang + .read-aloud__lang { border-top: 1px solid var(--cb-border); margin-top: 4px; }
+.read-aloud__lang-label {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--cb-ink-3); padding: 4px 8px;
+}
+.read-aloud__voice {
+  display: block; width: 100%; text-align: left; border: none; background: none;
+  padding: 7px 8px; border-radius: var(--cb-radius-sm); cursor: pointer;
+  font-size: 0.85rem; color: var(--cb-ink-2);
+}
+.read-aloud__voice:hover { background: var(--cb-surface); }
+.read-aloud__voice.on { background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 500; }
+.read-aloud__none { padding: 6px 8px; font-size: 0.8rem; color: var(--cb-ink-3); }
+.read-aloud__error { font-size: 0.8rem; color: var(--cb-danger); }
 .card-tool--google { color: #4285f4; text-decoration: none; }
 .card-tool--google:hover { color: #4285f4; }
 .card-tool--sentence { color: #0f9d58; text-decoration: none; }

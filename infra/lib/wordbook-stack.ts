@@ -83,6 +83,17 @@ export class WordbookStack extends cdk.Stack {
     //    Run `npm install` in ../api before deploying so node_modules is present.
     // =========================================================================
     const apiRoot = path.join(__dirname, '..', '..', 'api');
+
+    // Private bucket for cached text-to-speech audio (api/tts.js). The Lambda
+    // reads/writes it; nothing public reads it directly.
+    const ttsBucket = new s3.Bucket(this, 'TtsAudioBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+
     const apiFn = new lambda.Function(this, 'ApiFunction', {
       runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'lambda.handler',
@@ -115,6 +126,9 @@ export class WordbookStack extends cdk.Stack {
         GOOGLE_SEARCH_KEY: process.env.GOOGLE_SEARCH_KEY ?? '',
         GOOGLE_SEARCH_CX: process.env.GOOGLE_SEARCH_CX ?? '',
         GOOGLE_TRANSLATE_KEY: process.env.GOOGLE_TRANSLATE_KEY ?? '',
+        // Read-aloud (api/tts.js): Google TTS key + the audio cache bucket.
+        GOOGLE_TTS_KEY: process.env.GOOGLE_TTS_KEY ?? '',
+        TTS_BUCKET: ttsBucket.bucketName,
         // Public URLs used by the Cognito auth redirect flow. Only correct once
         // APP_URL is known; harmless for the (non-auth) dictionary/wordbook APIs.
         ...(appUrl ? { FRONTEND_URL: appUrl, BACKEND_URL: `${appUrl}/api` } : {}),
@@ -141,6 +155,9 @@ export class WordbookStack extends cdk.Stack {
         resources: tableArns,
       })
     );
+
+    // The Lambda reads and writes cached TTS audio in its bucket.
+    ttsBucket.grantReadWrite(apiFn);
 
     // Admin endpoints (/users, /admins) list Cognito users via the pool, and
     // sharing (/inbox/share) looks up the recipient with AdminGetUser. Grant the
