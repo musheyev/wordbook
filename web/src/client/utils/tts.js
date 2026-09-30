@@ -9,7 +9,7 @@ const langOfChar = (ch) => (HEBREW.test(ch) ? 'he-IL' : 'en-US');
 export function htmlToPlainText(html) {
     if (!html) return '';
     const doc = new DOMParser().parseFromString(html, 'text/html');
-    doc.querySelectorAll('.katex, [data-type="block-math"], [data-type="inline-math"], script, style')
+    doc.querySelectorAll('.tts-skip, .katex, [data-type="block-math"], [data-type="inline-math"], script, style')
         .forEach((n) => n.remove());
     // Give block elements a newline so sentences don't run together.
     doc.querySelectorAll('p, div, li, h1, h2, h3, h4, br, tr').forEach((n) => {

@@ -6,6 +6,7 @@ import { Mathematics } from '@tiptap/extension-mathematics';
 import { TableKit } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { MarkdownPaste } from './editor/markdownPaste';
+import { TtsSkip } from './editor/ttsSkip';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
@@ -94,6 +95,7 @@ const RichTextEditor = ({ value, onChange }) => {
             TableKit.configure({ table: { resizable: false } }),
             Markdown,
             MarkdownPaste,
+            TtsSkip,
         ],
         // Saved notes are HTML. Say so explicitly, since with the Markdown
         // extension loaded a string could otherwise be read as Markdown.
@@ -200,6 +202,8 @@ const RichTextEditor = ({ value, onChange }) => {
                     onClick={() => editor.chain().focus().toggleUnderline().run()} />
                 <Btn label="< >" title="Inline code" active={editor.isActive('code')}
                     onClick={() => editor.chain().focus().toggleCode().run()} />
+                <Btn label="🔇" title="Don't read aloud (mute for text-to-speech)" active={editor.isActive('ttsSkip')}
+                    onClick={() => editor.chain().focus().toggleTtsSkip().run()} />
                 <Btn label="H" title="Heading" active={editor.isActive('heading', { level: 2 })}
                     onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
                 <Btn label="• List" title="Bullet list" active={editor.isActive('bulletList')}

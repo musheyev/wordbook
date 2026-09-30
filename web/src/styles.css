@@ -1587,6 +1587,20 @@ nav-button-as-link {
 .rte-content .ProseMirror ul,
 .rte-content .ProseMirror ol { margin: 0 0 8px 22px; }
 .rte-content .ProseMirror a { color: #2f6fb3; text-decoration: underline; }
+/* "Don't read aloud" mark: shown only inside the editor (dotted underline + a
+   faint mute icon) so the author knows what TTS will skip. Deliberately NOT
+   styled in the read view (.word-note__content / .card-content), so readers see
+   ordinary text. The TTS reader strips .tts-skip before speaking (utils/tts.js). */
+.rte-content .ProseMirror .tts-skip {
+  border-bottom: 1px dotted #9aa0a6;
+  color: #6b6f76;
+}
+.rte-content .ProseMirror .tts-skip::before {
+  content: "\1F507";
+  font-size: 0.8em;
+  margin-right: 2px;
+  opacity: 0.6;
+}
 .rte-content .ProseMirror code {
   background: #f1f1f1; padding: 1px 5px; border-radius: 4px; font-family: monospace;
 }

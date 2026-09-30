@@ -169,8 +169,17 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             <div><h2>{currentWord}</h2> </div>
                             <div className="card-header-actions">
                                 <ReadAloud title={currentWord}
-                                    getChunks={() => textToChunks(`${currentWord}. ${htmlToPlainText(
-                                        Object.values((wordSearchResult && wordSearchResult.definitions) || {}).flat().join(' '))}`)} />
+                                    getChunks={() => {
+                                        // Read the word, then your note (if any), then the dictionary
+                                        // definitions — matching the order shown on screen.
+                                        const defs = htmlToPlainText(
+                                            Object.values((wordSearchResult && wordSearchResult.definitions) || {}).flat().join(' '));
+                                        return [
+                                            ...textToChunks(`${currentWord}.`),
+                                            ...(hasNote ? htmlToChunks(noteContent) : []),
+                                            ...textToChunks(defs),
+                                        ];
+                                    }} />
                                 {auth != "" && !hasNote && !editingNote && (
                                     <button className="card-tool" title="Add note" aria-label="Add note"
                                         onClick={startAddNote}>
