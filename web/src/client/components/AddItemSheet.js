@@ -92,9 +92,18 @@ function AddItemSheet({ open, wordbook, onClose, wordbookWords, lookupWord, addW
                     </button>
                 </div>
 
+                {/* Writing a note is the default action; looking up a word is the
+                    alternative below it. */}
+                <button type="button" className="cb-btn cb-btn--accent add-sheet__note-primary"
+                    onClick={onWriteNote}>
+                    <i className="sticky note outline icon"></i>Write a note
+                </button>
+
+                <div className="add-sheet__or"><span>or look up a word</span></div>
+
                 <form className="cb-search cb-search--sheet" onSubmit={onLookup}>
                     <i className="search icon cb-search__icon" aria-hidden="true"></i>
-                    <input ref={inputRef} type="text" className="cb-search__input" autoFocus
+                    <input ref={inputRef} type="text" className="cb-search__input"
                         placeholder="Look up a word" autoComplete="off" autoCapitalize="none"
                         value={query} onChange={(e) => setQuery(e.target.value)} />
                     <button type="submit" className="cb-search__go" aria-label="Look up">
@@ -129,11 +138,6 @@ function AddItemSheet({ open, wordbook, onClose, wordbookWords, lookupWord, addW
                         </div>
                     )}
                 </div>
-
-                <button type="button" className="add-sheet__note" onClick={onWriteNote}>
-                    <i className="sticky note outline icon"></i>
-                    Write a note instead
-                </button>
             </div>
         </div>
     );

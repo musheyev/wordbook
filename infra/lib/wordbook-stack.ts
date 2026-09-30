@@ -31,6 +31,8 @@ const DYNAMO_TABLES = [
   // Items shared with a user (api/inbox.js). PK user_name (recipient),
   // SK inbox_id; also holds per-sender daily share counters.
   'dictionary_inbox',
+  // A personal note attached to a word (api/word-notes.js). PK user_name, SK word.
+  'dictionary_word_notes',
   // Tags a user attaches to items (api/tags.js). PK user_name, SK item_key.
   'dictionary_item_tags',
 ];
