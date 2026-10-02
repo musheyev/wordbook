@@ -186,7 +186,18 @@ const RichTextEditor = ({ value, onChange }) => {
         // Pasting or dropping an image file uploads it and inserts the URL.
         editorProps: {
             handlePaste: (view, event) => {
-                const files = imageFilesFrom(event.clipboardData && event.clipboardData.files);
+                const cd = event.clipboardData;
+                let files = imageFilesFrom(cd && cd.files);
+                // Many sources (screenshots, "Copy image") expose the image only
+                // via items, not files — fall back to items.getAsFile(). Without
+                // this the editor's default paste inserts the clipboard's own
+                // <img> (a blob:/temporary src) instead, which shows as broken.
+                if (!files.length && cd && cd.items) {
+                    files = Array.from(cd.items)
+                        .filter((it) => it.kind === 'file' && it.type && it.type.startsWith('image/'))
+                        .map((it) => it.getAsFile())
+                        .filter(Boolean);
+                }
                 if (files.length) { event.preventDefault(); files.forEach(insertImageFile); return true; }
                 return false;
             },
