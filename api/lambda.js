@@ -4,10 +4,12 @@
 const serverlessHttp = require("serverless-http");
 const app = require("./app");
 
-// Tell serverless-http which responses are binary. Without this it returns the
+// Tell serverless-http which payloads are binary. Without this it treats the
 // body as a UTF-8 string with isBase64Encoded=false, which corrupts non-text
-// payloads (the /tts endpoint's audio/mpeg) so the browser can't decode them.
-// JSON/text responses are unaffected and still returned as-is.
+// data over API Gateway — the /tts endpoint's audio/mpeg and note images
+// (/images, image/*) — so the browser can't decode them. This only matters in
+// Lambda; locally (plain Express) binary just works, which is why images showed
+// fine in dev but broke in production. JSON/text responses are unaffected.
 module.exports.handler = serverlessHttp(app, {
-    binary: ["audio/mpeg", "audio/*", "application/octet-stream"],
+    binary: ["audio/mpeg", "audio/*", "image/*", "application/octet-stream"],
 });
