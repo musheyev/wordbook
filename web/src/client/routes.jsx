@@ -8,6 +8,7 @@ import InboxPage from './pages/InboxPage';
 import TagsPage from './pages/TagsPage';
 import AdminPage from './pages/AdminPage';
 import AdminImagesPage from './pages/AdminImagesPage';
+import AdminImageCleanupPage from './pages/AdminImageCleanupPage';
 import UsersListPage from './pages/UsersListPage';
 import AdminsListPage from './pages/AdminsListPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -39,6 +40,7 @@ export const routes = [
       { path: 'tags', Component: TagsPage },
       { path: 'admin', Component: AdminPage },
       { path: 'admin/images', Component: AdminImagesPage },
+      { path: 'admin/image-cleanup', Component: AdminImageCleanupPage },
       { path: 'users', Component: UsersListPage },
       { path: 'admins', Component: AdminsListPage },
       { path: 'login', Component: LoginRedirect },

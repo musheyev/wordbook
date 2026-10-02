@@ -8,6 +8,7 @@ export const ADMIN_PAGES = [
     { to: '/users', icon: 'users', label: 'Users', hint: 'Everyone with an account' },
     { to: '/admins', icon: 'shield alternate', label: 'Admins', hint: 'Members of the admins group' },
     { to: '/admin/images', icon: 'image outline', label: 'Images', hint: 'Review and delete word images' },
+    { to: '/admin/image-cleanup', icon: 'trash alternate outline', label: 'Image cleanup', hint: 'Archive, restore, or clear unused note images' },
 ];
 
 function AdminPage() {

@@ -9,6 +9,7 @@ import { Provider } from 'react-redux';
 import axios from 'axios';
 import { AppRoutes } from './client/routes.jsx';
 import reducers from './client/reducers';
+import './client/fonts.js';
 import './styles.css';
 
 // All API calls go through /api, which Vite proxies to the backend on :4000.

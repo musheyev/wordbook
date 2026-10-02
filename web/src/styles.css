@@ -1642,6 +1642,47 @@ nav-button-as-link {
   font-weight: 600;
 }
 
+/* Highlight color picker */
+.rte-hl { position: relative; display: inline-flex; }
+.rte-hl .rte-btn { display: inline-flex; align-items: center; gap: 3px; }
+.rte-hl__swatch {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 3px;
+  background: #FEF3C7; color: #222; font-weight: 600; font-size: 0.8rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+.rte-hl__caret { font-size: 0.6rem; color: #666; }
+.rte-hl__backdrop { position: fixed; inset: 0; z-index: 40; }
+.rte-hl__pop {
+  position: absolute; top: 34px; left: 0; z-index: 50;
+  display: grid; grid-template-columns: repeat(4, 24px); gap: 6px;
+  padding: 10px; background: #fff; border: 1px solid #e3e5ea;
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+.rte-hl__color {
+  width: 24px; height: 24px; padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12); border-radius: 5px; cursor: pointer;
+}
+.rte-hl__color:hover { outline: 2px solid #b5d4f4; }
+.rte-hl__clear {
+  grid-column: 1 / -1; margin-top: 2px; padding: 5px;
+  font-size: 0.8rem; border: 1px solid #e3e5ea; border-radius: 5px;
+  background: #fff; cursor: pointer;
+}
+.rte-hl__clear:hover { background: #f1f3f6; }
+
+/* Font family / size dropdowns */
+.rte-select {
+  height: 30px; padding: 0 4px;
+  border: 1px solid #d5d9e0; border-radius: 5px;
+  background: #fff; color: #333; font-size: 0.8rem; cursor: pointer;
+}
+
+/* Font / size are desktop only */
+@media (max-width: 768px) {
+  .rte-desktop-only { display: none !important; }
+}
+
 .rte-content {
   padding: 10px 12px;
   min-height: 160px;
@@ -1653,6 +1694,16 @@ nav-button-as-link {
 .rte-content .ProseMirror ul,
 .rte-content .ProseMirror ol { margin: 0 0 8px 22px; }
 .rte-content .ProseMirror a { color: #2f6fb3; text-decoration: underline; }
+/* Images never overflow their container, in the editor or when displayed. */
+.rte-content .ProseMirror img,
+.card-content img,
+.word-note__content img,
+.note-window__body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+.rte-content .ProseMirror img.ProseMirror-selectednode { outline: 2px solid #b5d4f4; }
 /* "Don't read aloud" mark: shown only inside the editor (dotted underline + a
    faint mute icon) so the author knows what TTS will skip. Deliberately NOT
    styled in the read view (.word-note__content / .card-content), so readers see

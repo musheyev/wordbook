@@ -12,6 +12,7 @@
 const express = require("express");
 const { requireAdmin } = require("../cognitoUsers");
 const curation = require("../image-curation");
+const imageGc = require("../image-gc");
 const log = require("../logger");
 
 const adminRouter = express.Router();
@@ -39,6 +40,34 @@ adminRouter.get("/images", handle(async (req, res) => {
 
 adminRouter.post("/images/delete", handle(async (req, res) => {
     res.json(await curation.deleteImages(req.body.items));
+}));
+
+// --- Note-image cleanup (archive / restore / clear). See ../image-gc.js. ---
+const needImages = (res) => {
+    if (!imageGc.isConfigured()) {
+        res.status(503).json({ error: "Image storage isn't configured on the server." });
+        return false;
+    }
+    return true;
+};
+
+adminRouter.get("/image-archive", handle(async (req, res) => {
+    res.json(await imageGc.archiveCount());
+}));
+
+adminRouter.post("/image-archive/sweep", handle(async (req, res) => {
+    if (!needImages(res)) return;
+    res.json(await imageGc.archiveOrphans());
+}));
+
+adminRouter.post("/image-archive/restore", handle(async (req, res) => {
+    if (!needImages(res)) return;
+    res.json(await imageGc.restoreAll());
+}));
+
+adminRouter.post("/image-archive/clear", handle(async (req, res) => {
+    if (!needImages(res)) return;
+    res.json(await imageGc.clearArchive());
 }));
 
 module.exports = { adminRouter, handle };

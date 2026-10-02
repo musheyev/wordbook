@@ -22,6 +22,7 @@ const adminsRouter = require("./routes/adminsRouter");
 const inboxRouter = require("./routes/inboxRouter");
 const tagsRouter = require("./routes/tagsRouter");
 const ttsRouter = require("./routes/ttsRouter");
+const imagesRouter = require("./routes/imagesRouter");
 const { adminRouter } = require("./routes/adminRouter");
 
 const app = express();
@@ -53,6 +54,7 @@ app.use("/admins", adminsRouter);
 app.use("/inbox", inboxRouter);
 app.use("/tags", tagsRouter);
 app.use("/tts", ttsRouter);
+app.use("/images", imagesRouter);
 app.use("/admin", adminRouter);
 
 module.exports = app;

@@ -751,6 +751,27 @@ export const fetchAdminImages = (cursor) => async (dispatch, getState, api) => {
 export const deleteAdminImages = (items) => async (dispatch, getState, api) =>
   postCuration(api, '/admin/images/delete', { items }, "Couldn't delete the images.");
 
+// --- Note-image cleanup (admin): archive orphans / restore all / clear archive ---
+const adminErr = (err, fallback) =>
+  new Error((err.response && err.response.data && (err.response.data.error || err.response.data)) || fallback);
+
+export const getImageArchive = () => async (dispatch, getState, api) => {
+  try { return (await api.get('/admin/image-archive')).data; }
+  catch (err) { throw adminErr(err, "Couldn't load the archive."); }
+};
+export const sweepImageArchive = () => async (dispatch, getState, api) => {
+  try { return (await api.post('/admin/image-archive/sweep', {}, JSON_HEADERS)).data; }
+  catch (err) { throw adminErr(err, "Couldn't archive images."); }
+};
+export const restoreImageArchive = () => async (dispatch, getState, api) => {
+  try { return (await api.post('/admin/image-archive/restore', {}, JSON_HEADERS)).data; }
+  catch (err) { throw adminErr(err, "Couldn't restore images."); }
+};
+export const clearImageArchive = () => async (dispatch, getState, api) => {
+  try { return (await api.post('/admin/image-archive/clear', {}, JSON_HEADERS)).data; }
+  catch (err) { throw adminErr(err, "Couldn't clear the archive."); }
+};
+
 export const FETCH_WORD_WORDBOOKS = 'fetch_word_wordbooks';
 export const fetchWordWordbooks = (word) => async (dispatch, getState, api) => {
   console.log("fetchWordWordbooks called");
