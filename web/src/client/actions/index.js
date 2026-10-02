@@ -99,6 +99,25 @@ export const deleteWordNote = (word) => async (dispatch, getState, api) => {
   dispatch({ type: SET_WORD_NOTE, payload: { word, content: null } });
 };
 
+// Per-user, per-word dictionary-source thumbs. Return the { source: 1|-1 } map;
+// SearchResult keeps it in local state so voting never re-sorts the live view.
+export const fetchSourceVotes = (word) => async (dispatch, getState, api) => {
+  try {
+    const res = await api.get(`/dictionary/source-votes?word=${encodeURIComponent(word)}`);
+    return (res.data && res.data.votes) || {};
+  } catch (err) {
+    return {};
+  }
+};
+export const setSourceVote = (word, source, vote) => async (dispatch, getState, api) => {
+  try {
+    const res = await api.post('/dictionary/source-vote', { word, source, vote }, JSON_HEADERS);
+    return (res.data && res.data.votes) || {};
+  } catch (err) {
+    return null;
+  }
+};
+
 // Look a word up without selecting it or touching search history. Used by the
 // notebook's "Add" sheet to preview a word before adding it.
 export const lookupWord = (word) => async (dispatch, getState, api) => {

@@ -326,6 +326,26 @@ nav-button-as-link {
     margin: 12px 0 4px;
   }
 
+  /* Per-user thumbs that rank a dictionary source (see SearchResult). */
+  .source-dictionary-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0 4px;
+  }
+  .source-dictionary-row .source-dictionary { margin: 0; }
+  .source-vote { display: inline-flex; gap: 2px; }
+  .source-vote__btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 24px; padding: 0;
+    border: 1px solid transparent; border-radius: 6px;
+    background: none; color: var(--cb-ink-3); cursor: pointer;
+  }
+  .source-vote__btn i.icon { margin: 0; font-size: 0.9rem; }
+  .source-vote__btn:hover { background: var(--cb-accent-weak); }
+  .source-vote__btn.on-up { color: #16a34a; background: #e7f6ec; border-color: #bfe6cc; }
+  .source-vote__btn.on-down { color: #c0392b; background: #fdecea; border-color: #f2c2bb; }
+
   img {
   
     max-height:200px;

@@ -4,6 +4,7 @@ const wp = require("../word-pictures");
 const ex = require("../word-examples");
 const uh = require("../user-history");
 const wn = require("../word-notes");
+const sv = require("../source-votes");
 const curation = require("../image-curation");
 const { requireAdmin } = require("../cognitoUsers");
 const { handle: curationHandle } = require("./adminRouter");
@@ -208,6 +209,28 @@ dictionaryRouter.post("/note/delete", function (req, res) {
         .catch((error) => {
             log("word note delete error: " + error);
             res.status(500).json({ error: "Could not delete note" });
+        });
+});
+
+// Per-user, per-word thumbs that order the dictionary sources. See source-votes.js.
+// ---------------------------------------------------------------------------
+dictionaryRouter.get("/source-votes", function (req, res) {
+    sv.getSourceVotes(req.cookies.id_token, req.query.word)
+        .then((votes) => res.json({ votes }))
+        .catch((error) => {
+            log("source votes get error: " + error);
+            res.status(500).json({ votes: {} });
+        });
+});
+
+dictionaryRouter.post("/source-vote", function (req, res) {
+    const { word, source, vote } = req.body;
+    if (!word || !source) return res.status(400).json({ error: "word and source are required" });
+    sv.setSourceVote(req.cookies.id_token, word, source, Number(vote) || 0)
+        .then((votes) => res.json({ votes }))
+        .catch((error) => {
+            log("source vote save error: " + error);
+            res.status(500).json({ error: "Could not save vote" });
         });
 });
 

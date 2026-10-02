@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { connect } from 'react-redux';
-import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote } from '../actions';
+import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote } from '../actions';
 import Definition from './Definition';
 import AddToCardbook from './AddToCardbook';
 import ReadAloud from './ReadAloud';
@@ -19,12 +19,65 @@ function isEmptyHtml(html) {
 }
 
 function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, wordNote, auth, wordbooks,
-    fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote }) {
+    fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote,
+    fetchSourceVotes, setSourceVote }) {
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [editingNote, setEditingNote] = useState(false);
     const [noteDraft, setNoteDraft] = useState('');
+
+    // Per-user dictionary-source thumbs. `sourceVotes` drives the thumb highlight
+    // and updates live on click; `orderedSources` is the display order, FROZEN
+    // when the word loads so voting never reshuffles the page (it re-ranks only
+    // the next time a word loads). votesLoaded gates the one-time freeze.
+    const [sourceVotes, setSourceVotes] = useState({});
+    const [orderedSources, setOrderedSources] = useState(null);
+    const [votesLoaded, setVotesLoaded] = useState(false);
+
+    const defsObj = (wordSearchResult && wordSearchResult.definitions) || null;
+
+    // On word change: reset, then load this user's votes for the word.
+    React.useEffect(() => {
+        setOrderedSources(null);
+        setVotesLoaded(false);
+        setSourceVotes({});
+        if (!currentWord || auth === '') { setVotesLoaded(true); return; }
+        let cancelled = false;
+        fetchSourceVotes(currentWord).then((v) => {
+            if (cancelled) return;
+            setSourceVotes(v || {});
+            setVotesLoaded(true);
+        });
+        return () => { cancelled = true; };
+    }, [currentWord, auth]);
+
+    // Freeze the source order ONCE per word, once both the definitions and the
+    // votes are available. Liked (+1) first, disliked (-1) last, others in
+    // original order between (a stable sort preserves ties).
+    React.useEffect(() => {
+        if (orderedSources || !votesLoaded || !defsObj) return;
+        const entries = Object.entries(defsObj);
+        if (entries.length === 0) return;
+        const rank = (src) => (sourceVotes[src] === 1 ? 0 : sourceVotes[src] === -1 ? 2 : 1);
+        const ordered = entries
+            .map((e, i) => ({ e, i }))
+            .sort((a, b) => rank(a.e[0]) - rank(b.e[0]) || a.i - b.i)
+            .map((x) => x.e);
+        setOrderedSources(ordered);
+    }, [defsObj, votesLoaded, orderedSources, sourceVotes]);
+
+    // Toggle a source's thumb (click the active one again to clear). Updates the
+    // highlight immediately; the order is untouched until the next load.
+    const voteSource = (source, vote) => {
+        const next = sourceVotes[source] === vote ? 0 : vote;
+        setSourceVotes((prev) => {
+            const copy = { ...prev };
+            if (next === 0) delete copy[source]; else copy[source] = next;
+            return copy;
+        });
+        setSourceVote(currentWord, source, next);
+    };
 
     // The note belongs to this word only if it was fetched for it.
     const noteContent = wordNote && wordNote.word === currentWord ? wordNote.content : null;
@@ -235,11 +288,29 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     </div>
                 ) : null}
 
-                {wordSearchResult == null || Object.keys(wordSearchResult).length === 0 || wordSearchResult.definitions == null || Object.keys(wordSearchResult.definitions).length === 0 ? "" :
-                    Object.entries(wordSearchResult.definitions).map(([k, v]) => (
+                {!defsObj || Object.keys(defsObj).length === 0 ? "" :
+                    (orderedSources || Object.entries(defsObj)).map(([k, v]) => (
                         <div key={k}>
-                            <div>
+                            <div className="source-dictionary-row">
                                 <em className="source-dictionary">{k}</em>
+                                {auth != "" && (
+                                    <span className="source-vote">
+                                        <button type="button"
+                                            className={`source-vote__btn${sourceVotes[k] === 1 ? ' on-up' : ''}`}
+                                            title="Like this source — sorts to the top next time you open the word"
+                                            aria-label="Like this source" aria-pressed={sourceVotes[k] === 1}
+                                            onClick={() => voteSource(k, 1)}>
+                                            <i className="thumbs up outline icon"></i>
+                                        </button>
+                                        <button type="button"
+                                            className={`source-vote__btn${sourceVotes[k] === -1 ? ' on-down' : ''}`}
+                                            title="Dislike this source — sorts to the bottom next time you open the word"
+                                            aria-label="Dislike this source" aria-pressed={sourceVotes[k] === -1}
+                                            onClick={() => voteSource(k, -1)}>
+                                            <i className="thumbs down outline icon"></i>
+                                        </button>
+                                    </span>
+                                )}
                             </div>
                             <ul>
                                 {v.map((listEntry, index) => (
@@ -264,4 +335,4 @@ function mapStatetoProps({ auth, currentWord, currentWordType, currentCard, word
     return { auth, currentWord, currentWordType, currentCard, wordSearchResult: word, wordbooks, wordNote };
 }
 
-export default connect(mapStatetoProps, { fetchWordWordbooks, fetchWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote })(SearchResult);
+export default connect(mapStatetoProps, { fetchWordWordbooks, fetchWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote })(SearchResult);
