@@ -248,6 +248,15 @@ function getWordDefinitions(word) {
         });
 }
 
+// True if nobody has looked the word up before (no definitions saved yet).
+// Resolves false if the check fails, so a database problem never triggers
+// work meant only for new words.
+function isNewWord(word) {
+    return getWordDefinitionsFromDynamoDb(word)
+        .then(data => !data.Item)
+        .catch(() => false);
+}
+
 //#region old code
 
 // async function getWordFromDb_old(word) {
@@ -286,6 +295,6 @@ function getWordDefinitions(word) {
 // });
 
 module.exports = {
-    getWordDefinitions
-
+    getWordDefinitions,
+    isNewWord,
 }

@@ -53,13 +53,20 @@ class CurationError extends Error {
  *
  * @param {string} word
  * @param {(current: {images: string[], removed: string[]}) => Promise<{images: string[], removed: string[]}>|{images: string[], removed: string[]}} change
+ * @param {{createIfMissing?: boolean}} options createIfMissing: a word with
+ *   no saved row starts from empty lists (refresh), instead of a 404
  * @returns {Promise<{images: string[], removed: string[]}>} the saved lists
  */
-async function updateWordImages(word, change) {
+async function updateWordImages(word, change, { createIfMissing = false } = {}) {
     for (let attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt++) {
-        const row = await wp.getImageRow(word);
+        let row = await wp.getImageRow(word);
         if (!row) {
-            throw new CurationError(404, `No images are stored for "${word}".`);
+            if (!createIfMissing) {
+                throw new CurationError(404, `No images are stored for "${word}".`);
+            }
+            // No version yet, so the write below creates the row; if another
+            // admin creates it first, the condition fails and we retry.
+            row = {};
         }
         const version = row.version || 0;
         const next = await change({ images: row.images || [], removed: row.removed || [] });
@@ -167,7 +174,7 @@ async function refreshImages(word, { count, replaceAll = false }) {
             images: [...keep, ...fresh],
             removed: replaceAll ? addUnique(removed, images) : removed,
         };
-    });
+    }, { createIfMissing: true });
 
     return { images: saved.images, added, requested };
 }

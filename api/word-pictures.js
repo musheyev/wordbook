@@ -12,8 +12,10 @@
  *   version  counter bumped on every admin change, for safe concurrent
  *            edits (image-curation.js explains)
  *
- * The first lookup of a word calls Brave and saves the result; every later
- * lookup reads the cache and costs nothing.
+ * The first lookup of a new word calls Brave and saves the result; every
+ * later lookup reads the cache and costs nothing. A word looked up before
+ * that has no saved images (e.g. its search failed back then) is never
+ * searched automatically; an admin uses "Refresh images" on its page.
  *
  * All calls to Brave go through fetchImages, so switching to another image
  * provider later means changing that one function.
@@ -82,21 +84,26 @@ async function getImageRow(word) {
 }
 
 /**
- * Images to show for a word: from the cache, or — the first time a word is
- * looked up — from Brave, saved to the cache.
+ * Images to show for a word: from the cache, or — for a new word, the first
+ * time anyone looks it up — from Brave, saved to the cache.
  *
  * Never rejects: an image problem shouldn't break a dictionary lookup, so any
  * failure resolves to an empty list (the lookup route shows definitions
  * without images).
  *
  * @param {string} word
+ * @param {boolean} isNewWord true only on a word's first lookup ever; other
+ *   words without saved images show none rather than search
  * @returns {Promise<string[]>}
  */
-async function getWordPictures(word) {
+async function getWordPictures(word, isNewWord = false) {
     try {
         const row = await getImageRow(word);
         if (row) {
             return row.images || [];
+        }
+        if (!isNewWord) {
+            return [];
         }
 
         const images = (await fetchImages(word)).slice(0, MAX_IMAGES);

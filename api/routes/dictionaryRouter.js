@@ -279,11 +279,16 @@ dictionaryRouter.get("", function (req, res) {
 
         const token = req.cookies.id_token;
 
-        let wordPicturesPromise = wp.getWordPictures(wordToSearch);
-        let wordDefinitionsPromise = wordnik.getWordDefinitions(wordToSearch);
-        let getExamplesPromise = ex.getExamples(wordToSearch);
-
-        Promise.all([wordPicturesPromise, wordDefinitionsPromise, getExamplesPromise])
+        // Check whether the word is new before anything else starts: a new
+        // word's definitions get saved during this lookup, after which it
+        // would look like a word seen before. Only new words search for
+        // images automatically (see word-pictures.js).
+        wordnik.isNewWord(wordToSearch)
+            .then(isNewWord => Promise.all([
+                wp.getWordPictures(wordToSearch, isNewWord),
+                wordnik.getWordDefinitions(wordToSearch),
+                ex.getExamples(wordToSearch),
+            ]))
             .then(([images, definitions, { examples }]) => {
 
                 if (token != undefined) {
