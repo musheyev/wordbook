@@ -14,7 +14,7 @@ import RefreshImagesDialog from './RefreshImagesDialog';
 //   ×                 delete an image. No confirm step: it disappears at once
 //                     and an "Image deleted · Undo" message offers a few
 //                     seconds to take it back.
-//   Refresh images    fetch new images from Google (RefreshImagesDialog).
+//   Refresh images    fetch new images from Brave Search (RefreshImagesDialog).
 
 const UNDO_SECONDS = 6;
 

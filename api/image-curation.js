@@ -10,7 +10,7 @@
  * -----------------------------
  * Deleting a URL moves it from the row's `images` list to its `removed`
  * list. Fetching new images skips anything in `removed`, so an inappropriate
- * image can't come back from a later Google search. "Undo" (restoreImage)
+ * image can't come back from a later image search. "Undo" (restoreImage)
  * moves it back.
  *
  * Safe concurrent edits: optimistic locking
@@ -29,8 +29,6 @@
 const db = require("./dynamoDb");
 const wp = require("./word-pictures");
 
-/** How many Google result pages a refresh may request (10 results each). */
-const MAX_GOOGLE_PAGES = 3;
 /** Words per admin listing page. At most 5 images each, so up to ~100 images. */
 const WORDS_PER_PAGE = 20;
 /** Attempts before giving up when other admins keep changing the same word. */
@@ -48,9 +46,9 @@ class CurationError extends Error {
  * Apply a change to one word's images, with optimistic locking and retries.
  *
  * `change` receives the current { images, removed } lists and returns the new
- * ones (it may be async, e.g. to call Google). It runs again if the row
+ * ones (it may be async, e.g. to call Brave). It runs again if the row
  * changed underneath us, so it must only compute the new lists — never write
- * anything itself. (A retried refresh calls Google again; that costs quota
+ * anything itself. (A retried refresh calls Brave again; that costs quota
  * but is otherwise harmless.)
  *
  * @param {string} word
@@ -125,8 +123,7 @@ async function restoreImage(word, url) {
 }
 
 /**
- * Collect up to `count` image URLs from Google that aren't in `exclude`,
- * reading successive result pages (10 per call) up to MAX_GOOGLE_PAGES.
+ * Up to `count` image URLs from one image search that aren't in `exclude`.
  *
  * @param {string} word
  * @param {number} count
@@ -134,16 +131,8 @@ async function restoreImage(word, url) {
  * @returns {Promise<string[]>}
  */
 async function findNewImages(word, count, exclude) {
-    const found = [];
-    for (let page = 0; page < MAX_GOOGLE_PAGES && found.length < count; page++) {
-        const results = await wp.fetchGoogleImages(word, page * 10 + 1, 10);
-        for (const url of results) {
-            if (!exclude.includes(url) && !found.includes(url)) found.push(url);
-            if (found.length === count) break;
-        }
-        if (results.length < 10) break; // Google has no more results
-    }
-    return found;
+    const results = await wp.fetchImages(word);
+    return results.filter((url) => !exclude.includes(url)).slice(0, count);
 }
 
 /**
@@ -156,7 +145,7 @@ async function findNewImages(word, count, exclude) {
  * @param {string} word
  * @param {{count?: number, replaceAll?: boolean}} options
  * @returns {Promise<{images: string[], added: number, requested: number}>}
- *   `added` can be less than `requested` when Google runs out of new images
+ *   `added` can be less than `requested` when the search runs out of new images
  */
 async function refreshImages(word, { count, replaceAll = false }) {
     let requested = 0;

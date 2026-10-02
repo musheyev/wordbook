@@ -123,8 +123,8 @@ export class WordbookStack extends cdk.Stack {
         COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID ?? '',
         COGNITO_CLIENT_SECRET: process.env.COGNITO_CLIENT_SECRET ?? '',
         WORDNIK_API_KEY: process.env.WORDNIK_API_KEY ?? '',
-        GOOGLE_SEARCH_KEY: process.env.GOOGLE_SEARCH_KEY ?? '',
-        GOOGLE_SEARCH_CX: process.env.GOOGLE_SEARCH_CX ?? '',
+        // Word images (api/word-pictures.js): Brave Search API key.
+        BRAVE_SEARCH_KEY: process.env.BRAVE_SEARCH_KEY ?? '',
         GOOGLE_TRANSLATE_KEY: process.env.GOOGLE_TRANSLATE_KEY ?? '',
         // Read-aloud (api/tts.js): Google TTS key + the audio cache bucket.
         GOOGLE_TTS_KEY: process.env.GOOGLE_TTS_KEY ?? '',

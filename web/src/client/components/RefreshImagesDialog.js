@@ -70,7 +70,7 @@ function RefreshImagesDialog({ open, word, shown, onClose, refreshWordImages }) 
                         </h3>
                         {result.added < result.requested && (
                             <p className="refresh-sheet__text">
-                                Google had only {result.added === 0 ? 'no' : result.added} new
+                                The search had only {result.added === 0 ? 'no' : result.added} new
                                 {' '}{result.added === 1 ? 'image' : 'images'} for “{word}”, not counting
                                 ones already shown or deleted before.
                             </p>
