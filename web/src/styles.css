@@ -242,15 +242,23 @@ nav-button-as-link {
 
 /* Recently searched words */
 .history { margin-top: 32px; position: relative; }
+/* Label, plus the controls on a phone (UserHistory puts them here). */
+.history__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
 .history__label {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--cb-ink-3);
-  margin-bottom: 10px;
 }
-/* The controls sit right after the last chip, as one more item in the row. */
+/* On desktop the controls sit right after the last chip, as one more item in the row. */
 .history__ctrls { display: inline-flex; align-items: center; gap: 12px; margin-left: 4px; white-space: nowrap; }
+.history__head .history__ctrls { margin-left: 0; }
 /* Invisible single-line copy of the chips and controls, used by UserHistory
    to measure how many chips fit on the row. */
 .history__measure {
