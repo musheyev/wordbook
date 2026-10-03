@@ -2100,6 +2100,51 @@ nav-button-as-link {
   gap: 14px;
   margin-top: 18px;
 }
+/* In "My order" the grid is SortableList's <ul>. */
+ul.cb-grid { list-style: none; padding: 0; }
+.nb-tools + .cb-grid,
+.nb-tools + .cb-empty { margin-top: 12px; }
+
+/* My Notebooks: search box and sort button above the list. */
+.nb-tools { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+.nb-tools__search { position: relative; flex: 1; min-width: 0; }
+.nb-tools__search i.icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  margin: 0; color: var(--cb-ink-3); pointer-events: none;
+}
+.nb-tools__search input {
+  width: 100%; padding: 9px 34px 9px 36px;
+  border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  background: var(--cb-surface-2); color: var(--cb-ink); font-size: 0.9rem;
+  -webkit-appearance: none; appearance: none;
+}
+/* Our own × replaces the browser's search-field clear button. */
+.nb-tools__search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.nb-tools__search input:focus { outline: none; border-color: var(--cb-accent); box-shadow: 0 0 0 3px var(--cb-accent-weak); }
+.nb-tools__clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; border: none; border-radius: 50%;
+  background: none; color: var(--cb-ink-3); font-size: 1.1rem; line-height: 1; cursor: pointer;
+}
+.nb-tools__clear:hover { background: rgba(0,0,0,0.06); color: var(--cb-ink); }
+.nb-tools__sort {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 12px; border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  background: var(--cb-surface-2); color: var(--cb-ink-2); font-size: 0.9rem; cursor: pointer;
+  white-space: nowrap;
+}
+.nb-tools__sort i.icon { margin: 0; color: var(--cb-ink-3); }
+.nb-tools__sort:hover { border-color: var(--cb-accent); color: var(--cb-accent); }
+
+/* Sort sheet: one row per choice, ✓ on the current one. */
+.sort-sheet__option {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 12px 8px; border: none; border-radius: var(--cb-radius-sm);
+  background: none; color: var(--cb-ink); font-size: 0.95rem; text-align: left; cursor: pointer;
+}
+.sort-sheet__option:hover { background: var(--cb-accent-weak); }
+.sort-sheet__option[aria-pressed="true"] { color: var(--cb-accent); font-weight: 600; }
+.sort-sheet__check { width: 16px; flex-shrink: 0; color: var(--cb-accent); }
 .cb-empty {
   margin-top: 18px; padding: 28px; text-align: center; color: var(--cb-ink-3);
   border: 1px dashed var(--cb-border-strong); border-radius: var(--cb-radius); font-size: 0.95rem;
@@ -2114,13 +2159,25 @@ nav-button-as-link {
 }
 .cb-book:hover { border-color: var(--cb-border-strong); }
 .cb-book__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.cb-book__info { min-width: 0; }
+.cb-book__info { flex: 1; min-width: 0; }
 .cb-book__title { font-size: 1.05rem; font-weight: 600; color: var(--cb-accent); text-decoration: none; }
 .cb-book__title:hover { text-decoration: underline; }
-.cb-book__preview {
-  margin-top: 4px; font-size: 0.85rem; color: var(--cb-ink-2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* The preview shortens with "…"; the "· 2d ago" after it always shows. */
+.cb-book__preview { display: flex; margin-top: 4px; font-size: 0.85rem; color: var(--cb-ink-2); }
+.cb-book__preview-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-book__updated { flex-shrink: 0; white-space: pre; color: var(--cb-ink-3); }
+/* "My order" grip; see .nb-row__grip for why touch-action and user-select. */
+.cb-book__grip {
+  flex-shrink: 0; align-self: center; width: 28px; height: 36px; margin-left: -8px; padding: 0;
+  border: none; background: none; color: var(--cb-ink-3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab; touch-action: none;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
+.cb-book__grip:hover { color: var(--cb-ink); }
+.cb-book__grip:focus-visible { outline: 2px solid var(--cb-accent); outline-offset: -2px; border-radius: 6px; }
+.sortable-row--dragging .cb-book { box-shadow: 0 8px 20px rgba(15, 20, 35, 0.16); border-color: var(--cb-accent); }
+.sortable-row--dragging .cb-book__grip { cursor: grabbing; color: var(--cb-accent); }
 
 .cb-menu { position: relative; flex-shrink: 0; }
 .cb-menu__btn {
@@ -2556,6 +2613,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   .a2c__new input,
   .cb-step__input,
   .cb-addwb input,
+  .nb-tools__search input,
   .wb-rename input,
   .rte-content .ProseMirror {
     font-size: 16px;

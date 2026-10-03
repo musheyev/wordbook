@@ -37,6 +37,8 @@ const DYNAMO_TABLES = [
   'dictionary_item_tags',
   // A user's thumbs on dictionary sources (api/source-votes.js). PK user_name, SK word.
   'dictionary_word_source_votes',
+  // Per-account preferences (api/user-settings.js). PK user_name.
+  'dictionary_user_settings',
 ];
 
 export class WordbookStack extends cdk.Stack {

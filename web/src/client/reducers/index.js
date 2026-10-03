@@ -21,6 +21,7 @@ import wordNoteReducer from './wordNoteReducer';
 import itemTagsReducer from './itemTagsReducer';
 import allTagsReducer from './allTagsReducer';
 import noteWindowsReducer from './noteWindowsReducer';
+import { notebookSortReducer, wordbookUpdatedReducer } from './notebookSortReducers';
 
 export default combineReducers({
     users: usersReducer,
@@ -44,6 +45,8 @@ export default combineReducers({
     wordNote: wordNoteReducer,
     itemTags: itemTagsReducer,
     allTags: allTagsReducer,
-    noteWindows: noteWindowsReducer
+    noteWindows: noteWindowsReducer,
+    notebookSort: notebookSortReducer,
+    wordbookUpdated: wordbookUpdatedReducer,
 
 });

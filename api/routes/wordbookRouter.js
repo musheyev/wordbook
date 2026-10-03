@@ -1,6 +1,7 @@
 const express = require("express");
 const wordbook = require("../wordbook.js");
 const cards = require("../cards.js");
+const userSettings = require("../user-settings.js");
 
 let wordbookRouter = express.Router();
 
@@ -83,6 +84,9 @@ wordbookRouter.get("/list", function (req, res) {
     let promiseWordbooks;
     if (withPreview === 'y') {
         promiseWordbooks = wordbook.listWordbooksWithWords(token);
+    } else if (req.query.meta === 'y') {
+        // [{ name, updated }] for sorting My Notebooks.
+        promiseWordbooks = wordbook.listWordbooksMeta(token);
     } else {
         promiseWordbooks = wordbook.listWordbooks(token);
     }
@@ -103,6 +107,27 @@ wordbookRouter.get("/list", function (req, res) {
             }
 
         })
+});
+
+// How My Notebooks is sorted, saved on the account (see user-settings.js).
+// GET  -> { sort }
+// POST { sort: "az" | "updated" | "custom" } -> { sort }
+wordbookRouter.get("/sort", function (req, res) {
+    userSettings.getNotebookSort(req.cookies.id_token)
+        .then((sort) => res.json({ sort }));
+});
+
+wordbookRouter.post("/sort", function (req, res) {
+    userSettings.setNotebookSort(req.cookies.id_token, req.body.sort)
+        .then((sort) => res.json({ sort }))
+        .catch((err) => {
+            console.log(`notebook sort save error: ${err.name}`);
+            if (err.name === "TokenExpiredError") {
+                res.status(401).end("Your login session expired.  Please login again.");
+            } else {
+                res.status(400).end(err.message);
+            }
+        });
 });
 
 wordbookRouter.post("/word/add", function (req, res) {
@@ -349,7 +374,11 @@ wordbookRouter.post("/card/update", function (req, res) {
     const { id_token: token } = req.cookies;
 
     cards.updateCard(token, card_id, title, content)
-        .then((card) => res.send(card))
+        // Editing a note updates every notebook it's in ("Recently updated"
+        // sort). That bookkeeping never fails the save.
+        .then((card) => wordbook.touchWordbooksForCard(token, card_id)
+            .catch((err) => console.log(`touchWordbooksForCard error: ${err.name}`))
+            .then(() => res.send(card)))
         .catch((err) => {
             console.log(`card/update error: ${err.name}`);
             if (err.name === "TokenExpiredError") {

@@ -453,6 +453,51 @@ export const fetchWordbookPreviews = () => async (dispatch, getState, api) => {
   });
 };
 
+// ---------------------------------------------------------------------------
+// Sorting My Notebooks
+// ---------------------------------------------------------------------------
+
+// When each notebook was last updated (a note added or edited), for the
+// "Recently updated" sort: { [name]: ISO time | null }.
+export const FETCH_WORDBOOK_UPDATED = 'fetch_wordbook_updated';
+export const fetchWordbookUpdated = () => async (dispatch, getState, api) => {
+  const res = await api.get('/wordbook/list?meta=y');
+  const updated = {};
+  (Array.isArray(res.data) ? res.data : []).forEach(({ name, updated: time }) => { updated[name] = time; });
+  dispatch({ type: FETCH_WORDBOOK_UPDATED, payload: updated });
+};
+
+// How My Notebooks is sorted ("az" | "updated" | "custom"), saved on the
+// account so every device opens with the last one used.
+export const SET_NOTEBOOK_SORT = 'set_notebook_sort';
+export const fetchNotebookSort = () => async (dispatch, getState, api) => {
+  let sort = 'az';
+  try {
+    const res = await api.get('/wordbook/sort');
+    if (res.data && res.data.sort) sort = res.data.sort;
+  } catch (err) { /* keep the default; a preference never breaks the page */ }
+  dispatch({ type: SET_NOTEBOOK_SORT, payload: sort });
+};
+
+export const saveNotebookSort = (sort) => async (dispatch, getState, api) => {
+  dispatch({ type: SET_NOTEBOOK_SORT, payload: sort });
+  try {
+    await api.post('/wordbook/sort', { sort }, JSON_HEADERS);
+  } catch (err) { /* the list is already re-sorted; it just won't be remembered */ }
+};
+
+// Save "My order" after a drag. The list moves at once; if saving fails, the
+// saved order is fetched back so the screen doesn't show an order that wasn't
+// kept.
+export const reorderWordbooks = (names) => async (dispatch, getState, api) => {
+  dispatch({ type: FETCH_WORDBOOKS, payload: { data: names } });
+  try {
+    await api.post('/wordbook/reorder', { wordbooks: names }, JSON_HEADERS);
+  } catch (err) {
+    dispatch(fetchWordbooks());
+  }
+};
+
 // Rejects with an Error carrying the server's message (e.g. name already
 // taken) so the rename form can show it.
 export const renameWordbook = (wordbook, name) => async (dispatch, getState, api) => {

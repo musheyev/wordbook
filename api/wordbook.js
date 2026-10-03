@@ -265,43 +265,96 @@ function listWordbooks(userIdToken) {
 }
 
 //NOTE: do not export this function; it does not check user credentials
+/**
+ * A user's notebook rows in their own order ("My order" on My Notebooks):
+ * by `sort_order`, which a drag saves; notebooks without one (created since
+ * the last drag, or never dragged) come after, in the table's order.
+ *
+ * @param {string} userName
+ * @returns {Promise<Array<{wordbook_name: string, sort_order?: number,
+ *   added_datetime?: string, updated_datetime?: string}>>}
+ */
+async function _queryWordbooks(userName) {
+    const data = await database.dynamoDbClientInstance().query({
+        TableName: "dictionary_wordbook",
+        KeyConditionExpression: "user_name = :userName",
+        ExpressionAttributeValues: { ":userName": userName },
+        ProjectionExpression: "wordbook_name, sort_order, added_datetime, updated_datetime",
+    }).promise();
+
+    const hasOrder = (row) => typeof row.sort_order === "number";
+    // Array.prototype.sort is stable, so rows without a sort_order keep the
+    // table's order among themselves.
+    return data.Items.sort((a, b) => {
+        if (hasOrder(a) && hasOrder(b)) return a.sort_order - b.sort_order;
+        if (hasOrder(a) !== hasOrder(b)) return hasOrder(a) ? -1 : 1;
+        return 0;
+    });
+}
+
 function _listWordbooks(userName) {
-    return new Promise((resolve, reject) => {
+    return _queryWordbooks(userName).then(rows => rows.map(row => row.wordbook_name));
+}
 
-        var params = {
+/**
+ * Notebook names with when each was last updated, for sorting My Notebooks.
+ * "Updated" means a note was added to it or a note in it was edited (see
+ * _touchWordbook); a notebook that never had either uses when it was created.
+ *
+ * @param {string} userIdToken
+ * @returns {Promise<Array<{name: string, updated: string|null}>>} in "My order"
+ */
+async function listWordbooksMeta(userIdToken) {
+    if (!userIdToken) return [];
+    const userName = await getCurentUserFromToken(userIdToken);
+    const rows = await _queryWordbooks(userName);
+    return rows.map(row => ({
+        name: row.wordbook_name,
+        updated: row.updated_datetime || row.added_datetime || null,
+    }));
+}
+
+/**
+ * Record that a notebook was updated now. Called when a note is added to it
+ * or a note in it is edited — nothing else counts (removing items, renaming,
+ * reordering don't).
+ *
+ * Never rejects: this only feeds the "Recently updated" sort, so a failure is
+ * logged rather than failing the save that triggered it. The condition stops
+ * it from creating a row for a notebook that no longer exists.
+ *
+ * @param {string} userName
+ * @param {string} wordbookName
+ * @returns {Promise<void>}
+ */
+async function _touchWordbook(userName, wordbookName) {
+    try {
+        await database.dynamoDbClientInstance().update({
             TableName: "dictionary_wordbook",
-            KeyConditionExpression: `user_name = :userName`,
-            ExpressionAttributeValues: {
-                ":userName": userName
-            },
-            ProjectionExpression: "wordbook_name,sort_order",
+            Key: { user_name: userName, wordbook_name: wordbookName },
+            ConditionExpression: "attribute_exists(wordbook_name)",
+            UpdateExpression: "SET updated_datetime = :now",
+            ExpressionAttributeValues: { ":now": new Date().toISOString() },
+        }).promise();
+    } catch (err) {
+        if (err.name !== "ConditionalCheckFailedException") {
+            console.log(`Couldn't mark notebook "${wordbookName}" updated: ${err.name}`);
+        }
+    }
+}
 
-        };
-
-        database.dynamoDbClientInstance().query(params, (err, dataFromDb) => {
-            if (err)
-                reject(err);
-            else {
-
-                dataFromDb.Items.sort((e1, e2) => {
-                    if (e1.sort_order < e2.sort_order) {
-                        return -1;
-                    }
-
-                    if (e1.sort_order > e2.sort_order) {
-                        return 1;
-                    }
-
-                    return 0;
-                });
-
-                let data = dataFromDb.Items.map(element => element.wordbook_name);
-                resolve(data);
-            }
-
-        });
-
-    })
+/**
+ * A note was edited: mark every notebook it's in as updated.
+ *
+ * @param {string} userIdToken
+ * @param {string} cardId
+ * @returns {Promise<void>}
+ */
+async function touchWordbooksForCard(userIdToken, cardId) {
+    if (!userIdToken || !cardId) return;
+    const userName = await getCurentUserFromToken(userIdToken);
+    const wordbooks = await _listOfWordbooksForWord(userName, cardId);
+    await Promise.all(wordbooks.map(name => _touchWordbook(userName, name)));
 }
 
 function listWordbooksWithWords(userIdToken) {
@@ -599,7 +652,8 @@ function addCardToWordbook(userIdToken, wordbookName, cardId) {
                 if (err) {
                     return reject(err);
                 }
-                _listOfWords(userName, wordbookName)
+                _touchWordbook(userName, wordbookName)
+                    .then(() => _listOfWords(userName, wordbookName))
                     .then(words => resolve(words))
                     .catch(_ => resolve([]));
             });
@@ -663,6 +717,9 @@ async function _addItemForUser(userName, wordbookName, item) {
     }
 
     await db.put({ TableName: "dictionary_wordbooks_words", Item: row }).promise();
+    if (item.type === "card") {
+        await _touchWordbook(userName, wordbookName);
+    }
     return true;
 }
 
@@ -826,54 +883,43 @@ function reorder(userIdToken, wordbooks, needWordbookList, returnResultWithPrevi
     });
 }
 
-function _orderWordbooksInDynamoDb(userName, wordbooks) {
-    return new Promise((resolve, _) => {
-        console.log("called _orderWordbooksInDynamoDb");
-
-        let wordbooksArray = wordbooks.split(",");
-        let setWordbookSortOrderPromiseArray = [];
-
-        let sortOrder = 0;
-        wordbooksArray.forEach(wordbook => {
-            setWordbookSortOrderPromiseArray.push(_setWordbookSortOrder(userName, wordbook, sortOrder));
-            sortOrder++;
-        });
-
-        if (setWordbookSortOrderPromiseArray.length > 0) {
-            Promise.all(setWordbookSortOrderPromiseArray)
-                .then(_ => resolve());
-        } else {
-            resolve();
-        }
-
-    })
+/**
+ * Save the user's notebook order: each notebook's `sort_order` becomes its
+ * position in `wordbooks`. Resolves once every update is saved, rejects if
+ * any failed.
+ *
+ * @param {string} userName
+ * @param {string[]|string} wordbooks names in the new order; an array, or
+ *   (older callers) one comma-separated string, which breaks on names that
+ *   contain a comma
+ * @returns {Promise<void>}
+ */
+async function _orderWordbooksInDynamoDb(userName, wordbooks) {
+    const names = Array.isArray(wordbooks) ? wordbooks : String(wordbooks || "").split(",");
+    await Promise.all(names.map((name, index) => _setWordbookSortOrder(userName, name, index)));
 }
 
-function _setWordbookSortOrder(userName, wordbook, sortOrder) {
-    return new Promise((resolve, _) => {
-        let params = {
+/**
+ * @param {string} userName
+ * @param {string} wordbook
+ * @param {number} sortOrder
+ * @returns {Promise<void>} nothing is written for a name that isn't one of
+ *   the user's notebooks (the condition stops `update` from creating a row)
+ */
+async function _setWordbookSortOrder(userName, wordbook, sortOrder) {
+    try {
+        await database.dynamoDbClientInstance().update({
             TableName: "dictionary_wordbook",
-            "Key": {
-                "user_name": userName,
-                "wordbook_name": wordbook,
-            },
-            "UpdateExpression": "set sort_order = :val1",
-            "ExpressionAttributeValues": {
-                ":val1": sortOrder,
-            },
-            "ReturnValues": "NONE"
-        };
-
-        database.dynamoDbClientInstance().update(params, function (err, _) {
-            if (err) {
-                console.error(`Unable to set sort order for ${userName} wordbook: ${wordbook}. Error JSON:`, JSON.stringify(err, null, 2));
-            } else {
-                console.log(`Set sort order for ${userName} wordbook: ${wordbook}`);
-            }
-        });
-
-        resolve();
-    });
+            Key: { user_name: userName, wordbook_name: wordbook },
+            ConditionExpression: "attribute_exists(wordbook_name)",
+            UpdateExpression: "SET sort_order = :order",
+            ExpressionAttributeValues: { ":order": sortOrder },
+        }).promise();
+    } catch (err) {
+        if (err.name === "ConditionalCheckFailedException") return;
+        console.error(`Unable to set sort order for ${userName} wordbook: ${wordbook}:`, err.name);
+        throw err;
+    }
 }
 
 /**
@@ -1177,6 +1223,8 @@ module.exports = {
     deleteWordbook,
     listWordbooks,
     listWordbooksWithWords,
+    listWordbooksMeta,
+    touchWordbooksForCard,
     addWordToWordbook,
     deleteWordFromWordbook,
     addCardToWordbook,

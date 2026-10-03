@@ -5,8 +5,15 @@ import { deleteWordbook } from '../actions';
 import RenameNotebookDialog from './RenameNotebookDialog';
 import ShareDialog from './ShareDialog';
 import { notebookPath } from '../utils/notebookPaths';
+import { timeAgo } from '../utils/timeAgo';
+import GripIcon from './GripIcon';
 
-function WordbookItemConfig({ name, id, preview, deleteWordbook }) {
+// One notebook on My Notebooks.
+//   handleProps  given in "My order": shows a grip that drags the card
+//                (from SortableList)
+//   updated      given in "Recently updated": when it was last updated,
+//                shown after the preview
+function WordbookItemConfig({ name, id, preview, deleteWordbook, handleProps, updated }) {
     const [renaming, setRenaming] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -35,10 +42,19 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook }) {
             <ShareDialog open={sharing} item={{ type: 'notebook', id: name, title: name }}
                 onClose={() => setSharing(false)} />
             <div className="cb-book__row">
+                    {handleProps && (
+                        <button type="button" className="cb-book__grip"
+                            aria-label={`Reorder ${name}`} {...handleProps}>
+                            <GripIcon size={18} />
+                        </button>
+                    )}
                     {/* The cardbook name is the link that opens it. */}
                     <div className="cb-book__info">
                         <Link className="cb-book__title" to={notebookPath(name)}>{name}</Link>
-                        <div className="cb-book__preview">{preview ? preview : 'Empty'}</div>
+                        <div className="cb-book__preview">
+                            <span className="cb-book__preview-text">{preview ? preview : 'Empty'}</span>
+                            {updated && <span className="cb-book__updated"> · {timeAgo(updated)}</span>}
+                        </div>
                     </div>
 
                     <div className="cb-menu">

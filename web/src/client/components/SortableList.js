@@ -3,7 +3,8 @@ import {
     DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
 import {
-    SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
+    SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable,
+    verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -35,8 +36,11 @@ import { CSS } from '@dnd-kit/utilities';
 //   onReorder   (newItems) => void, called once per completed drag
 //   renderItem  (item, handleProps, isDragging) => the row's contents
 //   className   class for the list element (a <ul>)
+//   grid        true when the list is laid out as a grid (several columns,
+//               e.g. My Notebooks on desktop): rows may then move sideways
+//               as well as up and down
 
-export default function SortableList({ items, getKey, onReorder, renderItem, className }) {
+export default function SortableList({ items, getKey, onReorder, renderItem, className, grid = false }) {
     // Sensors decide what input starts a drag.
     //   PointerSensor: mouse, pen and touch. The 4px distance means a tap on
     //     the grip is still a tap; the drag starts only once it moves.
@@ -59,10 +63,10 @@ export default function SortableList({ items, getKey, onReorder, renderItem, cla
 
     return (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+            <SortableContext items={ids} strategy={grid ? rectSortingStrategy : verticalListSortingStrategy}>
                 <ul className={className}>
                     {items.map((item) => (
-                        <SortableRow key={getKey(item)} id={getKey(item)}>
+                        <SortableRow key={getKey(item)} id={getKey(item)} grid={grid}>
                             {(handleProps, isDragging) => renderItem(item, handleProps, isDragging)}
                         </SortableRow>
                     ))}
@@ -74,14 +78,15 @@ export default function SortableList({ items, getKey, onReorder, renderItem, cla
 
 // One row. `children` is a function so the row can hand the grip's props to
 // whatever renderItem draws.
-function SortableRow({ id, children }) {
+function SortableRow({ id, grid, children }) {
     const {
         attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging,
     } = useSortable({ id });
 
     const style = {
-        // Rows only move up and down: drop any sideways movement.
-        transform: CSS.Transform.toString(transform && { ...transform, x: 0 }),
+        // In a single column, rows only move up and down: drop any sideways
+        // movement. In a grid they move both ways.
+        transform: CSS.Transform.toString(transform && (grid ? transform : { ...transform, x: 0 })),
         transition,
         position: 'relative',
         zIndex: isDragging ? 2 : undefined,
