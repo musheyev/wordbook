@@ -284,13 +284,15 @@ const RichTextEditor = ({ value, onChange }) => {
         editor.commands.focus();
     };
 
-    // Indent/outdent: list items sink/lift; other blocks use the Indent extension.
+    // Indent/outdent: in a list, items nest/un-nest or the whole list moves
+    // (never out of the list; see editor/indent.js); other blocks use the
+    // Indent extension's margin levels.
     const indentMore = () => {
-        if (editor.isActive('listItem')) editor.chain().focus().sinkListItem('listItem').run();
+        if (editor.isActive('listItem')) editor.chain().focus().listAwareIndent().run();
         else editor.chain().focus().indentMore().run();
     };
     const indentLess = () => {
-        if (editor.isActive('listItem')) editor.chain().focus().liftListItem('listItem').run();
+        if (editor.isActive('listItem')) editor.chain().focus().listAwareOutdent().run();
         else editor.chain().focus().indentLess().run();
     };
 
