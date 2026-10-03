@@ -345,6 +345,7 @@ export const addWordbook = (name) => async (dispatch, getState, api) => {
       type: ADD_WORDBOOK,
       payload: res
     });
+    return true;
 
   }
   catch (err) {
@@ -366,6 +367,7 @@ export const addWordbook = (name) => async (dispatch, getState, api) => {
         message: errorMessage
       }
     });
+    return false;
 
     //#endregion error handle
 

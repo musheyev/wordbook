@@ -13,14 +13,18 @@ class AddWordbook extends React.Component {
         return str === undefined || str === null || str.match(/^ *$/) !== null;
     }
 
-    onFormSubmit = (event) => {
+    onFormSubmit = async (event) => {
         event.preventDefault();
 
-        //this.props.onSubmit(this.state.name);
         const newWordbookName = this.state.name.trim();
-        
+
         if (newWordbookName != "") {
-            this.props.addWordbook(newWordbookName);
+            // Clear the box once added; on an error (e.g. the name is taken)
+            // keep the text so it can be corrected.
+            const added = await this.props.addWordbook(newWordbookName);
+            if (added) {
+                this.setState({ name: '' });
+            }
         }
     }
 
@@ -42,7 +46,7 @@ class AddWordbook extends React.Component {
             <div className="cb-addwb">
                 <form className="ui form-inline" onSubmit={this.onFormSubmit}>
                     <label>{this.isEmptyOrSpaces(this.props.displayLabel) ? "New notebook" : this.props.displayLabel}</label>
-                    <input type="text" size="40" placeholder="Notebook name" value={this.state.name}
+                    <input type="text" placeholder="Notebook name" value={this.state.name}
                      onChange={this.onWordbookNameChange}></input>
                     <button>Add</button>
                 </form>

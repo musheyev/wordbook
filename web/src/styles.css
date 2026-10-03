@@ -219,21 +219,6 @@ nav-button-as-link {
 .cb-search__go i.icon { margin: 0; font-size: 0.85rem; }
 .cb-search__go:hover { filter: brightness(0.94); }
 
-/* iOS: keep every editable field >=16px on phones so focusing one never
-   triggers Safari's auto-zoom, which pushes the whole layout off-screen. */
-@media (max-width: 768px) {
-  .cb-search__input,
-  .card-editor__title,
-  .a2c__filter input,
-  .a2c__new input,
-  .cb-step__input,
-  .cb-addwb input,
-  .wb-rename input,
-  .rte-content .ProseMirror {
-    font-size: 16px;
-  }
-}
-
 /* Mobile: a compact, contained search bar — narrower than the screen so it
    never runs to the right edge / out of bounds. */
 @media (max-width: 768px) {
@@ -2534,3 +2519,33 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 }
 .admin-images__viewer img { display: block; max-width: 100%; max-height: 65vh; margin: 0 auto; border-radius: 6px; }
 .admin-images__source { display: block; margin-top: 10px; font-size: 0.78rem; color: var(--cb-ink-3); word-break: break-all; }
+
+/* New notebook form on phones: the generic .form-inline phone rules stack
+   every control full width; here the label sits on its own line and the
+   name box and Add button share the next one. */
+@media (max-width: 600px) {
+  /* An error message goes on its own line under the form, not beside it. */
+  .cb-addwb { flex-wrap: wrap; }
+  .cb-addwb > .message { flex-basis: 100%; margin: 0; }
+  .cb-addwb .form-inline { flex-direction: row; align-items: center; }
+  .cb-addwb label { flex-basis: 100%; }
+  .cb-addwb input { flex: 1; width: auto; min-width: 0; margin: 0; }
+  .cb-addwb button { width: auto; }
+}
+
+/* iOS: keep every editable field >=16px on phones so focusing one never
+   triggers Safari's auto-zoom, which enlarges the whole page and doesn't
+   undo itself. Kept LAST in this file: a later rule of the same strength
+   setting a smaller size would win (and did, for several of these). */
+@media (max-width: 768px) {
+  .cb-search__input,
+  .card-editor__title,
+  .a2c__filter input,
+  .a2c__new input,
+  .cb-step__input,
+  .cb-addwb input,
+  .wb-rename input,
+  .rte-content .ProseMirror {
+    font-size: 16px;
+  }
+}
