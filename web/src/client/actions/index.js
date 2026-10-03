@@ -38,7 +38,16 @@ export const clearCurrentSelection = () => (dispatch) => {
 
 export const FETCH_WORD_DATA = 'fetch_word_data';
 export const PROMOTE_HISTORY_WORD = 'promote_history_word';
+
+// Counts word/card selections. A word lookup that answers after a newer
+// selection was made is ignored, so a slow answer for an earlier word never
+// replaces the current one.
+let latestSelection = 0;
+
+// The word data in the store records which word it is for (`word`), so the
+// word page can tell its own data from a previous word's still-loading one.
 export const fetchWordData = (word) => async (dispatch, getState, api) => {
+  const selection = ++latestSelection;
 
   dispatch({
     type: SET_CURRENT_WORD,
@@ -63,13 +72,11 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
   }
 
   const res = await api.get(`/dictionary?search=${encodeURIComponent(word)}&json=y`);
-
-  //console.log("word search result:");
-  //console.log(res);
+  if (selection !== latestSelection) return;
 
   dispatch({
     type: FETCH_WORD_DATA,
-    payload: res
+    payload: { data: { ...res.data, word } }
   });
 };
 
@@ -157,10 +164,11 @@ export const getCardContent = (cardId) => async (dispatch, getState, api) => {
 
 // Load a card's content (lazy, on click) and make it the current selection.
 export const fetchCardData = (cardId) => async (dispatch, getState, api) => {
+  latestSelection++; // a word lookup still loading is now out of date
   dispatch({ type: SET_CURRENT_WORD, payload: cardId });
   dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'card' });
   // Clear any dictionary result so a prior word's images/definitions don't linger.
-  dispatch({ type: FETCH_WORD_DATA, payload: { data: { definitions: {}, images: [] } } });
+  dispatch({ type: FETCH_WORD_DATA, payload: { data: { word: cardId, definitions: {}, images: [] } } });
 
   const res = await api.post('/wordbook/card/get', { card_id: cardId }, JSON_HEADERS);
   dispatch({ type: FETCH_CARD_DATA, payload: res.data });

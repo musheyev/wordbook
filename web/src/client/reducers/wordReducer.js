@@ -1,6 +1,7 @@
 import { FETCH_WORD_DATA, SET_WORD_IMAGES } from '../actions';
 
-// The looked-up word's data: { definitions, images, examples }.
+// The looked-up word's data: { word, definitions, images, examples }. `word`
+// is the word it was fetched for (see fetchWordData).
 export default (state = [], action) => {
     switch (action.type) {
         case FETCH_WORD_DATA:

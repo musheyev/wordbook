@@ -28,18 +28,27 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     const [noteDraft, setNoteDraft] = useState('');
 
     // Per-user dictionary-source thumbs. `sourceVotes` drives the thumb highlight
-    // and updates live on click; `orderedSources` is the display order, FROZEN
-    // when the word loads so voting never reshuffles the page (it re-ranks only
-    // the next time a word loads). votesLoaded gates the one-time freeze.
+    // and updates live on click; `sourceOrder` is the display order of the
+    // dictionary names, FROZEN when the word loads so voting never reshuffles
+    // the page (it re-ranks only the next time a word loads). votesLoaded gates
+    // the one-time freeze. Only the order is frozen, never the definitions.
     const [sourceVotes, setSourceVotes] = useState({});
-    const [orderedSources, setOrderedSources] = useState(null);
+    const [sourceOrder, setSourceOrder] = useState(null);
     const [votesLoaded, setVotesLoaded] = useState(false);
 
-    const defsObj = (wordSearchResult && wordSearchResult.definitions) || null;
+    // The store keeps the last looked-up word's data until the next lookup
+    // answers, so right after switching words it still holds the previous
+    // word's. Use it only when it is for the word on screen.
+    const wordData = wordSearchResult && wordSearchResult.word === currentWord ? wordSearchResult : null;
+    const defsObj = (wordData && wordData.definitions) || null;
+    // [dictionary name, definitions] in display order.
+    const sources = !defsObj ? [] : sourceOrder
+        ? sourceOrder.filter((name) => name in defsObj).map((name) => [name, defsObj[name]])
+        : Object.entries(defsObj);
 
     // On word change: reset, then load this user's votes for the word.
     React.useEffect(() => {
-        setOrderedSources(null);
+        setSourceOrder(null);
         setVotesLoaded(false);
         setSourceVotes({});
         if (!currentWord || auth === '') { setVotesLoaded(true); return; }
@@ -56,16 +65,16 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     // votes are available. Liked (+1) first, disliked (-1) last, others in
     // original order between (a stable sort preserves ties).
     React.useEffect(() => {
-        if (orderedSources || !votesLoaded || !defsObj) return;
-        const entries = Object.entries(defsObj);
-        if (entries.length === 0) return;
+        if (sourceOrder || !votesLoaded || !defsObj) return;
+        const names = Object.keys(defsObj);
+        if (names.length === 0) return;
         const rank = (src) => (sourceVotes[src] === 1 ? 0 : sourceVotes[src] === -1 ? 2 : 1);
-        const ordered = entries
-            .map((e, i) => ({ e, i }))
-            .sort((a, b) => rank(a.e[0]) - rank(b.e[0]) || a.i - b.i)
-            .map((x) => x.e);
-        setOrderedSources(ordered);
-    }, [defsObj, votesLoaded, orderedSources, sourceVotes]);
+        const ordered = names
+            .map((name, i) => ({ name, i }))
+            .sort((a, b) => rank(a.name) - rank(b.name) || a.i - b.i)
+            .map((x) => x.name);
+        setSourceOrder(ordered);
+    }, [defsObj, votesLoaded, sourceOrder, sourceVotes]);
 
     // Toggle a source's thumb (click the active one again to clear). Updates the
     // highlight immediately; the order is untouched until the next load.
@@ -226,7 +235,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                                         // Read the word, then your note (if any), then the dictionary
                                         // definitions — matching the order shown on screen.
                                         const defs = htmlToPlainText(
-                                            Object.values((wordSearchResult && wordSearchResult.definitions) || {}).flat().join(' '));
+                                            sources.map(([, list]) => list).flat().join(' '));
                                         return [
                                             ...textToChunks(`${currentWord}.`),
                                             ...(hasNote ? htmlToChunks(noteContent) : []),
@@ -288,8 +297,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     </div>
                 ) : null}
 
-                {!defsObj || Object.keys(defsObj).length === 0 ? "" :
-                    (orderedSources || Object.entries(defsObj)).map(([k, v]) => (
+                {sources.length === 0 ? "" :
+                    sources.map(([k, v]) => (
                         <div key={k}>
                             <div className="source-dictionary-row">
                                 <em className="source-dictionary">{k}</em>
@@ -324,8 +333,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                 }
             </div>
 
-            {currentWord != "" && wordSearchResult && Array.isArray(wordSearchResult.images) && (
-                <WordImages word={currentWord} images={wordSearchResult.images} />
+            {currentWord != "" && wordData && Array.isArray(wordData.images) && (
+                <WordImages word={currentWord} images={wordData.images} />
             )}
         </>
     );
