@@ -9,16 +9,18 @@ import { Extension } from '@tiptap/core';
 // List items nest and un-nest via the toolbar (sink/liftListItem). A list as a
 // whole (bullet or numbered) also has an `indent` level, used for the cases
 // where nesting can't apply: outdenting a top-level list moves the whole list
-// left instead of turning its items into plain text, and indenting an item
-// that can't nest (the first item, or the whole list selected) moves the whole
-// list right. Lists have a default margin of LIST_BASE (styles.css), so their
-// levels are relative to it, and they can go one step left of it (-1: no
-// margin), which puts the bullets roughly where the surrounding text starts.
-const STEP = 24; // px per level
+// left instead of turning its items into plain text (down to its default
+// position, then it stops), and indenting an item that can't nest (the first
+// item, or the whole list selected) moves the whole list right. Lists have a
+// default margin of LIST_BASE (styles.css), so their levels add to it.
+//
+// Notes saved with the older, larger steps (24px; lists at 22px) keep their
+// spacing when viewed; opening one in the editor snaps it to these steps.
+const STEP = 16; // px per level
 const MAX = 10;
 const LIST_TYPES = ['bulletList', 'orderedList'];
-const LIST_BASE = 22; // default list margin-left in px, see .rte-content ul in styles.css
-const LIST_MIN = -1;
+const LIST_BASE = 4; // default list margin-left in px, see the note list rules in styles.css
+const LIST_MIN = 0;
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 

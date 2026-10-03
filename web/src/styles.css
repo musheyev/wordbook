@@ -1221,8 +1221,22 @@ nav-button-as-link {
 }
 
 .card-content p { margin: 0 0 8px; }
+/* Lists in notes: the same spacing in the editor (.rte-content), a note's
+   view (.card-content) and a word's "Your note" (.word-note__content).
+   A top-level list's text starts 28px in (margin + padding); each nested
+   level adds 24px. editor/indent.js assumes the 4px margin (LIST_BASE). */
 .card-content ul,
-.card-content ol { margin: 0 0 8px 22px; }
+.card-content ol,
+.word-note__content ul,
+.word-note__content ol,
+.rte-content .ProseMirror ul,
+.rte-content .ProseMirror ol { margin: 0 0 8px 4px; padding-left: 24px; }
+.card-content li > ul,
+.card-content li > ol,
+.word-note__content li > ul,
+.word-note__content li > ol,
+.rte-content .ProseMirror li > ul,
+.rte-content .ProseMirror li > ol { margin-left: 0; }
 .card-content [data-type="block-math"] { text-align: center; margin: 12px 0; overflow-x: auto; }
 .card-content [data-type="inline-math"] { display: inline-block; }
 .card-content a { color: #2f6fb3; text-decoration: underline; }
@@ -1710,8 +1724,6 @@ nav-button-as-link {
 }
 .rte-content .ProseMirror { outline: none; min-height: 140px; }
 .rte-content .ProseMirror p { margin: 0 0 8px; }
-.rte-content .ProseMirror ul,
-.rte-content .ProseMirror ol { margin: 0 0 8px 22px; }
 .rte-content .ProseMirror a { color: #2f6fb3; text-decoration: underline; }
 /* Images never overflow their container, in the editor or when displayed. */
 .rte-content .ProseMirror img,
