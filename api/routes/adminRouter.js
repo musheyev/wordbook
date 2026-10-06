@@ -13,6 +13,8 @@ const express = require("express");
 const { requireAdmin } = require("../cognitoUsers");
 const curation = require("../image-curation");
 const imageGc = require("../image-gc");
+const appSettings = require("../app-settings");
+const { decodeToken } = require("../auth");
 const log = require("../logger");
 
 const adminRouter = express.Router();
@@ -40,6 +42,20 @@ adminRouter.get("/images", handle(async (req, res) => {
 
 adminRouter.post("/images/delete", handle(async (req, res) => {
     res.json(await curation.deleteImages(req.body.items));
+}));
+
+// --- Brave image search on/off for the whole app. See ../app-settings.js. ---
+// GET -> { enabled }; POST { enabled } -> { enabled }
+adminRouter.get("/image-search", handle(async (req, res) => {
+    res.json({ enabled: await appSettings.isImageSearchEnabled() });
+}));
+
+adminRouter.post("/image-search", handle(async (req, res) => {
+    if (typeof req.body.enabled !== "boolean") {
+        return res.status(400).end("Send enabled: true or false.");
+    }
+    const admin = (await decodeToken(req.cookies.id_token))["cognito:username"];
+    res.json({ enabled: await appSettings.setImageSearchEnabled(req.body.enabled, admin) });
 }));
 
 // --- Note-image cleanup (archive / restore / clear). See ../image-gc.js. ---

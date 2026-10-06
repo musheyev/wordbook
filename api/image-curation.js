@@ -28,6 +28,7 @@
  */
 const db = require("./dynamoDb");
 const wp = require("./word-pictures");
+const appSettings = require("./app-settings");
 
 /** Words per admin listing page. At most 5 images each, so up to ~100 images. */
 const WORDS_PER_PAGE = 20;
@@ -143,6 +144,28 @@ async function findNewImages(word, count, exclude) {
 }
 
 /**
+ * Add one image to a word's shared images, which everyone sees: an admin
+ * making an image they added available to everyone (user-word-images.js).
+ * Creates the word's row if it has none. Does nothing if it's already there.
+ *
+ * @param {string} word
+ * @param {string} url
+ * @returns {Promise<string[]>} the word's shared images after the change
+ * @throws {CurationError} 409 when all MAX_IMAGES slots are in use
+ */
+async function addSharedImage(word, url) {
+    const saved = await updateWordImages(word, ({ images, removed }) => {
+        if (images.includes(url)) return { images, removed };
+        if (images.length >= wp.MAX_IMAGES) {
+            throw new CurationError(409,
+                `All ${wp.MAX_IMAGES} shared image slots for "${word}" are in use. Delete one first.`);
+        }
+        return { images: [...images, url], removed: removed.filter((image) => image !== url) };
+    }, { createIfMissing: true });
+    return saved.images;
+}
+
+/**
  * Fetch new images for a word (word page "Refresh images").
  *
  *   { count }            add `count` new images, 1 to (MAX_IMAGES − shown)
@@ -155,6 +178,9 @@ async function findNewImages(word, count, exclude) {
  *   `added` can be less than `requested` when the search runs out of new images
  */
 async function refreshImages(word, { count, replaceAll = false }) {
+    if (!await appSettings.isImageSearchEnabled()) {
+        throw new CurationError(403, "Image search is turned off in Admin › Images.");
+    }
     let requested = 0;
     let added = 0;
 
@@ -267,6 +293,7 @@ module.exports = {
     deleteImage,
     restoreImage,
     refreshImages,
+    addSharedImage,
     listAllImages,
     deleteImages,
 };

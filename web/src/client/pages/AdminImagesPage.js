@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
 import requireAdmin from '../components/hocs/requireAdmin';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ImageSearchSwitch from '../components/ImageSearchSwitch';
 import { fetchAdminImages, deleteAdminImages } from '../actions';
 
 // Admin › Images (/admin/images): every image in the system, for cleaning up
@@ -97,6 +98,8 @@ function AdminImagesPage({ fetchAdminImages, deleteAdminImages }) {
                 <h1 className="cb-page-title">Images</h1>
                 {total !== null && <span className="admin-page__count">{total.toLocaleString()} images</span>}
             </div>
+
+            <ImageSearchSwitch />
 
             <div className="admin-images__toolbar">
                 <label className="admin-images__filter">

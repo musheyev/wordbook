@@ -1,24 +1,32 @@
-// Note-image housekeeping (admin only). Orphaned images — referenced by no note
-// anywhere — are MOVED to an "archive/" prefix rather than deleted, so a
+// Uploaded-image housekeeping (admin only). Orphaned images — referenced
+// nowhere — are MOVED to an "archive/" prefix rather than deleted, so a
 // mistaken sweep can be rolled back. Three actions:
-//   archiveOrphans  images/<name> -> archive/<name>   (the reversible "GC")
-//   restoreAll      archive/<name> -> images/<name>   (rollback)
+//   archiveOrphans  live -> archive   (the reversible "GC")
+//   restoreAll      archive -> live   (rollback)
 //   clearArchive    delete everything under archive/  (the only destructive step)
 //
-// Why restore is reliable: every image lives at images/<uuid>.<ext>, so its
-// archive key is archive/<uuid>.<ext> and restoring it back to images/<uuid>.<ext>
-// returns it to the exact spot the note's URL points at — no bookkeeping needed.
+// Two kinds of image, each with its own live and archive folder:
+//   note images  images/<name>       <-> archive/<name>
+//   word images  word-images/<name>  <-> archive/word-images/<name>
+// Every file keeps its name, so restoring returns it to the exact key its
+// URL points at — no bookkeeping needed.
 //
-// "In use" means referenced in ANY of the three places a note's HTML can live:
+// "In use" for a note image: referenced in any note HTML —
 //   dictionary_cards       (notes)     attr: content
 //   dictionary_word_notes  (per word)  attr: content
 //   dictionary_inbox       (shares)    attr: content, or notebook.cards[].content
+// "In use" for a word image: in any list of word images —
+//   dictionary_images            (shared)    attr: images
+//   dictionary_user_word_images  (personal)  attr: images
+//   dictionary_inbox             (shares)    attr: images, or notebook.wordImages
 const database = require("./dynamoDb");
 
 const BUCKET = process.env.UPLOAD_BUCKET || process.env.TTS_BUCKET;
 const REGION = process.env.AWS_REGION || "us-east-1";
 const LIVE = "images/";
 const ARCHIVE = "archive/";
+const WORD_LIVE = "word-images/";
+const WORD_ARCHIVE = "archive/word-images/";
 const GRACE_MS = 24 * 60 * 60 * 1000; // never touch images younger than 24h
 
 const isConfigured = () => Boolean(BUCKET);
@@ -53,6 +61,29 @@ async function scanAll(TableName, onItem) {
     } while (ExclusiveStartKey);
 }
 
+// Word image filenames in a list of URLs (/api/word-images/<name>).
+const WORD_IMG_RE = /^\/api\/word-images\/([A-Za-z0-9-]+\.(?:png|jpg|gif|webp))$/;
+function namesInUrls(urls, into) {
+    (Array.isArray(urls) ? urls : []).forEach((url) => {
+        const m = WORD_IMG_RE.exec(url);
+        if (m) into.add(m[1]);
+    });
+}
+
+// The set of word image filenames in any shared, personal or shared-with
+// list.
+async function collectReferencedWordImages() {
+    const names = new Set();
+    await scanAll("dictionary_images", (it) => namesInUrls(it.images, names));
+    await scanAll("dictionary_user_word_images", (it) => namesInUrls(it.images, names));
+    await scanAll("dictionary_inbox", (it) => {
+        namesInUrls(it.images, names);
+        const wordImages = it.notebook && it.notebook.wordImages;
+        if (wordImages) Object.values(wordImages).forEach((urls) => namesInUrls(urls, names));
+    });
+    return names;
+}
+
 // The set of image filenames referenced by any note anywhere.
 async function collectReferenced() {
     const names = new Set();
@@ -67,8 +98,9 @@ async function collectReferenced() {
     return names;
 }
 
-// List S3 objects directly under a prefix -> [{ name, lastModified }].
-async function listUnder(prefix) {
+// List S3 objects under a prefix -> [{ name, lastModified }]. With `flat`,
+// only objects directly under it (archive/<name>, not archive/word-images/…).
+async function listUnder(prefix, { flat = false } = {}) {
     const client = s3();
     const { ListObjectsV2Command } = require("@aws-sdk/client-s3");
     const out = [];
@@ -77,7 +109,7 @@ async function listUnder(prefix) {
         const page = await client.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: prefix, ContinuationToken }));
         (page.Contents || []).forEach((o) => {
             const name = o.Key.slice(prefix.length);
-            if (name) out.push({ name, lastModified: o.LastModified });
+            if (name && !(flat && name.includes("/"))) out.push({ name, lastModified: o.LastModified });
         });
         ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
     } while (ContinuationToken);
@@ -105,30 +137,47 @@ function needBucket() {
     }
 }
 
-// Move every orphaned (unreferenced, older than the grace window) live image to
-// the archive. Returns counts only.
-async function archiveOrphans() {
-    needBucket();
-    const referenced = await collectReferenced();
-    const live = await listUnder(LIVE);
+// Move one kind's orphans (not in `referenced`, older than the grace
+// window) from `live` to `archive`.
+async function archiveKind(live, archive, referenced) {
+    const files = await listUnder(live, { flat: true });
     const cutoff = Date.now() - GRACE_MS;
-    const orphans = live.filter(
+    const orphans = files.filter(
         (o) => !referenced.has(o.name) && o.lastModified && o.lastModified.getTime() < cutoff
     );
     for (const o of orphans) {
-        await moveObject(LIVE + o.name, ARCHIVE + o.name);
+        await moveObject(live + o.name, archive + o.name);
     }
-    return { scanned: live.length, inUse: referenced.size, archived: orphans.length };
+    return { scanned: files.length, inUse: referenced.size, archived: orphans.length };
+}
+
+// Move every orphaned note and word image to the archive. Returns counts
+// only: the totals, and each kind's in `notes` / `words`.
+async function archiveOrphans() {
+    needBucket();
+    const notes = await archiveKind(LIVE, ARCHIVE, await collectReferenced());
+    const words = await archiveKind(WORD_LIVE, WORD_ARCHIVE, await collectReferencedWordImages());
+    return {
+        scanned: notes.scanned + words.scanned,
+        inUse: notes.inUse + words.inUse,
+        archived: notes.archived + words.archived,
+        notes,
+        words,
+    };
 }
 
 // Move everything in the archive back to live (rollback the last sweep).
 async function restoreAll() {
     needBucket();
-    const archived = await listUnder(ARCHIVE);
-    for (const o of archived) {
+    const notes = await listUnder(ARCHIVE, { flat: true });
+    for (const o of notes) {
         await moveObject(ARCHIVE + o.name, LIVE + o.name);
     }
-    return { restored: archived.length };
+    const words = await listUnder(WORD_ARCHIVE, { flat: true });
+    for (const o of words) {
+        await moveObject(WORD_ARCHIVE + o.name, WORD_LIVE + o.name);
+    }
+    return { restored: notes.length + words.length };
 }
 
 // Permanently delete everything in the archive.

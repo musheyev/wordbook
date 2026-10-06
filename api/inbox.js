@@ -26,7 +26,10 @@
  *   inbox_id   (sort key)       "<ISO time>#<uuid>" — sorts by time
  *   from_user, shared_at, item_type ("word"|"card"),
  *   word                         for words
+ *   images                       for words: the sender's own images for it
+ *                                (user-word-images.js), if any
  *   title, content, preview      for notes
+ *   notebook                     for notebooks: { words, cards, wordImages? }
  *
  * The same table also holds per-sender daily counters (see reserveShare),
  * under partition keys that start with "#quota#" so they never mix with a
@@ -47,6 +50,7 @@ const crypto = require("crypto");
 const database = require("./dynamoDb");
 const cards = require("./cards");
 const wordbook = require("./wordbook");
+const userImages = require("./user-word-images");
 const { findUsername } = require("./cognitoUsers");
 const log = require("./logger");
 
@@ -150,7 +154,10 @@ async function snapshotItem(sender, item) {
         if (word === "" || word.length > MAX_WORD_LENGTH) {
             throw new InboxError(400, "That word can't be shared.");
         }
-        return { item_type: "word", word };
+        // The sender's own images for the word travel with it; the
+        // recipient gets them as their own when they accept it (moveItem).
+        const images = await userImages.listImages(sender, word);
+        return images.length ? { item_type: "word", word, images } : { item_type: "word", word };
     }
 
     // A whole notebook: freeze its words and its notes' content so the recipient
@@ -164,6 +171,13 @@ async function snapshotItem(sender, item) {
             throw new InboxError(404, "That notebook doesn't exist.");
         }
         const notebook = await wordbook._notebookItemsForUser(sender, name);
+        // The sender's own images for its words: { word: [url, …] }.
+        const wordImages = {};
+        for (const word of notebook.words) {
+            const images = await userImages.listImages(sender, word);
+            if (images.length) wordImages[userImages.normalizeWord(word)] = images;
+        }
+        if (Object.keys(wordImages).length) notebook.wordImages = wordImages;
         if (notebook.words.length + notebook.cards.length === 0) {
             throw new InboxError(400, "That notebook is empty.");
         }
@@ -368,6 +382,10 @@ async function moveItem(userName, inboxId, wordbookName) {
         item = { type: "card", id: card.card_id };
     } else {
         item = { type: "word", id: row.word };
+        // The sender's images for the word become the recipient's own.
+        if (Array.isArray(row.images) && row.images.length) {
+            await userImages.addImages(userName, row.word, row.images);
+        }
     }
 
     const added = await wordbook._addItemForUser(userName, wordbookName, item);
@@ -410,6 +428,10 @@ async function acceptNotebook(userName, row, newName) {
 
     for (const word of notebook.words) {
         await wordbook._addItemForUser(userName, name, { type: "word", id: word });
+        const images = notebook.wordImages && notebook.wordImages[userImages.normalizeWord(word)];
+        if (Array.isArray(images) && images.length) {
+            await userImages.addImages(userName, word, images);
+        }
     }
     for (const c of notebook.cards) {
         const card = await cards._createCardForUser(userName, c.title, c.content, {

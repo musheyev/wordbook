@@ -37,6 +37,19 @@ async function requireAdmin(req, res, next) {
     }
 }
 
+// True if the id_token is valid and its user is in the "admins" group; false
+// otherwise (never throws). For routes open to everyone where admins get an
+// extra option.
+async function isAdmin(token) {
+    if (!token) return false;
+    try {
+        const groups = (await decodeToken(token))["cognito:groups"] || [];
+        return Array.isArray(groups) && groups.includes("admins");
+    } catch (err) {
+        return false;
+    }
+}
+
 function attr(user, name) {
     const found = (user.Attributes || []).find((a) => a.Name === name);
     return found ? found.Value : undefined;
@@ -116,4 +129,4 @@ async function findUsername(username) {
     }
 }
 
-module.exports = { requireAdmin, listAllUsers, listUsersInGroup, findUsername, POOL_ID };
+module.exports = { requireAdmin, isAdmin, listAllUsers, listUsersInGroup, findUsername, POOL_ID };

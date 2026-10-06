@@ -23,6 +23,7 @@ const inboxRouter = require("./routes/inboxRouter");
 const tagsRouter = require("./routes/tagsRouter");
 const ttsRouter = require("./routes/ttsRouter");
 const imagesRouter = require("./routes/imagesRouter");
+const wordImagesRouter = require("./routes/wordImagesRouter");
 const { adminRouter } = require("./routes/adminRouter");
 
 const app = express();
@@ -55,6 +56,7 @@ app.use("/inbox", inboxRouter);
 app.use("/tags", tagsRouter);
 app.use("/tts", ttsRouter);
 app.use("/images", imagesRouter);
+app.use("/word-images", wordImagesRouter);
 app.use("/admin", adminRouter);
 
 module.exports = app;

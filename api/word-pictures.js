@@ -22,6 +22,7 @@
  */
 const axios = require('axios');
 const db = require('./dynamoDb');
+const appSettings = require('./app-settings');
 
 const BRAVE_SEARCH_KEY = process.env.BRAVE_SEARCH_KEY;
 
@@ -102,7 +103,9 @@ async function getWordPictures(word, isNewWord = false) {
         if (row) {
             return row.images || [];
         }
-        if (!isNewWord) {
+        // Old words never search on their own; new ones only while an admin
+        // hasn't turned image search off (app-settings.js).
+        if (!isNewWord || !await appSettings.isImageSearchEnabled()) {
             return [];
         }
 

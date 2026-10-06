@@ -6,7 +6,7 @@ import {
     getImageArchive, sweepImageArchive, restoreImageArchive, clearImageArchive,
 } from '../actions';
 
-// Admin › Image cleanup (/admin/image-cleanup). Orphaned note images are moved
+// Admin › Image cleanup (/admin/image-cleanup). Orphaned note and word images are moved
 // to an archive (reversible), can be restored, and can be permanently cleared.
 function AdminImageCleanupPage({
     getImageArchive, sweepImageArchive, restoreImageArchive, clearImageArchive,
@@ -51,9 +51,10 @@ function AdminImageCleanupPage({
             </div>
 
             <p style={{ color: 'var(--cb-ink-2)', maxWidth: '640px', lineHeight: 1.5 }}>
-                Orphaned note images — ones referenced by no note, word note, or shared copy — are
-                moved to an archive instead of deleted, so a sweep can be rolled back. Images are
-                never touched until 24 hours after upload.
+                Orphaned images are moved to an archive instead of deleted, so a sweep can be rolled
+                back. A note image is orphaned when no note, word note, or shared copy uses it; a word
+                image when no word shows it (shared or someone's own) and no share carries it. Images
+                are never touched until 24 hours after upload.
             </p>
 
             {!configured && (
@@ -66,7 +67,8 @@ function AdminImageCleanupPage({
                 <div>
                     <button className="cb-btn cb-btn--accent" disabled={busy || !configured}
                         onClick={() => run(sweepImageArchive,
-                            (r) => `Archived ${r.archived} image${n(r.archived)} (${r.inUse} in use, ${r.scanned} total).`)}>
+                            (r) => `Archived ${r.archived} image${n(r.archived)} (${r.inUse} in use, ${r.scanned} total)`
+                                + (r.notes && r.words ? `: ${r.notes.archived} note, ${r.words.archived} word.` : '.'))}>
                         Archive orphaned images
                     </button>
                 </div>

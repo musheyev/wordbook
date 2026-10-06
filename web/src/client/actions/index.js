@@ -810,6 +810,88 @@ export const refreshWordImages = (word, options) => async (dispatch, getState, a
   return { added: data.added, requested: data.requested };
 };
 
+// ---------------------------------------------------------------------------
+// The user's own images for a word (private to them; see
+// api/user-word-images.js). Kept in the store as { word, images } so the word
+// page can tell its own list from a previous word's still-loading one.
+// ---------------------------------------------------------------------------
+export const SET_MY_WORD_IMAGES = 'set_my_word_images';
+const setMyWordImages = (word, images) => ({ type: SET_MY_WORD_IMAGES, payload: { word, images } });
+
+export const fetchMyWordImages = (word) => async (dispatch, getState, api) => {
+  dispatch(setMyWordImages(word, []));
+  try {
+    const res = await api.get(`/word-images/mine?word=${encodeURIComponent(word)}`);
+    if (getState().currentWord === word) dispatch(setMyWordImages(word, res.data.images || []));
+  } catch (err) { /* logged out, or a hiccup: no own images shown */ }
+};
+
+// After an add or share: the user's list, and (when the reply has them) the
+// word's shared images.
+const applyWordImageReply = (dispatch, getState, word, data) => {
+  dispatch(setMyWordImages(word, data.images || []));
+  if (Array.isArray(data.shared) && getState().currentWord === word) dispatch(setWordImages(data.shared));
+};
+
+// Add an image from the device. `shared` (admins): straight into the word's
+// shared images. Rejects with the server's message.
+export const uploadWordImage = (word, file, shared) => async (dispatch, getState, api) => {
+  try {
+    const res = await api.post(
+      `/word-images/upload?word=${encodeURIComponent(word)}${shared ? '&shared=1' : ''}`,
+      file, { headers: { 'content-type': file.type || 'application/octet-stream' } });
+    applyWordImageReply(dispatch, getState, word, res.data);
+  } catch (err) {
+    throw new Error(curationErrorMessage(err, "Couldn't add the image."));
+  }
+};
+
+// Add an image from a web address: the server saves its own copy.
+export const addWordImageFromLink = (word, url, shared) => async (dispatch, getState, api) => {
+  const data = await postCuration(api, '/word-images/link', { word, url, shared: Boolean(shared) },
+    "Couldn't add the image from that address.");
+  applyWordImageReply(dispatch, getState, word, data);
+};
+
+// Remove one of the user's own images. Optimistic, like deleteWordImage.
+export const removeMyWordImage = (word, url) => async (dispatch, getState, api) => {
+  const mine = getState().myWordImages;
+  const before = mine && mine.word === word ? mine.images : [];
+  dispatch(setMyWordImages(word, before.filter((image) => image !== url)));
+  try {
+    const data = await postCuration(api, '/word-images/remove', { word, url }, "Couldn't remove the image.");
+    dispatch(setMyWordImages(word, data.images));
+  } catch (err) {
+    dispatch(setMyWordImages(word, before));
+    throw err;
+  }
+};
+
+// Undo a remove.
+export const restoreMyWordImage = (word, url) => async (dispatch, getState, api) => {
+  const data = await postCuration(api, '/word-images/restore', { word, url }, "Couldn't put the image back.");
+  dispatch(setMyWordImages(word, data.images));
+};
+
+// Admin: make one of their own images available to everyone.
+export const shareMyWordImage = (word, url) => async (dispatch, getState, api) => {
+  const data = await postCuration(api, '/word-images/share', { word, url }, "Couldn't make the image available to everyone.");
+  applyWordImageReply(dispatch, getState, word, data);
+};
+
+// Admin: Brave image search on or off for the whole app.
+export const SET_IMAGE_SEARCH_ENABLED = 'set_image_search_enabled';
+export const fetchImageSearchEnabled = () => async (dispatch, getState, api) => {
+  try {
+    const res = await api.get('/admin/image-search');
+    dispatch({ type: SET_IMAGE_SEARCH_ENABLED, payload: res.data.enabled !== false });
+  } catch (err) { /* not an admin, or a hiccup: leave it unknown */ }
+};
+export const saveImageSearchEnabled = (enabled) => async (dispatch, getState, api) => {
+  const data = await postCuration(api, '/admin/image-search', { enabled }, "Couldn't change image search.");
+  dispatch({ type: SET_IMAGE_SEARCH_ENABLED, payload: data.enabled });
+};
+
 // Admin Images page: one page of every image in the system.
 // Resolves to { images: [{ word, url }], cursor, total? }.
 export const fetchAdminImages = (cursor) => async (dispatch, getState, api) => {

@@ -39,6 +39,10 @@ const DYNAMO_TABLES = [
   'dictionary_word_source_votes',
   // Per-account preferences (api/user-settings.js). PK user_name.
   'dictionary_user_settings',
+  // Images users add to words themselves (api/user-word-images.js). PK user_name, SK word.
+  'dictionary_user_word_images',
+  // App-wide settings admins change, e.g. image search on/off (api/app-settings.js). PK setting_id.
+  'dictionary_app_settings',
 ];
 
 export class WordbookStack extends cdk.Stack {

@@ -2482,6 +2482,84 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .word-images__refresh { gap: 6px; padding: 6px 12px; font-size: 0.85rem; }
 .word-images__refresh i.icon { margin: 0; }
 .word-images__empty { font-size: 0.9rem; color: var(--cb-ink-3); padding: 8px 0; }
+.word-images__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.word-images__note { font-size: 0.82rem; color: var(--cb-ink-3); margin: -4px 0 8px; }
+/* Dragging an image file over the section. */
+.word-images--dropping {
+  outline: 2px dashed var(--cb-accent); outline-offset: 6px; border-radius: 8px;
+  background: var(--cb-accent-weak);
+}
+/* Mouse vs touch wording ("drop an image here" means nothing on a phone). */
+.word-images__touch-only { display: none; }
+@media (hover: none) {
+  .word-images__mouse-only { display: none; }
+  .word-images__touch-only { display: inline; }
+}
+/* "Yours": an image only this user sees. */
+.word-images__yours {
+  position: absolute; left: 6px; bottom: 6px; padding: 1px 7px; border-radius: 999px;
+  background: rgba(15, 20, 35, 0.65); color: #fff; font-size: 0.7rem; font-weight: 600;
+  pointer-events: none;
+}
+.word-images__adding {
+  width: 120px; display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--cb-border-strong); border-radius: 6px; color: var(--cb-ink-3); font-size: 0.85rem;
+}
+/* Admin: make one of their own images available to everyone. Sits left of ×. */
+.image-share {
+  position: absolute; top: 6px; right: 38px; width: 26px; height: 26px; padding: 0;
+  border: none; border-radius: 50%; background: rgba(15, 20, 35, 0.65); color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.image-share i.icon { margin: 0; font-size: 0.85rem; }
+.image-share:hover { background: var(--cb-accent); }
+@media (hover: hover) {
+  .image-share { opacity: 0; transition: opacity .12s ease; }
+  .word-images__tile:hover .image-share, .image-share:focus-visible { opacity: 1; }
+}
+
+/* Add an image dialog (AddWordImageDialog). */
+.add-image__tabs { display: flex; gap: 4px; padding: 3px; margin-bottom: 12px; background: var(--cb-surface); border-radius: var(--cb-radius-sm); }
+.add-image__tab {
+  flex: 1; padding: 8px 10px; border: none; border-radius: 6px; background: none;
+  color: var(--cb-ink-2); font-size: 0.88rem; cursor: pointer;
+}
+.add-image__tab.is-on { background: var(--cb-surface-2); color: var(--cb-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(15, 20, 35, 0.12); }
+.add-image__drop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 150px; padding: 14px; text-align: center; cursor: pointer;
+  border: 1.5px dashed var(--cb-border-strong); border-radius: var(--cb-radius-sm); color: var(--cb-ink-2);
+}
+.add-image__drop:hover { border-color: var(--cb-accent); }
+.add-image__drop i.icon { margin: 0; font-size: 1.6rem; color: var(--cb-ink-3); }
+.add-image__drop--static { cursor: default; margin-top: 10px; }
+.add-image__drop--static:hover { border-color: var(--cb-border-strong); }
+.add-image__choose { color: var(--cb-accent); font-weight: 600; }
+.add-image__small { font-size: 0.78rem; color: var(--cb-ink-3); }
+/* The global img rule caps images at 200px with margins; size the preview here. */
+.add-image__preview { display: block; max-width: 100%; max-height: 220px; margin: 0; border-radius: 6px; object-fit: contain; }
+.add-image__shared { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.88rem; color: var(--cb-ink-2); cursor: pointer; }
+@media (hover: none) { .add-image__desktop-hint { display: none; } }
+
+/* On/off switch (Admin › Images: image search). A styled checkbox. */
+.cb-switch { position: relative; display: inline-flex; flex-shrink: 0; width: 44px; height: 26px; cursor: pointer; }
+.cb-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.cb-switch__track { width: 100%; height: 100%; border-radius: 999px; background: var(--cb-border-strong); transition: background .15s ease; }
+.cb-switch__track::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(15, 20, 35, 0.3); transition: transform .15s ease;
+}
+.cb-switch input:checked + .cb-switch__track { background: var(--cb-accent); }
+.cb-switch input:checked + .cb-switch__track::after { transform: translateX(18px); }
+.cb-switch input:focus-visible + .cb-switch__track { outline: 2px solid var(--cb-accent); outline-offset: 2px; }
+.cb-switch input:disabled + .cb-switch__track { opacity: 0.5; }
+.admin-setting {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 16px; margin-bottom: 16px;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+}
+.admin-setting__label { font-weight: 600; color: var(--cb-ink); }
+.admin-setting__hint { margin-top: 3px; font-size: 0.85rem; color: var(--cb-ink-3); }
 .word-images__grid { display: flex; flex-wrap: wrap; gap: 10px; }
 .word-images__tile { position: relative; height: 160px; max-width: 100%; }
 /* The global `img` rule adds margins and a 200px cap; tiles size themselves. */
