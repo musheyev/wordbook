@@ -8,7 +8,7 @@ import NotebookMenu from './NotebookMenu';
 import NavRailResizer from './NavRailResizer';
 import AddItemSheet from './AddItemSheet';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
-import { notebookFromPathname } from '../utils/notebookPaths';
+import { notebookFromPathname, notebookPath } from '../utils/notebookPaths';
 import { ADMIN_PAGES } from '../pages/AdminPage';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
@@ -53,7 +53,7 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
             {inCardbook && userExists && (
                 <div className="nav-ctx">
                     <div className="nav-ctx__head">
-                        <NotebookMenu name={cardbookName} className="nb-menu--rail" />
+                        <NotebookMenu name={cardbookName} className="nb-menu--rail" nameLink={notebookPath(cardbookName)} />
                         <button type="button" className="nav-ctx__add" title="Add a word or note"
                             aria-label="Add a word or note" onClick={() => setAddOpen(true)}>
                             <i className="plus icon"></i>

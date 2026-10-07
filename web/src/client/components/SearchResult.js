@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { connect } from 'react-redux';
 import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote } from '../actions';
 import Definition from './Definition';
+import Spinner from './Spinner';
 import AddToCardbook from './AddToCardbook';
 import ReadAloud from './ReadAloud';
 import RichTextEditor from './RichTextEditor';
@@ -172,7 +173,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     if (isCard) {
         // Card selected but its content hasn't loaded yet: blank pane, no GUID.
         if (!cardReady) {
-            return <div className="search-result" />;
+            return <div className="search-result"><Spinner label="Loading note…" /></div>;
         }
         return (
             <div className="search-result search-result--card">
@@ -295,6 +296,12 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         <div className="word-note__content" ref={noteRef}
                             dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(noteContent) }} />
                     </div>
+                ) : null}
+
+                {currentWord == "" ? null : !wordData ? (
+                    <Spinner label={`Looking up “${currentWord}”…`} />
+                ) : wordData.Error ? (
+                    <div className="search-result__error">{wordData.Error}</div>
                 ) : null}
 
                 {sources.length === 0 ? "" :

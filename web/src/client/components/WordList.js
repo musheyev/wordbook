@@ -3,12 +3,17 @@ import { connect } from 'react-redux';
 import { reorderWordbookItems } from '../actions';
 import WordWithDelete from './WordWithDelete';
 import SortableList from './SortableList';
+import Spinner from './Spinner';
 
 // The notebook's items in the desktop rail. Hovering an item reveals a grip
 // (⋮⋮) to drag it to a new position, and × to remove it from this notebook.
-const WordList = ({ wordbook, wordbookWords, reorderWordbookItems }) => {
+// While the list is loading, a spinner.
+const WordList = ({ wordbook, wordbookWords, loading, reorderWordbookItems }) => {
     const words = wordbookWords || [];
 
+    if (loading) {
+        return <Spinner inline label="Loading…" />;
+    }
     if (words.length === 0) {
         return null;
     }
@@ -26,8 +31,8 @@ const WordList = ({ wordbook, wordbookWords, reorderWordbookItems }) => {
     );
 };
 
-function mapStatetoProps({ wordbookWords }, ownProps) {
-    return { wordbookWords, wordbook: ownProps.wordbook };
+function mapStatetoProps({ wordbookWords, wordbookWordsInProgress }, ownProps) {
+    return { wordbookWords, loading: Boolean(wordbookWordsInProgress), wordbook: ownProps.wordbook };
 }
 
 export default connect(mapStatetoProps, { reorderWordbookItems })(WordList);

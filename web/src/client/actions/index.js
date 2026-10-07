@@ -71,12 +71,19 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
     dispatch(fetchWordNote(word));
   }
 
-  const res = await api.get(`/dictionary?search=${encodeURIComponent(word)}&json=y`);
+  let data;
+  try {
+    data = (await api.get(`/dictionary?search=${encodeURIComponent(word)}&json=y`)).data;
+  } catch (err) {
+    // Shown where the definitions go (the server reports "not found" the
+    // same way, in `Error`), so the page never waits forever.
+    data = { definitions: {}, images: [], Error: "Couldn't look up this word. Check your connection and try again." };
+  }
   if (selection !== latestSelection) return;
 
   dispatch({
     type: FETCH_WORD_DATA,
-    payload: { data: { ...res.data, word } }
+    payload: { data: { ...data, word } }
   });
 };
 

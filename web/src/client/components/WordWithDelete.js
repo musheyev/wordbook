@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { deleteWordbookWord, deleteWordbookCard, openNoteWindow } from '../actions';
@@ -13,6 +13,13 @@ import GripIcon from './GripIcon';
 const WordWithDelete = ({ item, wordbook, selected, handleProps, noteWindowMode, deleteWordbookWord, deleteWordbookCard, openNoteWindow }) => {
     const navigate = useNavigate();
     const isCard = item.type === 'card';
+    const rowRef = useRef(null);
+
+    // The open item stays in view in a long list (e.g. after stepping to it
+    // with the ⌃ ⌄ buttons, or opening it from the overview).
+    useEffect(() => {
+        if (selected && rowRef.current) rowRef.current.scrollIntoView({ block: 'nearest' });
+    }, [selected]);
 
     const onClick = () => {
         // Window mode (desktop only): notes open in a floating window instead of
@@ -45,7 +52,7 @@ const WordWithDelete = ({ item, wordbook, selected, handleProps, noteWindowMode,
         : `Remove ${item.title}`;
 
     return (
-        <div className={`word-chip${selected ? ' selected' : ''}`}
+        <div ref={rowRef} className={`word-chip${selected ? ' selected' : ''}`}
             role="button" tabIndex={0}
             onClick={onClick} onKeyDown={onKeyDown}>
             {handleProps && (

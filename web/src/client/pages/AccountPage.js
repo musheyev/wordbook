@@ -9,6 +9,7 @@ import AddWordbook from '../components/AddWordbook';
 import WordbookItemConfig from '../components/WordbookItemConfig';
 import SortableList from '../components/SortableList';
 import requireAuth from '../components/hocs/requireAuth';
+import Spinner from '../components/Spinner';
 
 // My Notebooks. Above the list: a search box (filters by name as you type)
 // and the sort button, which opens a sheet with three choices:
@@ -49,12 +50,15 @@ function AccountPage({
 }) {
     const [query, setQuery] = useState('');
     const [sortOpen, setSortOpen] = useState(false);
+    // The list in the store may be empty only because it hasn't arrived yet;
+    // until it has, show a spinner rather than "No notebooks yet".
+    const [listLoaded, setListLoaded] = useState(false);
 
     const names = Array.isArray(wordbooks) ? wordbooks : null;
     const namesKey = names ? names.join('\u0000') : '';
 
     useEffect(() => {
-        fetchWordbooks();
+        Promise.resolve(fetchWordbooks()).catch(() => {}).then(() => setListLoaded(true));
         fetchWordbookPreviews();
         fetchInbox();
         fetchNotebookSort();
@@ -120,7 +124,7 @@ function AccountPage({
 
             <AddWordbook />
 
-            {hasBooks && (
+            {listLoaded && hasBooks && (
                 <div className="nb-tools">
                     <div className="nb-tools__search">
                         <i className="search icon" aria-hidden="true"></i>
@@ -139,7 +143,9 @@ function AccountPage({
                 </div>
             )}
 
-            {hasBooks && sort && (
+            {(!listLoaded || (hasBooks && !sort)) && <Spinner label="Loading notebooks…" />}
+
+            {listLoaded && hasBooks && sort && (
                 shown.length === 0 ? (
                     <div className="cb-empty">No notebooks match “{query.trim()}”.</div>
                 ) : draggable ? (
@@ -153,7 +159,7 @@ function AccountPage({
                 )
             )}
 
-            {names && names.length === 0 && (
+            {listLoaded && names && names.length === 0 && (
                 <div className="cb-empty">
                     No notebooks yet — create one above to start collecting words and notes.
                 </div>

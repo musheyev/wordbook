@@ -12,15 +12,19 @@ import NotebookMenu from '../components/NotebookMenu';
 import NotebookItemList from '../components/NotebookItemList';
 import AddItemSheet from '../components/AddItemSheet';
 import ReadAloud from '../components/ReadAloud';
+import NotebookOverview from '../components/NotebookOverview';
+import Spinner from '../components/Spinner';
 import { itemPath, notebookPath } from '../utils/notebookPaths';
 import { htmlToChunks } from '../utils/tts';
 
 const HEBREW = /[֐-׿]/;
 
-// A notebook. With no item in the URL it shows the item list (on desktop the
-// list lives in the left rail, so the pane just invites a pick). With an item
-// in the URL (/wordbook/<name>/<type>/<id>) it shows that item; on phones a
-// back bar returns to the list.
+// A notebook. With no item in the URL it shows the notebook: on phones its
+// item list; on desktop (where the list also lives in the left rail) an
+// overview of every item as a card (NotebookOverview). With an item in the
+// URL (/wordbook/<name>/<type>/<id>) it shows that item, under a back bar
+// that returns to the notebook and steps to the previous/next item. A spinner
+// shows while the list loads.
 function WordbookPage({
     dispatch, wordbookWords, wordbookWordsInProgress, cardEditorOpen,
     fetchWordbookWords, fetchCardData, fetchWordData, clearCurrentSelection, closeCardEditor,
@@ -139,12 +143,17 @@ function WordbookPage({
                             <ReadAloud getChunks={notebookChunks} title={name} label="Play all" />
                         )}
                     </div>
-                    {items.length > 0 && <NotebookItemList wordbook={name} items={items} />}
+                    {listReady ? (
+                        items.length > 0 && <NotebookItemList wordbook={name} items={items} />
+                    ) : (
+                        <Spinner label="Loading notebook…" />
+                    )}
                 </div>
-                {emptyMessage || (listReady && (
-                    <div className="cb-detail__empty cb-detail__pick">
-                        Pick a note or word from the list.
-                    </div>
+                {emptyMessage || (listReady ? (
+                    <NotebookOverview name={name} items={items} onAdd={() => setAddOpen(true)}
+                        getReadAloudChunks={notebookChunks} />
+                ) : (
+                    <div className="nb-overview-loading"><Spinner label="Loading notebook…" /></div>
                 ))}
             </>
         );

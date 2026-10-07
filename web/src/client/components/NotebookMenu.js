@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { deleteWordbook } from '../actions';
 import RenameNotebookDialog from './RenameNotebookDialog';
@@ -7,9 +7,13 @@ import ConfirmDialog from './ConfirmDialog';
 import ShareDialog from './ShareDialog';
 import { notebookPath } from '../utils/notebookPaths';
 
-// The notebook title as a menu button: tap it to rename, go to all notebooks,
-// or delete. Used in the mobile notebook header and the desktop rail.
-function NotebookMenu({ name, className = '', deleteWordbook }) {
+// The notebook title with its menu: rename, share, go to all notebooks, or
+// delete. Used in the mobile notebook header and the desktop rail.
+//
+// By default the whole title is the menu button. With `nameLink` (the desktop
+// rail), the name is a link there instead (the notebook's overview) and only
+// the ⌄ beside it opens the menu.
+function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
     const navigate = useNavigate();
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
@@ -32,11 +36,23 @@ function NotebookMenu({ name, className = '', deleteWordbook }) {
 
     return (
         <div className={`nb-menu ${className}`}>
-            <button type="button" className="nb-menu__title" aria-haspopup="menu" aria-expanded={menuOpen}
-                title={name} onClick={() => setMenuOpen((v) => !v)}>
-                <span className="nb-menu__name">{name}</span>
-                <i className={`chevron ${menuOpen ? 'up' : 'down'} icon`} aria-hidden="true"></i>
-            </button>
+            {nameLink ? (
+                <div className="nb-menu__split">
+                    <Link className="nb-menu__link" to={nameLink} title={`${name}: all notes and words`}>
+                        {name}
+                    </Link>
+                    <button type="button" className="nb-menu__toggle" aria-haspopup="menu" aria-expanded={menuOpen}
+                        aria-label="Notebook options" title="Notebook options" onClick={() => setMenuOpen((v) => !v)}>
+                        <i className={`chevron ${menuOpen ? 'up' : 'down'} icon`} aria-hidden="true"></i>
+                    </button>
+                </div>
+            ) : (
+                <button type="button" className="nb-menu__title" aria-haspopup="menu" aria-expanded={menuOpen}
+                    title={name} onClick={() => setMenuOpen((v) => !v)}>
+                    <span className="nb-menu__name">{name}</span>
+                    <i className={`chevron ${menuOpen ? 'up' : 'down'} icon`} aria-hidden="true"></i>
+                </button>
+            )}
 
             {menuOpen && (
                 <>
