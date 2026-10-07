@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { connect } from 'react-redux';
-import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote } from '../actions';
+import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote, fetchWordData, fetchCardData, requestErrorMessage } from '../actions';
 import Definition from './Definition';
 import Spinner from './Spinner';
+import LoadError from './LoadError';
+import useDraft from '../utils/useDraft';
+import { timeAgo } from '../utils/timeAgo';
 import AddToCardbook from './AddToCardbook';
 import ReadAloud from './ReadAloud';
 import RichTextEditor from './RichTextEditor';
@@ -20,7 +23,7 @@ function isEmptyHtml(html) {
 }
 
 function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, wordNote, auth, wordbooks,
-    fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote,
+    fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchWordData, fetchCardData,
     fetchSourceVotes, setSourceVote }) {
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -97,15 +100,38 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     const noteRef = React.useRef(null);
     React.useEffect(() => { renderMathIn(noteRef.current); });
 
-    const startAddNote = () => { setNoteDraft(''); setEditingNote(true); };
-    const startEditNote = () => { setNoteDraft(noteContent || ''); setEditingNote(true); };
-    const onSaveNote = () => {
-        if (isEmptyHtml(noteDraft)) {
-            if (hasNote) deleteWordNote(currentWord);
-        } else {
-            saveWordNote(currentWord, noteDraft);
+    // Saving the note waits for the server: on failure the editor stays open
+    // with the text and a "Try again", and the text is kept on this device
+    // until it's saved (useDraft; offered back next time if it never was).
+    const [noteSaving, setNoteSaving] = useState(false);
+    const [noteError, setNoteError] = useState('');
+    const [noteEditorKey, setNoteEditorKey] = useState(0);
+    const noteDraftStore = useDraft(editingNote && currentWord ? `wordnote:${currentWord}` : null,
+        noteDraft, noteContent || '');
+
+    const startAddNote = () => { setNoteDraft(''); setNoteError(''); setEditingNote(true); };
+    const startEditNote = () => { setNoteDraft(noteContent || ''); setNoteError(''); setEditingNote(true); };
+    const onSaveNote = async () => {
+        if (noteSaving) return;
+        setNoteSaving(true);
+        setNoteError('');
+        try {
+            if (isEmptyHtml(noteDraft)) {
+                if (hasNote) await deleteWordNote(currentWord);
+            } else {
+                await saveWordNote(currentWord, noteDraft);
+            }
+            noteDraftStore.clear();
+            setEditingNote(false);
+        } catch (err) {
+            setNoteError(requestErrorMessage(err, "Couldn't save your note."));
         }
-        setEditingNote(false);
+        setNoteSaving(false);
+    };
+    const onCancelNote = () => { noteDraftStore.clear(); setNoteError(''); setEditingNote(false); };
+    const restoreNoteDraft = () => {
+        const value = noteDraftStore.takeRestorable();
+        if (typeof value === 'string') { setNoteDraft(value); setNoteEditorKey((k) => k + 1); }
     };
     const onDeleteNote = () => { deleteWordNote(currentWord); setEditingNote(false); };
 
@@ -138,7 +164,9 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     const isCard = currentWordType === 'card';
     // The card content is fetched after selection; until it arrives (and matches
     // the selected id) show a blank pane rather than the raw card_id (a GUID).
-    const cardReady = isCard && currentCard != null && currentCard.card_id === currentWord;
+    const cardForThis = isCard && currentCard != null && currentCard.card_id === currentWord;
+    const cardLoadError = cardForThis && currentCard.loadError ? currentCard.loadError : null;
+    const cardReady = cardForThis && !cardLoadError;
 
     // Shared "Add to cardbook" bookmark button + popover (used by both words and
     // cards). The popover is anchored to the button so it drops right under it.
@@ -172,6 +200,13 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     // ---- Card view ---------------------------------------------------------
     if (isCard) {
         // Card selected but its content hasn't loaded yet: blank pane, no GUID.
+        if (cardLoadError) {
+            return (
+                <div className="search-result">
+                    <LoadError message={cardLoadError} onRetry={() => fetchCardData(currentWord)} />
+                </div>
+            );
+        }
         if (!cardReady) {
             return <div className="search-result"><Spinner label="Loading note…" /></div>;
         }
@@ -276,10 +311,24 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                 {currentWord != "" && editingNote ? (
                     <div className="word-note word-note--edit">
                         <div className="word-note__label">Your note</div>
-                        <RichTextEditor value={noteDraft} onChange={setNoteDraft} />
+                        {noteDraftStore.restorable && (
+                            <div className="card-editor__restore" role="status">
+                                <span>You have unsaved changes to this note from {timeAgo(noteDraftStore.restorable.at)}.</span>
+                                <button type="button" className="cb-btn cb-btn--accent" onClick={restoreNoteDraft}>Restore</button>
+                                <button type="button" className="cb-btn" onClick={noteDraftStore.discard}>Discard</button>
+                            </div>
+                        )}
+                        <RichTextEditor key={noteEditorKey} value={noteDraft} onChange={setNoteDraft} />
+                        {noteError && (
+                            <div className="card-editor__error" role="alert">
+                                <span>{noteError} Your text is kept on this device until it's saved.</span>
+                            </div>
+                        )}
                         <div className="word-note__actions">
-                            <button className="cb-btn cb-btn--ghost" onClick={() => setEditingNote(false)}>Cancel</button>
-                            <button className="cb-btn cb-btn--accent" onClick={onSaveNote}>Save</button>
+                            <button className="cb-btn cb-btn--ghost" onClick={onCancelNote} disabled={noteSaving}>Cancel</button>
+                            <button className="cb-btn cb-btn--accent" onClick={onSaveNote} disabled={noteSaving}>
+                                {noteSaving ? 'Saving…' : noteError ? 'Try again' : 'Save'}
+                            </button>
                         </div>
                     </div>
                 ) : currentWord != "" && hasNote ? (
@@ -301,7 +350,9 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                 {currentWord == "" ? null : !wordData ? (
                     <Spinner label={`Looking up “${currentWord}”…`} />
                 ) : wordData.Error ? (
-                    <div className="search-result__error">{wordData.Error}</div>
+                    wordData.retryable
+                        ? <LoadError message={wordData.Error} onRetry={() => fetchWordData(currentWord)} />
+                        : <div className="search-result__error">{wordData.Error}</div>
                 ) : null}
 
                 {sources.length === 0 ? "" :
@@ -351,4 +402,4 @@ function mapStatetoProps({ auth, currentWord, currentWordType, currentCard, word
     return { auth, currentWord, currentWordType, currentCard, wordSearchResult: word, wordbooks, wordNote };
 }
 
-export default connect(mapStatetoProps, { fetchWordWordbooks, fetchWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote })(SearchResult);
+export default connect(mapStatetoProps, { fetchWordWordbooks, fetchWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote, fetchWordData, fetchCardData })(SearchResult);

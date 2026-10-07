@@ -14,6 +14,7 @@ import AddItemSheet from '../components/AddItemSheet';
 import ReadAloud from '../components/ReadAloud';
 import NotebookOverview from '../components/NotebookOverview';
 import Spinner from '../components/Spinner';
+import LoadError from '../components/LoadError';
 import { itemPath, notebookPath } from '../utils/notebookPaths';
 import { htmlToChunks } from '../utils/tts';
 
@@ -26,25 +27,17 @@ const HEBREW = /[֐-׿]/;
 // that returns to the notebook and steps to the previous/next item. A spinner
 // shows while the list loads.
 function WordbookPage({
-    dispatch, wordbookWords, wordbookWordsInProgress, cardEditorOpen,
+    dispatch, wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditorOpen,
     fetchWordbookWords, fetchCardData, fetchWordData, clearCurrentSelection, closeCardEditor,
 }) {
     const { name, type, id } = useParams();
     const navigate = useNavigate();
     const [addOpen, setAddOpen] = useState(false);
-    // Name of the notebook whose list has finished loading, so a list left over
-    // from the previous notebook is never mistaken for this one's.
-    const [loadedFor, setLoadedFor] = useState(null);
 
     useEffect(() => {
         dispatch({ type: SET_CURRENT_WORDBOOK, payload: name });
         closeCardEditor();
-        setLoadedFor(null);
-        let cancelled = false;
-        Promise.resolve(fetchWordbookWords(name)).then(() => {
-            if (!cancelled) setLoadedFor(name);
-        });
-        return () => { cancelled = true; };
+        fetchWordbookWords(name);
     }, [name]);
 
     // Load the item named in the URL, or clear the selection on the list.
@@ -58,16 +51,24 @@ function WordbookPage({
         }
     }, [type, id]);
 
-    const items = wordbookWords || [];
-    const listReady = loadedFor === name && !wordbookWordsInProgress;
+    // The list in the store is this notebook's (wordbookWordsFor): show it at
+    // once, even while it refreshes; a spinner only when there's none yet.
+    // `listFresh` (not refreshing) guards decisions a stale list could get
+    // wrong, like "the open item is gone".
+    const haveList = wordbookWordsFor === name;
+    const items = haveList ? (wordbookWords || []) : [];
+    const listReady = haveList;
+    const listFresh = haveList && !wordbookWordsInProgress;
+    const loadError = !haveList && wordbookWordsError && wordbookWordsError.wordbook === name
+        ? wordbookWordsError.message : null;
     const index = id ? items.findIndex((item) => item.type === type && item.id === id) : -1;
 
     // The open item was deleted or removed from this notebook: back to the list.
     useEffect(() => {
-        if (id && listReady && index === -1 && !cardEditorOpen) {
+        if (id && listFresh && index === -1 && !cardEditorOpen) {
             navigate(notebookPath(name), { replace: true });
         }
-    }, [id, listReady, index, cardEditorOpen]);
+    }, [id, listFresh, index, cardEditorOpen]);
 
     const goTo = (i) => navigate(itemPath(name, items[i]), { replace: true });
 
@@ -145,6 +146,8 @@ function WordbookPage({
                     </div>
                     {listReady ? (
                         items.length > 0 && <NotebookItemList wordbook={name} items={items} />
+                    ) : loadError ? (
+                        <LoadError message={loadError} onRetry={() => fetchWordbookWords(name)} />
                     ) : (
                         <Spinner label="Loading notebook…" />
                     )}
@@ -153,7 +156,11 @@ function WordbookPage({
                     <NotebookOverview name={name} items={items} onAdd={() => setAddOpen(true)}
                         getReadAloudChunks={notebookChunks} />
                 ) : (
-                    <div className="nb-overview-loading"><Spinner label="Loading notebook…" /></div>
+                    <div className="nb-overview-loading">
+                        {loadError
+                            ? <LoadError message={loadError} onRetry={() => fetchWordbookWords(name)} />
+                            : <Spinner label="Loading notebook…" />}
+                    </div>
                 ))}
             </>
         );
@@ -167,8 +174,8 @@ function WordbookPage({
     );
 }
 
-function mapStateToProps({ wordbookWords, wordbookWordsInProgress, cardEditor }) {
-    return { wordbookWords, wordbookWordsInProgress, cardEditorOpen: cardEditor.open };
+function mapStateToProps({ wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditor }) {
+    return { wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditorOpen: cardEditor.open };
 }
 
 const mapDispatchToProps = (dispatch) => ({

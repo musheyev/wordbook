@@ -36,6 +36,21 @@ export const clearCurrentSelection = () => (dispatch) => {
   dispatch({ type: FETCH_CARD_DATA, payload: null });
 };
 
+// What to tell the user when a request fails: the server's own message when
+// it sent one, else whether it timed out or the connection dropped.
+export const requestErrorMessage = (err, fallback = "Something went wrong. Try again.") => {
+  if (err && (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT')) {
+    return "The server is taking too long to answer. Check your connection and try again.";
+  }
+  if (err && !err.response) {
+    return "Couldn't reach the server. Check your connection and try again.";
+  }
+  const data = err.response.data;
+  if (typeof data === 'string' && data && data.length < 300 && !data.startsWith('<')) return data;
+  if (data && typeof data.error === 'string') return data.error;
+  return fallback;
+};
+
 export const FETCH_WORD_DATA = 'fetch_word_data';
 export const PROMOTE_HISTORY_WORD = 'promote_history_word';
 
@@ -77,7 +92,7 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
   } catch (err) {
     // Shown where the definitions go (the server reports "not found" the
     // same way, in `Error`), so the page never waits forever.
-    data = { definitions: {}, images: [], Error: "Couldn't look up this word. Check your connection and try again." };
+    data = { definitions: {}, images: [], Error: requestErrorMessage(err, "Couldn't look up this word. Try again."), retryable: true };
   }
   if (selection !== latestSelection) return;
 
@@ -177,8 +192,16 @@ export const fetchCardData = (cardId) => async (dispatch, getState, api) => {
   // Clear any dictionary result so a prior word's images/definitions don't linger.
   dispatch({ type: FETCH_WORD_DATA, payload: { data: { word: cardId, definitions: {}, images: [] } } });
 
-  const res = await api.post('/wordbook/card/get', { card_id: cardId }, JSON_HEADERS);
-  dispatch({ type: FETCH_CARD_DATA, payload: res.data });
+  const selection = latestSelection;
+  let card;
+  try {
+    card = (await api.post('/wordbook/card/get', { card_id: cardId }, JSON_HEADERS)).data;
+  } catch (err) {
+    // The note view shows this with "Try again" instead of a spinner forever.
+    card = { card_id: cardId, loadError: requestErrorMessage(err, "Couldn't load this note. Try again.") };
+  }
+  if (selection !== latestSelection) return; // a newer word or note was picked
+  dispatch({ type: FETCH_CARD_DATA, payload: card });
 
   // Which wordbooks currently contain this card (drives the selection popup).
   dispatch(fetchWordWordbooks(cardId));
@@ -631,36 +654,35 @@ export const deleteWordbookWord = (wordbook, word) => async (dispatch, getState,
 export const FETCH_WORDBOOK_WORDS = 'fetch_wordbook_words';
 export const FETCH_WORDBOOK_WORDS_IN_PROGRESS = 'fetch_wordbook_words_in_progress';
 
+// Load a notebook's items. The list in the store records which notebook it
+// is for (wordbookWordsFor), so a screen can keep showing a list it already
+// has while it refreshes, and show a spinner only when it has none. A failure
+// is recorded (wordbookWordsError) so the screen can offer "Try again"
+// instead of waiting forever. An answer for a notebook that's no longer the
+// current one is dropped.
+export const FETCH_WORDBOOK_WORDS_FAILED = 'fetch_wordbook_words_failed';
 export const fetchWordbookWords = (wordbookName) => async (dispatch, getState, api) => {
-  //console.log("fetchWordbookWords called");
+  dispatch({ type: FETCH_WORDBOOK_WORDS_IN_PROGRESS, payload: true });
 
-  dispatch({
-    type: FETCH_WORDBOOK_WORDS_IN_PROGRESS,
-    payload: true
-  });
+  let res;
+  try {
+    res = await api.post('/wordbook/words', { wordbook: wordbookName }, JSON_HEADERS);
+  } catch (err) {
+    dispatch({ type: FETCH_WORDBOOK_WORDS_IN_PROGRESS, payload: false });
+    dispatch({ type: FETCH_WORDBOOK_WORDS_FAILED, payload: { wordbook: wordbookName, message: requestErrorMessage(err) } });
+    return;
+  }
 
-  const res = await api.post('/wordbook/words',
-    { wordbook: wordbookName },
-    {
-      headers: {
-        'content-type': 'application/json'
-      }
-    }
-  );
-
-  //console.log(`in fetchWordbookWords: ${res.data}`);
-
-  dispatch({
-    type: FETCH_WORDBOOK_WORDS_IN_PROGRESS,
-    payload: false
-  });
+  dispatch({ type: FETCH_WORDBOOK_WORDS_IN_PROGRESS, payload: false });
+  if (getState().currentWordbook && getState().currentWordbook !== wordbookName) return;
 
   // Items are typed objects: { type: 'word'|'card', id, title, preview? }.
   // Nothing is auto-selected: the notebook opens on its item list, and the
   // item in the URL (if any) is loaded by WordbookPage.
   dispatch({
     type: FETCH_WORDBOOK_WORDS,
-    payload: res
+    payload: res,
+    wordbook: wordbookName,
   });
 };
 
@@ -773,16 +795,11 @@ export const setWordImages = (images) => ({ type: SET_WORD_IMAGES, payload: imag
 
 // Server message for a failed curation request. Admin checks answer with JSON
 // ({ error }), curation errors with plain text; fall back to a generic line.
-const curationErrorMessage = (err, fallback) => {
-  const data = err.response && err.response.data;
-  if (typeof data === 'string' && data) return data;
-  if (data && typeof data.error === 'string') return data.error;
-  return fallback;
-};
+const curationErrorMessage = (err, fallback) => requestErrorMessage(err, fallback);
 
-const postCuration = async (api, url, body, fallback) => {
+const postCuration = async (api, url, body, fallback, options = {}) => {
   try {
-    const res = await api.post(url, body, JSON_HEADERS);
+    const res = await api.post(url, body, { ...JSON_HEADERS, ...options });
     return res.data;
   } catch (err) {
     throw new Error(curationErrorMessage(err, fallback));
@@ -846,7 +863,7 @@ export const uploadWordImage = (word, file, shared) => async (dispatch, getState
   try {
     const res = await api.post(
       `/word-images/upload?word=${encodeURIComponent(word)}${shared ? '&shared=1' : ''}`,
-      file, { headers: { 'content-type': file.type || 'application/octet-stream' } });
+      file, { headers: { 'content-type': file.type || 'application/octet-stream' }, timeout: 120000 });
     applyWordImageReply(dispatch, getState, word, res.data);
   } catch (err) {
     throw new Error(curationErrorMessage(err, "Couldn't add the image."));
@@ -855,8 +872,9 @@ export const uploadWordImage = (word, file, shared) => async (dispatch, getState
 
 // Add an image from a web address: the server saves its own copy.
 export const addWordImageFromLink = (word, url, shared) => async (dispatch, getState, api) => {
+  // The server downloads the image itself (up to 20s), so allow longer.
   const data = await postCuration(api, '/word-images/link', { word, url, shared: Boolean(shared) },
-    "Couldn't add the image from that address.");
+    "Couldn't add the image from that address.", { timeout: 45000 });
   applyWordImageReply(dispatch, getState, word, data);
 };
 

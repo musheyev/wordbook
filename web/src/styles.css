@@ -2776,3 +2776,24 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .cb-spinner--inline .cb-spinner__ring { width: 16px; height: 16px; border-width: 2px; }
 @keyframes cb-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .cb-spinner__ring { animation-duration: 2.4s; } }
+
+/* A screen that couldn't load (LoadError.js): message + Try again. */
+.load-error {
+  display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 10px;
+  margin: 24px auto; padding: 16px; max-width: 520px; text-align: center;
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius); background: var(--cb-surface);
+  color: var(--cb-ink-2); font-size: 0.92rem;
+}
+.load-error i.icon { margin: 0; color: var(--cb-danger); font-size: 1.1rem; }
+.load-error__text { flex: 1 1 260px; }
+.nav-ctx__failed { padding: 10px 12px; font-size: 0.85rem; color: var(--cb-ink-3); }
+
+/* Note editors: saving status, a failed save, and a draft to restore. */
+.card-editor__status { align-self: center; font-size: 0.85rem; color: var(--cb-ink-3); }
+.card-editor__error, .card-editor__restore {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
+  margin: 8px 0; padding: 10px 12px; border-radius: var(--cb-radius-sm); font-size: 0.88rem;
+}
+.card-editor__error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.card-editor__restore { background: var(--cb-accent-weak); border: 1px solid var(--cb-border); color: var(--cb-ink); }
+.card-editor__error > span, .card-editor__restore > span { flex: 1 1 240px; }

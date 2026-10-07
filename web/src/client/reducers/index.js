@@ -13,7 +13,9 @@ import currentWordbookReducer from "./currentWordbookReducer";
 import userHistoryReducer from './userHistoryReducer';
 import wordbookReducer from './wordbooksReducer';
 import wordbookPreviewsReducer from './wordbookPreviewsReducer';
-import wordbookWordsReducer, { wordbookWordsInProgressReducer } from './wordbookWordsReducer';
+import wordbookWordsReducer, {
+    wordbookWordsInProgressReducer, wordbookWordsForReducer, wordbookWordsErrorReducer,
+} from './wordbookWordsReducer';
 import wordWordbooksReducer from './wordWordbooksReducer';
 import errorReducer from './errorReducer';
 import inboxReducer from './inboxReducer';
@@ -41,6 +43,8 @@ export default combineReducers({
     errorAPI: errorReducer,
     wordbookWords: wordbookWordsReducer,
     wordbookWordsInProgress: wordbookWordsInProgressReducer,
+    wordbookWordsFor: wordbookWordsForReducer,
+    wordbookWordsError: wordbookWordsErrorReducer,
     wordWorkbooks: wordWordbooksReducer,
     inbox: inboxReducer,
     wordNote: wordNoteReducer,

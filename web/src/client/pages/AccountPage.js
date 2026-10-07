@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
 import {
     fetchWordbooks, fetchWordbookPreviews, fetchInbox,
-    fetchWordbookUpdated, fetchNotebookSort, saveNotebookSort, reorderWordbooks,
+    fetchWordbookUpdated, fetchNotebookSort, saveNotebookSort, reorderWordbooks, requestErrorMessage,
 } from '../actions';
 import AddWordbook from '../components/AddWordbook';
 import WordbookItemConfig from '../components/WordbookItemConfig';
 import SortableList from '../components/SortableList';
 import requireAuth from '../components/hocs/requireAuth';
 import Spinner from '../components/Spinner';
+import LoadError from '../components/LoadError';
 
 // My Notebooks. Above the list: a search box (filters by name as you type)
 // and the sort button, which opens a sheet with three choices:
@@ -51,14 +52,24 @@ function AccountPage({
     const [query, setQuery] = useState('');
     const [sortOpen, setSortOpen] = useState(false);
     // The list in the store may be empty only because it hasn't arrived yet;
-    // until it has, show a spinner rather than "No notebooks yet".
-    const [listLoaded, setListLoaded] = useState(false);
+    // until it has, show a spinner rather than "No notebooks yet". A list
+    // already in the store (from an earlier visit) shows at once while it
+    // refreshes.
+    const [listLoaded, setListLoaded] = useState(() => Array.isArray(wordbooks) && wordbooks.length > 0);
+    const [loadError, setLoadError] = useState(null);
+
+    const loadList = () => {
+        setLoadError(null);
+        Promise.resolve(fetchWordbooks())
+            .then(() => setListLoaded(true))
+            .catch((err) => setLoadError(requestErrorMessage(err, "Couldn't load your notebooks. Try again.")));
+    };
 
     const names = Array.isArray(wordbooks) ? wordbooks : null;
     const namesKey = names ? names.join('\u0000') : '';
 
     useEffect(() => {
-        Promise.resolve(fetchWordbooks()).catch(() => {}).then(() => setListLoaded(true));
+        loadList();
         fetchWordbookPreviews();
         fetchInbox();
         fetchNotebookSort();
@@ -143,7 +154,8 @@ function AccountPage({
                 </div>
             )}
 
-            {(!listLoaded || (hasBooks && !sort)) && <Spinner label="Loading notebooks…" />}
+            {!listLoaded && loadError && <LoadError message={loadError} onRetry={loadList} />}
+            {((!listLoaded && !loadError) || (listLoaded && hasBooks && !sort)) && <Spinner label="Loading notebooks…" />}
 
             {listLoaded && hasBooks && sort && (
                 shown.length === 0 ? (

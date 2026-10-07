@@ -7,12 +7,13 @@ import Spinner from './Spinner';
 
 // The notebook's items in the desktop rail. Hovering an item reveals a grip
 // (⋮⋮) to drag it to a new position, and × to remove it from this notebook.
-// While the list is loading, a spinner.
-const WordList = ({ wordbook, wordbookWords, loading, reorderWordbookItems }) => {
-    const words = wordbookWords || [];
+// A spinner only while there's no list for this notebook yet: a refresh of
+// the list on screen (e.g. after saving a note) keeps showing it.
+const WordList = ({ wordbook, wordbookWords, haveList, failed, reorderWordbookItems }) => {
+    const words = haveList ? (wordbookWords || []) : [];
 
-    if (loading) {
-        return <Spinner inline label="Loading…" />;
+    if (!haveList) {
+        return failed ? <div className="nav-ctx__failed">Couldn't load.</div> : <Spinner inline label="Loading…" />;
     }
     if (words.length === 0) {
         return null;
@@ -31,8 +32,13 @@ const WordList = ({ wordbook, wordbookWords, loading, reorderWordbookItems }) =>
     );
 };
 
-function mapStatetoProps({ wordbookWords, wordbookWordsInProgress }, ownProps) {
-    return { wordbookWords, loading: Boolean(wordbookWordsInProgress), wordbook: ownProps.wordbook };
+function mapStatetoProps({ wordbookWords, wordbookWordsFor, wordbookWordsError }, ownProps) {
+    return {
+        wordbookWords,
+        haveList: wordbookWordsFor === ownProps.wordbook,
+        failed: Boolean(wordbookWordsError && wordbookWordsError.wordbook === ownProps.wordbook),
+        wordbook: ownProps.wordbook,
+    };
 }
 
 export default connect(mapStatetoProps, { reorderWordbookItems })(WordList);
