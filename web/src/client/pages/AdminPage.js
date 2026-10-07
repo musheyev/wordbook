@@ -1,15 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import requireAdmin from '../components/hocs/requireAdmin';
+import { ADMIN_PAGES } from '../utils/adminPages';
 
 // Admin hub (/admin): the phone tab bar has a single Admin tab that opens this
-// list of admin pages. On desktop the rail lists the same pages directly.
-export const ADMIN_PAGES = [
-    { to: '/users', icon: 'users', label: 'Users', hint: 'Everyone with an account' },
-    { to: '/admins', icon: 'shield alternate', label: 'Admins', hint: 'Members of the admins group' },
-    { to: '/admin/images', icon: 'image outline', label: 'Images', hint: 'Image search on/off; review and delete word images' },
-    { to: '/admin/image-cleanup', icon: 'trash alternate outline', label: 'Image cleanup', hint: 'Archive, restore, or clear unused note and word images' },
-];
+// list of admin pages (ADMIN_PAGES, in utils/adminPages.js). On desktop the
+// rail lists the same pages directly.
 
 function AdminPage() {
     return (

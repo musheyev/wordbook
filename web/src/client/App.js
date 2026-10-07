@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import Header from './components/Header';
 import NoteWindows from './components/NoteWindows';
 import { fetchCurrentUser, fetchInbox } from './actions';
+import { preloadRichTextEditor } from './components/LazyRichTextEditor';
 
 // The card editor is now rendered in place inside the detail pane (see
 // CardEditorInline), not as a global modal.
@@ -45,6 +46,12 @@ const App = ({ auth, fetchCurrentUser, fetchInbox }) => {
     // Logged out has no nav rail / bottom tab bar (see Header), so the shell
     // runs full-width.
     const loggedIn = auth != null && auth !== '' && auth !== false;
+
+    // Signed in: fetch the note editor in the background once the page is
+    // idle, so the first Edit doesn't wait for it (LazyRichTextEditor).
+    useEffect(() => {
+        if (loggedIn) preloadRichTextEditor();
+    }, [loggedIn]);
 
     // Keep the Inbox badge current without a live connection: load the inbox
     // once after login, and again whenever the user comes back to this tab

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { connect } from 'react-redux';
 import { closeCardEditor, createCard, updateCard, deleteCard, requestErrorMessage } from '../actions';
-import RichTextEditor from './RichTextEditor';
+import RichTextEditor from './LazyRichTextEditor';
 import AddToCardbook from './AddToCardbook';
 import useDraft from '../utils/useDraft';
 import { timeAgo } from '../utils/timeAgo';

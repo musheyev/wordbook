@@ -8,7 +8,7 @@ import useDraft from '../utils/useDraft';
 import { timeAgo } from '../utils/timeAgo';
 import AddToCardbook from './AddToCardbook';
 import ReadAloud from './ReadAloud';
-import RichTextEditor from './RichTextEditor';
+import RichTextEditor from './LazyRichTextEditor';
 import ItemTags from './ItemTags';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';

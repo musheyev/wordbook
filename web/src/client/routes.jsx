@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { useRoutes } from 'react-router-dom';
 import App from './App';
 import HomePage from './pages/HomePage';
@@ -6,12 +6,8 @@ import AccountPage from './pages/AccountPage';
 import WordbookPage from './pages/WordbookPage';
 import InboxPage from './pages/InboxPage';
 import TagsPage from './pages/TagsPage';
-import AdminPage from './pages/AdminPage';
-import AdminImagesPage from './pages/AdminImagesPage';
-import AdminImageCleanupPage from './pages/AdminImageCleanupPage';
-import UsersListPage from './pages/UsersListPage';
-import AdminsListPage from './pages/AdminsListPage';
 import NotFoundPage from './pages/NotFoundPage';
+import Spinner from './components/Spinner';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from './utils/cognito';
 
 // The original /login and /signup "routes" ran window.location during render,
@@ -22,6 +18,24 @@ const ExternalRedirect = ({ to }) => {
   }, [to]);
   return <div>Redirecting…</div>;
 };
+
+// Admin pages download only when an admin opens one: most visitors never
+// need that code.
+const loadOnDemand = (load) => {
+  const Page = lazy(load);
+  return function OnDemandPage(props) {
+    return (
+      <Suspense fallback={<Spinner label="Loading…" />}>
+        <Page {...props} />
+      </Suspense>
+    );
+  };
+};
+const AdminPage = loadOnDemand(() => import('./pages/AdminPage'));
+const AdminImagesPage = loadOnDemand(() => import('./pages/AdminImagesPage'));
+const AdminImageCleanupPage = loadOnDemand(() => import('./pages/AdminImageCleanupPage'));
+const UsersListPage = loadOnDemand(() => import('./pages/UsersListPage'));
+const AdminsListPage = loadOnDemand(() => import('./pages/AdminsListPage'));
 
 const LoginRedirect = () => <ExternalRedirect to={COGNITO_LOGIN} />;
 const SignupRedirect = () => <ExternalRedirect to={COGNITO_SIGNUP} />;

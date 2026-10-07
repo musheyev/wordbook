@@ -9,7 +9,7 @@ import NavRailResizer from './NavRailResizer';
 import AddItemSheet from './AddItemSheet';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
 import { notebookFromPathname, notebookPath } from '../utils/notebookPaths';
-import { ADMIN_PAGES } from '../pages/AdminPage';
+import { ADMIN_PAGES } from '../utils/adminPages';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
 
