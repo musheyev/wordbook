@@ -12,6 +12,7 @@ import { Image } from '@tiptap/extension-image';
 import { MarkdownPaste } from './editor/markdownPaste';
 import { TtsSkip } from './editor/ttsSkip';
 import { Indent } from './editor/indent';
+import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -125,15 +126,30 @@ const RichTextEditor = ({ value, onChange }) => {
 
     // Upload an image file to the backend (S3) and return its URL. Notes store
     // only this URL, never the image bytes (DynamoDB items cap at 400 KB).
-    const uploadImage = async (file) => {
-        const res = await fetch('/api/images', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': file.type || 'application/octet-stream' },
-            body: file,
-        });
-        if (!res.ok) throw new Error(await res.text().catch(() => 'Upload failed'));
-        return (await res.json()).url;
+    // Large photos are shrunk on the device first (shrinkImage), and the
+    // upload gives up after two minutes rather than hanging on a dead
+    // connection.
+    const uploadImage = async (original) => {
+        const file = await shrinkImage(original);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 120000);
+        try {
+            const res = await fetch('/api/images', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': file.type || 'application/octet-stream' },
+                body: file,
+                signal: controller.signal,
+            });
+            if (!res.ok) throw new Error(await res.text().catch(() => 'Upload failed'));
+            return (await res.json()).url;
+        } catch (err) {
+            if (err.name === 'AbortError') throw new Error('The upload took too long. Check your connection and try again.');
+            if (err instanceof TypeError) throw new Error("Couldn't reach the server. Check your connection and try again.");
+            throw err;
+        } finally {
+            clearTimeout(timer);
+        }
     };
 
     const insertImageFile = async (file) => {

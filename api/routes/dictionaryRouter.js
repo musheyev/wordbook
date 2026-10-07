@@ -5,6 +5,9 @@ const ex = require("../word-examples");
 const uh = require("../user-history");
 const wn = require("../word-notes");
 const sv = require("../source-votes");
+const userImages = require("../user-word-images");
+const wordbookStore = require("../wordbook");
+const { getCurentUserFromToken } = require("../auth");
 const curation = require("../image-curation");
 const { requireAdmin } = require("../cognitoUsers");
 const { handle: curationHandle } = require("./adminRouter");
@@ -16,6 +19,34 @@ const normalizeWord = (word) => String(word || "").trim().toLowerCase();
 const log = require("../logger");
 
 let dictionaryRouter = express.Router();
+
+/**
+ * The signed-in user's own data for a word (see the lookup route). Never
+ * rejects: a part that fails is simply missing.
+ *
+ * @returns {Promise<{note?, sourceVotes?, myImages?, notebooks?}|null>}
+ */
+async function personalWordData(token, word) {
+    let userName;
+    try {
+        userName = await getCurentUserFromToken(token);
+    } catch (err) {
+        return null; // expired login: the lookup still works without it
+    }
+    const settle = (promise) => promise.then((value) => ({ ok: true, value }), () => ({ ok: false }));
+    const [note, votes, mine, notebooks] = await Promise.all([
+        settle(wn.getWordNote(token, word)),
+        settle(sv.getSourceVotes(token, word)),
+        settle(userImages.listImages(userName, word)),
+        settle(wordbookStore.listOfWordbooksForWord(token, word)),
+    ]);
+    const personal = {};
+    if (note.ok) personal.note = note.value || null;
+    if (votes.ok) personal.sourceVotes = votes.value || {};
+    if (mine.ok) personal.myImages = mine.value || [];
+    if (notebooks.ok) personal.notebooks = Array.isArray(notebooks.value) ? notebooks.value : [];
+    return personal;
+}
 
 // ---------------------------------------------------------------------------
 // Image curation on a word page (admins only; see image-curation.js).
@@ -279,6 +310,16 @@ dictionaryRouter.get("", function (req, res) {
 
         const token = req.cookies.id_token;
 
+        // The signed-in user's own things for this word, sent with the lookup
+        // so the word page needs one request instead of five on a slow
+        // connection: their note, source thumbs, own images, and which of
+        // their notebooks hold the word. Each part that fails is left out
+        // rather than failing the lookup (the app then fetches it alone).
+        const originalWord = String(req.query.search).trim();
+        const personalPromise = (shouldSendJson === 'y' && token)
+            ? personalWordData(token, originalWord)
+            : Promise.resolve(null);
+
         // Check whether the word is new before anything else starts: a new
         // word's definitions get saved during this lookup, after which it
         // would look like a word seen before. Only new words search for
@@ -289,14 +330,18 @@ dictionaryRouter.get("", function (req, res) {
                 wordnik.getWordDefinitions(wordToSearch),
                 ex.getExamples(wordToSearch),
             ]))
-            .then(([images, definitions, { examples }]) => {
+            .then(async ([images, definitions, { examples }]) => {
 
                 if (token != undefined) {
                     uh.saveUserHistoryToDynamoDb(wordToSearch, token);
                 }
 
                 if (shouldSendJson == 'y') {
-                    res.send(JSON.stringify({ definitions: definitions, images: images, examples }));
+                    const personal = await personalPromise;
+                    res.send(JSON.stringify({
+                        definitions: definitions, images: images, examples,
+                        ...(personal ? { personal } : {}),
+                    }));
                 }
                 else {
                     log("about to render");

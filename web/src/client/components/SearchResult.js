@@ -50,12 +50,22 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
         ? sourceOrder.filter((name) => name in defsObj).map((name) => [name, defsObj[name]])
         : Object.entries(defsObj);
 
-    // On word change: reset, then load this user's votes for the word.
+    // On word change: reset, then this user's votes for the word. They come
+    // with the word lookup (wordData.personal) when signed in; only if they
+    // didn't (an older server) are they fetched on their own.
+    const lookedUp = wordData ? wordData.word : null;
+    const personalVotes = wordData && wordData.personal ? wordData.personal.sourceVotes : undefined;
     React.useEffect(() => {
         setSourceOrder(null);
         setVotesLoaded(false);
         setSourceVotes({});
-        if (!currentWord || auth === '') { setVotesLoaded(true); return; }
+        if (!currentWord || auth === '') { setVotesLoaded(true); return undefined; }
+        if (lookedUp !== currentWord) return undefined; // wait for the lookup
+        if (personalVotes !== undefined) {
+            setSourceVotes(personalVotes || {});
+            setVotesLoaded(true);
+            return undefined;
+        }
         let cancelled = false;
         fetchSourceVotes(currentWord).then((v) => {
             if (cancelled) return;
@@ -63,7 +73,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
             setVotesLoaded(true);
         });
         return () => { cancelled = true; };
-    }, [currentWord, auth]);
+    }, [currentWord, auth, lookedUp]);
 
     // Freeze the source order ONCE per word, once both the definitions and the
     // votes are available. Liked (+1) first, disliked (-1) last, others in
@@ -154,10 +164,12 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
             }, [auth]
         );
 
+        // Which notebooks hold this item. A word's come with its lookup
+        // (fetchWordData); a note's are fetched here.
         React.useEffect(
             () => {
-                fetchWordWordbooks(currentWord);
-            }, [auth, currentWord]
+                if (currentWordType === 'card') fetchWordWordbooks(currentWord);
+            }, [auth, currentWord, currentWordType]
         );
     }
 

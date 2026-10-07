@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import {
-    deleteWordImage, restoreWordImage, fetchMyWordImages, uploadWordImage,
+    deleteWordImage, restoreWordImage, uploadWordImage,
     removeMyWordImage, restoreMyWordImage, shareMyWordImage, fetchImageSearchEnabled,
 } from '../actions';
 import RefreshImagesDialog from './RefreshImagesDialog';
@@ -28,7 +28,7 @@ const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 function WordImages({
     word, images, myWordImages, isAdmin, auth, imageSearchEnabled,
-    deleteWordImage, restoreWordImage, fetchMyWordImages, uploadWordImage,
+    deleteWordImage, restoreWordImage, uploadWordImage,
     removeMyWordImage, restoreMyWordImage, shareMyWordImage, fetchImageSearchEnabled,
 }) {
     const shared = Array.isArray(images) ? images : [];
@@ -45,12 +45,12 @@ function WordImages({
     const [uploading, setUploading] = useState(false);
     const undoTimer = useRef(null);
 
+    // The user's own images come with the word lookup (fetchWordData).
     useEffect(() => {
         setBroken(new Set());
         setUndo(null);
         setError('');
-        if (loggedIn && word) fetchMyWordImages(word);
-    }, [word, loggedIn, fetchMyWordImages]);
+    }, [word]);
 
     useEffect(() => {
         if (isAdmin && imageSearchEnabled === null) fetchImageSearchEnabled();
@@ -220,6 +220,6 @@ function mapStateToProps({ isAdmin, auth, myWordImages, imageSearchEnabled }) {
 }
 
 export default connect(mapStateToProps, {
-    deleteWordImage, restoreWordImage, fetchMyWordImages, uploadWordImage,
+    deleteWordImage, restoreWordImage, uploadWordImage,
     removeMyWordImage, restoreMyWordImage, shareMyWordImage, fetchImageSearchEnabled,
 })(WordImages);

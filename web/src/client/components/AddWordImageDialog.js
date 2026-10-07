@@ -15,7 +15,10 @@ import { uploadWordImage, addWordImageFromLink } from '../actions';
 // shared images instead of their own.
 
 const TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-const MAX_BYTES = 12 * 1024 * 1024;
+// Large photos are shrunk before upload (utils/shrinkImage), so they're
+// allowed well past the server's 12 MB limit; GIFs aren't shrunk.
+const MAX_BYTES = 40 * 1024 * 1024;
+const MAX_GIF_BYTES = 12 * 1024 * 1024;
 const isWebAddress = (text) => /^https?:\/\/\S+\.\S+/i.test(text.trim());
 
 function AddWordImageDialog({ open, word, isAdmin, onClose, uploadWordImage, addWordImageFromLink }) {
@@ -57,7 +60,8 @@ function AddWordImageDialog({ open, word, isAdmin, onClose, uploadWordImage, add
         setError('');
         if (!candidate) return;
         if (!TYPES.includes(candidate.type)) { setError('Choose a PNG, JPEG, GIF or WebP image.'); return; }
-        if (candidate.size > MAX_BYTES) { setError('That image is larger than 12 MB.'); return; }
+        if (candidate.type === 'image/gif' && candidate.size > MAX_GIF_BYTES) { setError('That GIF is larger than 12 MB.'); return; }
+        if (candidate.size > MAX_BYTES) { setError('That image is larger than 40 MB.'); return; }
         setTab('device');
         setFile(candidate);
     };
@@ -134,7 +138,7 @@ function AddWordImageDialog({ open, word, isAdmin, onClose, uploadWordImage, add
                                     <span className="add-image__choose">Choose an image…</span>
                                     <span className="add-image__desktop-hint"> or drop or paste one here</span>
                                 </span>
-                                <span className="add-image__small">PNG, JPEG, GIF or WebP, up to 12 MB</span>
+                                <span className="add-image__small">PNG, JPEG, GIF or WebP. Large photos are made smaller before uploading.</span>
                             </>
                         )}
                         <input ref={fileInput} type="file" hidden accept={TYPES.join(',')}

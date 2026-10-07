@@ -1,3 +1,4 @@
+import shrinkImage from '../utils/shrinkImage';
 import axios from 'axios';
 
 export const FETCH_USERS = 'fetch_users';
@@ -81,11 +82,6 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
     dispatch({ type: PROMOTE_HISTORY_WORD, payload: normalized });
   }
 
-  // The user's personal note for this word (logged-in only), shown above defs.
-  if (getState().auth) {
-    dispatch(fetchWordNote(word));
-  }
-
   let data;
   try {
     data = (await api.get(`/dictionary?search=${encodeURIComponent(word)}&json=y`)).data;
@@ -100,6 +96,29 @@ export const fetchWordData = (word) => async (dispatch, getState, api) => {
     type: FETCH_WORD_DATA,
     payload: { data: { ...data, word } }
   });
+
+  // Signed in: the lookup also brought the user's own things for this word
+  // (one request instead of five on a slow connection): their note, own
+  // images, and which notebooks hold it. Source thumbs are read from the
+  // word data by SearchResult. Anything missing (an older server, or a part
+  // that failed there) is fetched on its own as before.
+  if (!getState().auth || data.Error) return;
+  const personal = data.personal || {};
+  if ('note' in personal) {
+    dispatch({ type: SET_WORD_NOTE, payload: { word, content: personal.note || null } });
+  } else {
+    dispatch(fetchWordNote(word));
+  }
+  if (Array.isArray(personal.myImages)) {
+    dispatch({ type: SET_MY_WORD_IMAGES, payload: { word, images: personal.myImages } });
+  } else {
+    dispatch(fetchMyWordImages(word));
+  }
+  if (Array.isArray(personal.notebooks)) {
+    dispatch({ type: FETCH_WORD_WORDBOOKS, payload: { data: personal.notebooks } });
+  } else {
+    dispatch(fetchWordWordbooks(word));
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -859,7 +878,8 @@ const applyWordImageReply = (dispatch, getState, word, data) => {
 
 // Add an image from the device. `shared` (admins): straight into the word's
 // shared images. Rejects with the server's message.
-export const uploadWordImage = (word, file, shared) => async (dispatch, getState, api) => {
+export const uploadWordImage = (word, original, shared) => async (dispatch, getState, api) => {
+  const file = await shrinkImage(original); // large photos get much smaller
   try {
     const res = await api.post(
       `/word-images/upload?word=${encodeURIComponent(word)}${shared ? '&shared=1' : ''}`,
