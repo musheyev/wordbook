@@ -301,13 +301,37 @@ function handler(event) {
     // 6. DEPLOY THE SPA — upload web/dist to the bucket and invalidate the CDN
     //    cache so the new build is served immediately.
     //    (Run `npm run build` in ../web first, or `cdk deploy` will fail here.)
+    //
+    //    Two uploads, so browsers cache each file the right way:
+    //      assets/*    Vite puts a content hash in every name (index-AbC123.js),
+    //                  so a file's content never changes: browsers keep it a
+    //                  year and never ask again. A new build has new names.
+    //      index.html  same name every build: browsers must check with the
+    //                  server each time (a quick "not modified" when unchanged),
+    //                  so a deploy reaches everyone on their next visit instead
+    //                  of whenever their browser's cached copy expires.
+    //    The assets go first, so the new index.html never points at files that
+    //    aren't uploaded yet. (Excluded files are also left alone by the first
+    //    upload's pruning.)
     // =========================================================================
-    new s3deploy.BucketDeployment(this, 'DeploySpa', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '..', '..', 'web', 'dist'))],
+    const distDir = path.join(__dirname, '..', '..', 'web', 'dist');
+    const deployAssets = new s3deploy.BucketDeployment(this, 'DeploySpa', {
+      sources: [s3deploy.Source.asset(distDir)],
       destinationBucket: siteBucket,
+      exclude: ['index.html'],
+      cacheControl: [s3deploy.CacheControl.fromString('public, max-age=31536000, immutable')],
+    });
+    const deployIndex = new s3deploy.BucketDeployment(this, 'DeploySpaIndex', {
+      sources: [s3deploy.Source.asset(distDir)],
+      destinationBucket: siteBucket,
+      exclude: ['*'],
+      include: ['index.html'],
+      prune: false,
+      cacheControl: [s3deploy.CacheControl.fromString('no-cache')],
       distribution,
       distributionPaths: ['/*'],
     });
+    deployIndex.node.addDependency(deployAssets);
 
     // -------------------------------------------------------------------------
     // Outputs — printed after `cdk deploy` so you know the URLs.
