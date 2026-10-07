@@ -51,7 +51,10 @@ export class WordbookStack extends cdk.Stack {
 
     // -------------------------------------------------------------------------
     // Optional custom domain (e.g. makeyourwordbook.com).
-    //   Pass with:  cdk deploy -c domainName=makeyourwordbook.com
+    //   Set in cdk.json ("context": { "domainName": ... }), so a plain
+    //   `cdk deploy` always keeps it. A deploy WITHOUT it removes the domain
+    //   from CloudFront and deletes its DNS records, taking the site off its
+    //   address. (`-c domainName=…` on the command line overrides cdk.json.)
     //   The domain's public hosted zone must already exist in Route 53 (this
     //   account). Given just the domain, the stack looks up that zone, creates a
     //   DNS-validated ACM cert in us-east-1 (CloudFront requirement), and adds
