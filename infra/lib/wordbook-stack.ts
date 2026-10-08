@@ -43,6 +43,10 @@ const DYNAMO_TABLES = [
   'dictionary_user_word_images',
   // App-wide settings admins change, e.g. image search on/off (api/app-settings.js). PK setting_id.
   'dictionary_app_settings',
+  // Which read-aloud audio each item uses, and audio items stopped using
+  // (api/tts-refs.js). PK item_key + SK user_name; PK audio_key.
+  'dictionary_tts_refs',
+  'dictionary_tts_released',
 ];
 
 export class WordbookStack extends cdk.Stack {

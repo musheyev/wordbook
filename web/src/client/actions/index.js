@@ -973,6 +973,24 @@ export const clearImageArchive = () => async (dispatch, getState, api) => {
   catch (err) { throw adminErr(err, "Couldn't clear the archive."); }
 };
 
+// --- Read-aloud audio cleanup (admin): archive unused / restore all / clear archive ---
+export const getAudioArchive = () => async (dispatch, getState, api) => {
+  try { return (await api.get('/admin/audio-archive')).data; }
+  catch (err) { throw adminErr(err, "Couldn't load the audio status."); }
+};
+export const sweepAudioArchive = () => async (dispatch, getState, api) => {
+  try { return (await api.post('/admin/audio-archive/sweep', {}, { ...JSON_HEADERS, timeout: 120000 })).data; }
+  catch (err) { throw adminErr(err, "Couldn't archive audio."); }
+};
+export const restoreAudioArchive = () => async (dispatch, getState, api) => {
+  try { return (await api.post('/admin/audio-archive/restore', {}, { ...JSON_HEADERS, timeout: 120000 })).data; }
+  catch (err) { throw adminErr(err, "Couldn't restore audio."); }
+};
+export const clearAudioArchive = () => async (dispatch, getState, api) => {
+  try { return (await api.post('/admin/audio-archive/clear', {}, JSON_HEADERS)).data; }
+  catch (err) { throw adminErr(err, "Couldn't clear the audio archive."); }
+};
+
 export const FETCH_WORD_WORDBOOKS = 'fetch_word_wordbooks';
 export const fetchWordWordbooks = (word) => async (dispatch, getState, api) => {
   console.log("fetchWordWordbooks called");

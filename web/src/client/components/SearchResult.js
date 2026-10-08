@@ -5,6 +5,7 @@ import Definition from './Definition';
 import Spinner from './Spinner';
 import LoadError from './LoadError';
 import useDraft from '../utils/useDraft';
+import { reportNoteAudio } from '../utils/ttsPlayer';
 import { timeAgo } from '../utils/timeAgo';
 import AddToCardbook from './AddToCardbook';
 import ReadAloud from './ReadAloud';
@@ -12,7 +13,7 @@ import RichTextEditor from './LazyRichTextEditor';
 import ItemTags from './ItemTags';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
-import { htmlToChunks, htmlToPlainText, textToChunks } from '../utils/tts';
+import { htmlToChunks, htmlToPlainText, textToChunks, cardChunks, tagItem } from '../utils/tts';
 import TranslateMenu from './TranslateMenu';
 import ShareDialog from './ShareDialog';
 import WordImages from './WordImages';
@@ -130,6 +131,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                 if (hasNote) await deleteWordNote(currentWord);
             } else {
                 await saveWordNote(currentWord, noteDraft);
+                reportNoteAudio(`wordnote:${currentWord}`, noteDraft);
             }
             noteDraftStore.clear();
             setEditingNote(false);
@@ -239,7 +241,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             onClick={() => setConfirmingDelete(true)}>
                             <i className="trash alternate outline icon"></i>
                         </button>
-                        <ReadAloud getChunks={() => htmlToChunks(currentCard.content)} title={currentCard.title} />
+                        <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title} />
                         {addToWordbookControl}
                         {shareControl}
                     </div>
@@ -284,11 +286,12 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                                         // definitions — matching the order shown on screen.
                                         const defs = htmlToPlainText(
                                             sources.map(([, list]) => list).flat().join(' '));
-                                        return [
-                                            ...textToChunks(`${currentWord}.`),
-                                            ...(hasNote ? htmlToChunks(noteContent) : []),
-                                            ...textToChunks(defs),
-                                        ];
+                                        // Tagged by item so the server can track
+                                        // each one's audio (utils/tts.js tagItem).
+                                        const word = tagItem([...textToChunks(`${currentWord}.`)], `worddefs:${currentWord}`);
+                                        const note = hasNote ? tagItem(htmlToChunks(noteContent), `wordnote:${currentWord}`) : [];
+                                        const definitions = tagItem(textToChunks(defs), `worddefs:${currentWord}`);
+                                        return [...word, ...note, ...definitions];
                                     }} />
                                 {auth != "" && !hasNote && !editingNote && (
                                     <button className="card-tool" title="Add note" aria-label="Add note"

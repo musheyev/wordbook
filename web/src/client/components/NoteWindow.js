@@ -3,7 +3,7 @@ import { connect } from 'react-redux';
 import { getCardContent, closeNoteWindow, focusNoteWindow } from '../actions';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { renderMathIn } from '../utils/math';
-import { htmlToChunks } from '../utils/tts';
+import { cardChunks } from '../utils/tts';
 import ReadAloud from './ReadAloud';
 
 // Default (deliberately roomy) window size, clamped to the viewport.
@@ -93,7 +93,7 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
                 <span className="note-window__title">{win.title}</span>
                 <span className="note-window__tools" onPointerDown={(e) => e.stopPropagation()}>
                     {content != null && !failed && (
-                        <ReadAloud title={win.title} getChunks={() => htmlToChunks(content)} />
+                        <ReadAloud title={win.title} getChunks={() => cardChunks({ card_id: win.cardId, content })} />
                     )}
                     <button type="button" className="card-tool" title={maximized ? 'Restore' : 'Maximize'}
                         aria-label={maximized ? 'Restore' : 'Maximize'} onClick={() => setMaximized((m) => !m)}>

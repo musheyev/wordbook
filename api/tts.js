@@ -31,6 +31,20 @@ function s3() {
     return _s3;
 }
 
+/**
+ * Where a piece of audio is stored: "tts/<hash>.mp3", the hash of voice +
+ * language + text. The same sentence in the same voice is one file, however
+ * many notes use it. tts-refs.js uses this to know which files an item uses.
+ *
+ * @param {{text: string, languageCode: string, voiceName?: string}} chunk
+ * @returns {string}
+ */
+function audioKey({ text, languageCode, voiceName }) {
+    const clean = String(text || "").slice(0, MAX_CHARS);
+    return "tts/" + crypto.createHash("sha256")
+        .update(`${voiceName || "auto"}|${languageCode}|${clean}`).digest("hex") + ".mp3";
+}
+
 async function cacheGet(key) {
     const client = s3();
     if (!client) return null;
@@ -76,8 +90,7 @@ async function synthesize({ text, languageCode, voiceName }) {
         throw e;
     }
 
-    const cacheKey = "tts/" + crypto.createHash("sha256")
-        .update(`${voiceName || "auto"}|${languageCode}|${clean}`).digest("hex") + ".mp3";
+    const cacheKey = audioKey({ text, languageCode, voiceName });
 
     const cached = await cacheGet(cacheKey);
     if (cached) return cached;
@@ -117,4 +130,5 @@ async function listVoices(languageCode) {
     return res.data.voices || [];
 }
 
-module.exports = { synthesize, listVoices, isConfigured, MAX_CHARS };
+module.exports = {
+    audioKey, synthesize, listVoices, isConfigured, MAX_CHARS };

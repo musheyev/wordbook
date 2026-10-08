@@ -16,7 +16,7 @@ import NotebookOverview from '../components/NotebookOverview';
 import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
 import { itemPath, notebookPath } from '../utils/notebookPaths';
-import { htmlToChunks } from '../utils/tts';
+import { cardChunks } from '../utils/tts';
 
 const HEBREW = /[֐-׿]/;
 
@@ -80,9 +80,12 @@ function WordbookPage({
         for (const item of items) {
             if (item.type === 'card') {
                 const content = await dispatch(getCardContent(item.id));
-                htmlToChunks(content).forEach((c, i) => out.push({ ...c, title: i === 0 ? item.title : undefined }));
+                cardChunks({ card_id: item.id, content }).forEach((c, i) => out.push({ ...c, title: i === 0 ? item.title : undefined }));
             } else {
-                out.push({ text: item.title, lang: HEBREW.test(item.title) ? 'he-IL' : 'en-US', title: item.title });
+                out.push({
+                    text: item.title, lang: HEBREW.test(item.title) ? 'he-IL' : 'en-US', title: item.title,
+                    item: `wordtitle:${item.id}`,
+                });
             }
         }
         return out;

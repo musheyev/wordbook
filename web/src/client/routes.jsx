@@ -34,6 +34,7 @@ const loadOnDemand = (load) => {
 const AdminPage = loadOnDemand(() => import('./pages/AdminPage'));
 const AdminImagesPage = loadOnDemand(() => import('./pages/AdminImagesPage'));
 const AdminImageCleanupPage = loadOnDemand(() => import('./pages/AdminImageCleanupPage'));
+const AdminAudioCleanupPage = loadOnDemand(() => import('./pages/AdminAudioCleanupPage'));
 const UsersListPage = loadOnDemand(() => import('./pages/UsersListPage'));
 const AdminsListPage = loadOnDemand(() => import('./pages/AdminsListPage'));
 
@@ -55,6 +56,7 @@ export const routes = [
       { path: 'admin', Component: AdminPage },
       { path: 'admin/images', Component: AdminImagesPage },
       { path: 'admin/image-cleanup', Component: AdminImageCleanupPage },
+      { path: 'admin/audio-cleanup', Component: AdminAudioCleanupPage },
       { path: 'users', Component: UsersListPage },
       { path: 'admins', Component: AdminsListPage },
       { path: 'login', Component: LoginRedirect },

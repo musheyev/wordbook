@@ -2,6 +2,7 @@ const express = require("express");
 const wordbook = require("../wordbook.js");
 const cards = require("../cards.js");
 const userSettings = require("../user-settings.js");
+const ttsRefs = require("../tts-refs.js");
 
 let wordbookRouter = express.Router();
 
@@ -413,6 +414,10 @@ wordbookRouter.post("/card/delete", function (req, res) {
     const { id_token: token } = req.cookies;
 
     cards.deleteCard(token, card_id)
+        // The note's read-aloud audio is no longer used (cleaned up by an
+        // admin later; see tts-refs.js). Never fails the delete.
+        .then(() => ttsRefs.removeItem(`card:${card_id}`)
+            .catch((err) => console.log(`tts refs cleanup error: ${err.name}`)))
         .then(() => res.status(200).send("Done"))
         .catch((err) => {
             console.log(`card/delete error: ${err.name}`);

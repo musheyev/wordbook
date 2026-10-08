@@ -109,7 +109,7 @@ async function listUnder(prefix, { flat = false } = {}) {
         const page = await client.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: prefix, ContinuationToken }));
         (page.Contents || []).forEach((o) => {
             const name = o.Key.slice(prefix.length);
-            if (name && !(flat && name.includes("/"))) out.push({ name, lastModified: o.LastModified });
+            if (name && !(flat && name.includes("/"))) out.push({ name, lastModified: o.LastModified, size: o.Size });
         });
         ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
     } while (ContinuationToken);
@@ -180,28 +180,44 @@ async function restoreAll() {
     return { restored: notes.length + words.length };
 }
 
-// Permanently delete everything in the archive.
-async function clearArchive() {
-    needBucket();
+// Every archived image: note images (archive/<name>) and word images
+// (archive/word-images/<name>), as full keys. Archived audio (archive/tts/,
+// tts-gc.js) isn't included.
+async function archivedImageKeys() {
+    const notes = (await listUnder(ARCHIVE, { flat: true })).map((o) => ARCHIVE + o.name);
+    const words = (await listUnder(WORD_ARCHIVE, { flat: true })).map((o) => WORD_ARCHIVE + o.name);
+    return [...notes, ...words];
+}
+
+// Permanently delete keys, 1000 per request (S3's limit).
+async function deleteKeys(keys) {
     const client = s3();
     const { DeleteObjectsCommand } = require("@aws-sdk/client-s3");
-    const archived = await listUnder(ARCHIVE);
     let deleted = 0;
-    for (let i = 0; i < archived.length; i += 1000) {
-        const batch = archived.slice(i, i + 1000).map((o) => ({ Key: ARCHIVE + o.name }));
+    for (let i = 0; i < keys.length; i += 1000) {
+        const batch = keys.slice(i, i + 1000).map((Key) => ({ Key }));
         if (batch.length) {
             await client.send(new DeleteObjectsCommand({ Bucket: BUCKET, Delete: { Objects: batch } }));
             deleted += batch.length;
         }
     }
-    return { deleted };
+    return deleted;
+}
+
+// Permanently delete every archived image.
+async function clearArchive() {
+    needBucket();
+    return { deleted: await deleteKeys(await archivedImageKeys()) };
 }
 
 // How many images are currently in the archive (for the admin page).
 async function archiveCount() {
     if (!isConfigured()) return { configured: false, count: 0 };
-    const archived = await listUnder(ARCHIVE);
-    return { configured: true, count: archived.length };
+    return { configured: true, count: (await archivedImageKeys()).length };
 }
 
-module.exports = { archiveOrphans, restoreAll, clearArchive, archiveCount, isConfigured };
+module.exports = {
+    archiveOrphans, restoreAll, clearArchive, archiveCount, isConfigured,
+    // shared with tts-gc.js
+    listUnder, moveObject, deleteKeys, needBucket, BUCKET,
+};

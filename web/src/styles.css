@@ -2841,3 +2841,10 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .card-editor__error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
 .card-editor__restore { background: var(--cb-accent-weak); border: 1px solid var(--cb-border); color: var(--cb-ink); }
 .card-editor__error > span, .card-editor__restore > span { flex: 1 1 240px; }
+
+/* Admin › Audio cleanup (AdminAudioCleanupPage.js). */
+.admin-cleanup__intro { color: var(--cb-ink-2); max-width: 640px; line-height: 1.5; }
+.admin-cleanup__rows { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; max-width: 640px; }
+.admin-cleanup__row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--cb-border); }
+.admin-cleanup__row > span:first-child { flex: 1 1 260px; }
+.admin-cleanup__note { color: var(--cb-ink-3); font-size: 0.9rem; }

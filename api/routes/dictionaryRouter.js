@@ -6,6 +6,7 @@ const uh = require("../user-history");
 const wn = require("../word-notes");
 const sv = require("../source-votes");
 const userImages = require("../user-word-images");
+const ttsRefs = require("../tts-refs");
 const wordbookStore = require("../wordbook");
 const { getCurentUserFromToken } = require("../auth");
 const curation = require("../image-curation");
@@ -236,6 +237,10 @@ dictionaryRouter.post("/note/delete", function (req, res) {
     const word = req.body.word;
     if (!word) return res.status(400).json({ error: "word is required" });
     wn.deleteWordNote(token, word)
+        // That note's read-aloud audio is no longer used (see tts-refs.js).
+        .then(() => getCurentUserFromToken(token)
+            .then((userName) => ttsRefs.removeUserItem(userName, `wordnote:${word}`))
+            .catch((err) => log("tts refs cleanup error: " + err)))
         .then(() => res.json({ content: null }))
         .catch((error) => {
             log("word note delete error: " + error);

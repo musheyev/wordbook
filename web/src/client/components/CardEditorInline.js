@@ -4,6 +4,7 @@ import { closeCardEditor, createCard, updateCard, deleteCard, requestErrorMessag
 import RichTextEditor from './LazyRichTextEditor';
 import AddToCardbook from './AddToCardbook';
 import useDraft from '../utils/useDraft';
+import { reportNoteAudio } from '../utils/ttsPlayer';
 import { timeAgo } from '../utils/timeAgo';
 
 // In-place card editor. Rendered inside the detail pane (no modal/overlay) so
@@ -63,12 +64,14 @@ function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, 
             if (isEdit) {
                 await updateCard(card.card_id, title, content);
                 draft.clear();
+                reportNoteAudio(`card:${card.card_id}`, content);
             } else {
                 const targets = [];
                 if (currentWordbook) targets.push(currentWordbook);
                 extras.forEach((w) => { if (!targets.includes(w)) targets.push(w); });
                 const created = await createCard(title, content, targets);
                 draft.clear();
+                if (created && created.card_id) reportNoteAudio(`card:${created.card_id}`, content);
                 if (created && onCreated) onCreated(created);
             }
         } catch (err) {

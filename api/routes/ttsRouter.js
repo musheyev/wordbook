@@ -3,11 +3,15 @@
  *
  *   GET  /tts/voices?lang=en-US   -> { voices: [...] }  available voices
  *   POST /tts   { text, languageCode, voiceName }  -> audio/mpeg bytes
+ *   POST /tts/item { item, chunks: [{ text, languageCode, voiceName }] }
+ *        what an item (a note, a word…) is read as now, so audio it no
+ *        longer uses can be cleaned up (../tts-refs.js) -> { audio, released }
  *
  * Signed-in only: keeps the Google key server-side and lets us attribute usage.
  */
 const express = require("express");
 const tts = require("../tts");
+const ttsRefs = require("../tts-refs");
 const log = require("../logger");
 const { getCurentUserFromToken } = require("../auth");
 
@@ -53,6 +57,17 @@ ttsRouter.post("/", async (req, res) => {
         }
         log("tts synth error: " + (err.response ? JSON.stringify(err.response.data) : err));
         res.status(502).end("Could not generate audio.");
+    }
+});
+
+ttsRouter.post("/item", async (req, res) => {
+    const { item, chunks } = req.body || {};
+    try {
+        res.json(await ttsRefs.setItemAudio(req.userName, item, chunks));
+    } catch (err) {
+        if (err instanceof ttsRefs.TtsRefsError) return res.status(err.status).end(err.message);
+        log("tts item error: " + err);
+        res.status(500).end("Could not save the item's audio list.");
     }
 });
 

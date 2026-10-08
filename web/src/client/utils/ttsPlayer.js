@@ -2,7 +2,7 @@
 // sentence/language-run) by fetching MP3s from /api/tts and chaining them on one
 // reused <audio> element, so playback continues in the background / on the iOS
 // lock screen and shows Media Session controls (play/pause/next/prev).
-import { getChosenVoices, getChosenSpeeds } from './tts';
+import { getChosenVoices, getChosenSpeeds, htmlToChunks } from './tts';
 
 let audioEl = null;
 function getAudio() {
@@ -29,13 +29,52 @@ function silentUrl() {
     return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
 }
 
+// The voice a chunk is read in: a voice chosen for that text in the note
+// (chunk.voice), else this device's choice for its language, else Google's
+// default for the language (undefined).
+const voiceFor = (chunk) => chunk.voice || getChosenVoices()[chunk.lang] || undefined;
+
+const asRequest = (chunk) => ({ text: chunk.text, languageCode: chunk.lang, voiceName: voiceFor(chunk) });
+
+/**
+ * Tell the server which audio an item uses now (api/tts-refs.js), so audio it
+ * no longer uses (after an edit, a language or voice change) can be cleaned
+ * up by an admin. Best effort: a failure only means that audio isn't cleaned
+ * up yet. `chunks` are the item's chunks exactly as they'd be read.
+ *
+ * @param {string} item e.g. "card:<card_id>"
+ * @param {Array} chunks
+ */
+export function reportItemAudio(item, chunks) {
+    if (!item) return;
+    fetch('/api/tts/item', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ item, chunks: chunks.map(asRequest) }),
+    }).catch(() => {});
+}
+
+// After saving a note (or a word's own note): its audio list as of now.
+export const reportNoteAudio = (item, html) => reportItemAudio(item, htmlToChunks(html));
+
+// Report every item a reading covers (chunks tagged with tagItem).
+function reportItems(chunks) {
+    const byItem = new Map();
+    chunks.forEach((c) => {
+        if (!c.item) return;
+        if (!byItem.has(c.item)) byItem.set(c.item, []);
+        byItem.get(c.item).push(c);
+    });
+    byItem.forEach((list, item) => reportItemAudio(item, list));
+}
+
 async function fetchChunkUrl(chunk) {
-    const voices = getChosenVoices();
     const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ text: chunk.text, languageCode: chunk.lang, voiceName: voices[chunk.lang] }),
+        body: JSON.stringify(asRequest(chunk)),
     });
     if (!res.ok) {
         const msg = await res.text().catch(() => '');
@@ -95,6 +134,7 @@ class TtsPlayer {
         this.title = meta.title || '';
         this.error = '';
         if (this.queue.length === 0) { this.status = 'idle'; this._emit(); return; }
+        reportItems(this.queue);
         this._bind();
         this._setSessionHandlers();
         await this._playIdx(0);

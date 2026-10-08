@@ -140,3 +140,13 @@ export function setChosenSpeed(lang, speed) {
     if (speed && speed !== 1) v[lang] = speed; else delete v[lang];
     try { localStorage.setItem(SPEED_KEY, JSON.stringify(v)); } catch (e) { /* ignore */ }
 }
+
+// Which item a chunk belongs to, so the server can track the audio each item
+// uses and an admin can clean up audio no item uses any more (api/tts-refs.js).
+//   card:<card_id>   a note              wordnote:<word>   your note on a word
+//   worddefs:<word>  a word's page       wordtitle:<word>  just the word
+export const tagItem = (chunks, item) => chunks.map((c) => ({ ...c, item }));
+
+// A note read aloud: the same chunks wherever it's read (its page, a note
+// window, a notebook's "Play all"), so its audio list doesn't flip-flop.
+export const cardChunks = (card) => tagItem(htmlToChunks(card.content), `card:${card.card_id}`);

@@ -14,6 +14,7 @@ const { requireAdmin } = require("../cognitoUsers");
 const curation = require("../image-curation");
 const imageGc = require("../image-gc");
 const appSettings = require("../app-settings");
+const ttsGc = require("../tts-gc");
 const { decodeToken } = require("../auth");
 const log = require("../logger");
 
@@ -84,6 +85,34 @@ adminRouter.post("/image-archive/restore", handle(async (req, res) => {
 adminRouter.post("/image-archive/clear", handle(async (req, res) => {
     if (!needImages(res)) return;
     res.json(await imageGc.clearArchive());
+}));
+
+// --- Read-aloud audio cleanup (archive / restore / clear). See ../tts-gc.js. ---
+const needAudioStorage = (res) => {
+    if (!ttsGc.isConfigured()) {
+        res.status(503).json({ error: "Audio storage isn't configured on the server." });
+        return false;
+    }
+    return true;
+};
+
+adminRouter.get("/audio-archive", handle(async (req, res) => {
+    res.json(await ttsGc.status());
+}));
+
+adminRouter.post("/audio-archive/sweep", handle(async (req, res) => {
+    if (!needAudioStorage(res)) return;
+    res.json(await ttsGc.archiveUnused());
+}));
+
+adminRouter.post("/audio-archive/restore", handle(async (req, res) => {
+    if (!needAudioStorage(res)) return;
+    res.json(await ttsGc.restoreAll());
+}));
+
+adminRouter.post("/audio-archive/clear", handle(async (req, res) => {
+    if (!needAudioStorage(res)) return;
+    res.json(await ttsGc.clearArchive());
 }));
 
 module.exports = { adminRouter, handle };
