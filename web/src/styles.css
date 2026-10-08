@@ -885,6 +885,17 @@ nav-button-as-link {
 .read-aloud__voice:hover { background: var(--cb-surface); }
 .read-aloud__voice.on { background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 500; }
 .read-aloud__none { padding: 6px 8px; font-size: 0.8rem; color: var(--cb-ink-3); }
+/* "Voice for [language]" at the top of the voice picker; • marks languages
+   with a chosen voice. Sticky so it stays visible while the list scrolls. */
+.read-aloud__lang-pick {
+  position: sticky; top: -8px; z-index: 1; display: flex; align-items: center; gap: 8px;
+  margin: -8px -8px 4px; padding: 8px; background: var(--cb-surface-2);
+  border-bottom: 1px solid var(--cb-border); font-size: 0.8rem; color: var(--cb-ink-3);
+}
+.read-aloud__lang-pick select {
+  flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid var(--cb-border-strong);
+  border-radius: var(--cb-radius-sm); background: var(--cb-surface-2); color: var(--cb-ink); font-size: 0.85rem;
+}
 .read-aloud__error { font-size: 0.8rem; color: var(--cb-danger); }
 .card-tool--google { color: #4285f4; text-decoration: none; }
 .card-tool--google:hover { color: #4285f4; }
@@ -1810,6 +1821,30 @@ nav-button-as-link {
   margin-right: 2px;
   opacity: 0.6;
 }
+/* Text marked "read aloud in <language>" (editor/ttsLang.js): a light tint per
+   language plus a dotted underline (so it isn't mistaken for a highlight),
+   shown ONLY in the editor. Notes being read show plain text. */
+.rte-content .ProseMirror .tts-lang { border-radius: 3px; border-bottom: 1.5px dotted; }
+.rte-content .ProseMirror .tts-lang[lang="es-ES"] { background: #fbe3d9; border-bottom-color: #c2532b; }
+.rte-content .ProseMirror .tts-lang[lang="es-US"] { background: #fdefc8; border-bottom-color: #c98a12; }
+.rte-content .ProseMirror .tts-lang[lang="fr-FR"] { background: #e6e3fb; border-bottom-color: #534ab7; }
+.rte-content .ProseMirror .tts-lang[lang="it-IT"] { background: #ddf2e8; border-bottom-color: #0f6e56; }
+/* The language menu: a list, not the highlight menu's colour grid. */
+.rte-lang__pop { display: flex; flex-direction: column; gap: 0; min-width: 230px; padding: 4px; }
+.rte-lang__item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 10px; border: none; border-radius: 6px; background: none;
+  font: inherit; font-size: 0.9rem; color: var(--cb-ink); text-align: left; cursor: pointer;
+}
+.rte-lang__item:hover { background: #f2f4f8; }
+.rte-lang__item.on { font-weight: 600; }
+.rte-lang__hint { font-size: 0.78rem; color: var(--cb-ink-3); font-weight: 400; }
+.rte-lang__check { margin-left: auto; color: var(--cb-accent); }
+.rte-lang__dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; background: #b4b2a9; }
+.rte-lang__dot--es-ES { background: #c2532b; }
+.rte-lang__dot--es-US { background: #c98a12; }
+.rte-lang__dot--fr-FR { background: #534ab7; }
+.rte-lang__dot--it-IT { background: #0f6e56; }
 .rte-content .ProseMirror code {
   background: #f1f1f1; padding: 1px 5px; border-radius: 4px; font-family: monospace;
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ttsPlayer from '../utils/ttsPlayer';
-import { getChosenVoices, setChosenVoice } from '../utils/tts';
+import { getChosenVoices, setChosenVoice, TTS_LANGUAGES } from '../utils/tts';
 
 let uid = 0;
 
@@ -32,7 +32,10 @@ function ReadAloud({ getChunks, title, label }) {
     const [state, setState] = useState(ttsPlayer.snapshot());
     const [error, setError] = useState('');
     const [menuOpen, setMenuOpen] = useState(false);
-    const [voices, setVoices] = useState({ 'en-US': [], 'he-IL': [] });
+    // The voice picker shows one language at a time (there are six, each with
+    // many voices). "Auto" lets Google pick that language's default voice.
+    const [pickerLang, setPickerLang] = useState('en-US');
+    const [voices, setVoices] = useState({});
     const [chosen, setChosen] = useState(getChosenVoices());
 
     useEffect(() => ttsPlayer.subscribe(setState), []);
@@ -53,13 +56,17 @@ function ReadAloud({ getChunks, title, label }) {
         if (snap.error) setError(snap.error);
     };
 
-    const openMenu = async () => {
+    const showLang = async (lang) => {
+        setPickerLang(lang);
+        if (voices[lang]) return;
+        const names = rankVoices(await loadVoices(lang));
+        setVoices((prev) => ({ ...prev, [lang]: names }));
+    };
+
+    const openMenu = () => {
         const next = !menuOpen;
         setMenuOpen(next);
-        if (next) {
-            const [en, he] = await Promise.all([loadVoices('en-US'), loadVoices('he-IL')]);
-            setVoices({ 'en-US': rankVoices(en), 'he-IL': rankVoices(he) });
-        }
+        if (next) showLang(pickerLang);
     };
 
     const pick = (lang, name) => { setChosenVoice(lang, name); setChosen(getChosenVoices()); };
@@ -96,21 +103,31 @@ function ReadAloud({ getChunks, title, label }) {
                     <>
                         <div className="cb-menu__backdrop" onMouseDown={() => setMenuOpen(false)} />
                         <div className="cb-menu__list read-aloud__menu" role="menu">
-                            {['en-US', 'he-IL'].map((lang) => (
-                                <div key={lang} className="read-aloud__lang">
-                                    <div className="read-aloud__lang-label">{lang === 'he-IL' ? 'Hebrew' : 'English'}</div>
-                                    <button type="button" className={`read-aloud__voice${!chosen[lang] ? ' on' : ''}`}
-                                        onClick={() => pick(lang, '')}>Auto</button>
-                                    {voices[lang].map((name) => (
-                                        <button type="button" key={name}
-                                            className={`read-aloud__voice${chosen[lang] === name ? ' on' : ''}`}
-                                            onClick={() => pick(lang, name)}>
-                                            {name.replace(`${lang}-`, '')}
-                                        </button>
+                            <label className="read-aloud__lang-pick">
+                                Voice for
+                                <select value={pickerLang} onChange={(e) => showLang(e.target.value)}>
+                                    {TTS_LANGUAGES.map((l) => (
+                                        <option key={l.code} value={l.code}>
+                                            {l.label}{chosen[l.code] ? ' •' : ''}
+                                        </option>
                                     ))}
-                                    {voices[lang].length === 0 && <div className="read-aloud__none">No voices found</div>}
-                                </div>
-                            ))}
+                                </select>
+                            </label>
+                            <div className="read-aloud__lang">
+                                <button type="button" className={`read-aloud__voice${!chosen[pickerLang] ? ' on' : ''}`}
+                                    onClick={() => pick(pickerLang, '')}>Auto</button>
+                                {(voices[pickerLang] || []).map((name) => (
+                                    <button type="button" key={name}
+                                        className={`read-aloud__voice${chosen[pickerLang] === name ? ' on' : ''}`}
+                                        onClick={() => pick(pickerLang, name)}>
+                                        {name.replace(`${pickerLang}-`, '')}
+                                    </button>
+                                ))}
+                                {!voices[pickerLang] && <div className="read-aloud__none">Loading voices…</div>}
+                                {voices[pickerLang] && voices[pickerLang].length === 0 && (
+                                    <div className="read-aloud__none">No voices found</div>
+                                )}
+                            </div>
                         </div>
                     </>
                 )}

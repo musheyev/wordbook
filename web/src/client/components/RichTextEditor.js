@@ -11,6 +11,8 @@ import { Highlight } from '@tiptap/extension-highlight';
 import { Image } from '@tiptap/extension-image';
 import { MarkdownPaste } from './editor/markdownPaste';
 import { TtsSkip } from './editor/ttsSkip';
+import { TtsLang } from './editor/ttsLang';
+import { MARKABLE_LANGUAGES } from '../utils/tts';
 import { Indent } from './editor/indent';
 import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
@@ -119,6 +121,8 @@ const RichTextEditor = ({ value, onChange }) => {
     const [markdownPaste, setMarkdownPaste] = React.useState(false);
     // Highlight color palette popover.
     const [showHl, setShowHl] = React.useState(false);
+    // "Read in <language>" menu (next to 🔇).
+    const [showLang, setShowLang] = React.useState(false);
     // Kept current so the paste/drop handlers (defined at editor-config time) can
     // reach the editor instance, which only exists after useEditor returns.
     const editorRef = React.useRef(null);
@@ -184,6 +188,7 @@ const RichTextEditor = ({ value, onChange }) => {
             Markdown,
             MarkdownPaste,
             TtsSkip,
+            TtsLang,
             // TextStyle must come before FontFamily/FontSize (they add attributes
             // to its mark). Highlight is multicolor so it can store a chosen color.
             TextStyle,
@@ -353,6 +358,43 @@ const RichTextEditor = ({ value, onChange }) => {
                     onClick={() => editor.chain().focus().toggleCode().run()} />
                 <Btn label="🔇" title="Don't read aloud (mute for text-to-speech)" active={editor.isActive('ttsSkip')}
                     onClick={() => editor.chain().focus().toggleTtsSkip().run()} />
+                {/* Read-aloud language for the selection: Automatic (English, or
+                    Hebrew by its letters) or a marked language (editor/ttsLang.js). */}
+                <span className="rte-hl">
+                    {(() => {
+                        const current = editor.getAttributes('ttsLang').lang;
+                        const label = (MARKABLE_LANGUAGES.find((l) => l.code === current) || {}).label;
+                        return (
+                            <button type="button" className={`rte-btn${label ? ' active' : ''}`}
+                                title={label ? `Read aloud in ${label}` : 'Read aloud in another language'}
+                                aria-haspopup="true" aria-expanded={showLang}
+                                onMouseDown={(e) => e.preventDefault()} onClick={() => setShowLang((v) => !v)}>
+                                🗣{label ? ` ${label}` : ''}<span className="rte-hl__caret">▾</span>
+                            </button>
+                        );
+                    })()}
+                    {showLang && (
+                        <>
+                            <div className="rte-hl__backdrop" onMouseDown={() => setShowLang(false)} />
+                            <div className="rte-hl__pop rte-lang__pop" role="menu">
+                                {[{ code: null, label: 'Automatic' }, ...MARKABLE_LANGUAGES].map((l) => {
+                                    const on = (editor.getAttributes('ttsLang').lang || null) === l.code;
+                                    return (
+                                        <button type="button" key={l.code || 'auto'} role="menuitemradio" aria-checked={on}
+                                            className={`rte-lang__item${on ? ' on' : ''}`}
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => { editor.chain().focus().setTtsLang(l.code).run(); setShowLang(false); }}>
+                                            <span className={`rte-lang__dot${l.code ? ` rte-lang__dot--${l.code}` : ''}`} aria-hidden="true" />
+                                            {l.label}
+                                            {!l.code && <span className="rte-lang__hint">English / Hebrew</span>}
+                                            {on && <span className="rte-lang__check" aria-hidden="true">✓</span>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
+                </span>
                 <span className="rte-hl">
                     <button type="button" className={`rte-btn${editor.isActive('highlight') ? ' active' : ''}`}
                         title="Highlight" aria-haspopup="true" aria-expanded={showHl}
