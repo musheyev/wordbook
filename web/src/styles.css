@@ -2848,3 +2848,39 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .admin-cleanup__row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--cb-border); }
 .admin-cleanup__row > span:first-child { flex: 1 1 260px; }
 .admin-cleanup__note { color: var(--cb-ink-3); font-size: 0.9rem; }
+
+/* "Voice for selected text" (VoicePickerDialog.js) and the voice tags shared
+   with the read-aloud voice picker. */
+.voice-pick__lang { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 0.88rem; color: var(--cb-ink-2); }
+.voice-pick__lang select {
+  flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--cb-border-strong);
+  border-radius: var(--cb-radius-sm); background: var(--cb-surface-2); color: var(--cb-ink); font-size: 0.95rem;
+}
+.voice-pick__list { max-height: 320px; overflow-y: auto; border: 1px solid var(--cb-border); border-radius: var(--cb-radius-sm); }
+.voice-pick__row { display: flex; align-items: center; gap: 8px; padding: 2px 6px 2px 10px; border-bottom: 1px solid var(--cb-border); }
+.voice-pick__row:last-child { border-bottom: none; }
+.voice-pick__row.on { background: var(--cb-accent-weak); }
+.voice-pick__choice { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; font-size: 0.92rem; }
+.voice-pick__choice input { margin: 0; }
+.voice-pick__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voice-pick__gender {
+  flex-shrink: 0; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 600; line-height: 1.5;
+}
+.voice-pick__gender--female { background: #fbeaf0; color: #72243e; }
+.voice-pick__gender--male { background: #e6f1fb; color: #0c447c; }
+.voice-pick__play {
+  flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 1px solid var(--cb-border-strong);
+  border-radius: 50%; background: var(--cb-surface-2); color: var(--cb-accent); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.voice-pick__play i.icon { margin: 0; font-size: 0.85rem; }
+.voice-pick__play:hover { border-color: var(--cb-accent); }
+.voice-pick__note { padding: 10px; font-size: 0.85rem; color: var(--cb-ink-3); }
+.rte-lang__sep { height: 1px; margin: 4px 6px; background: var(--cb-border); }
+.rte-lang__icon { margin: 0 !important; width: 10px; font-size: 0.85rem !important; color: var(--cb-ink-3); }
+/* German, and English/Hebrew text given a specific voice, in the editor. */
+.rte-content .ProseMirror .tts-lang[lang="de-DE"] { background: #f1efe8; border-bottom-color: #5f5e5a; }
+.rte-content .ProseMirror .tts-lang[lang="en-US"],
+.rte-content .ProseMirror .tts-lang[lang="he-IL"] { background: #e6f1fb; border-bottom-color: #185fa5; }
+.rte-lang__dot--de-DE { background: #5f5e5a; }

@@ -1,28 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ttsPlayer from '../utils/ttsPlayer';
 import { getChosenVoices, setChosenVoice, TTS_LANGUAGES, TTS_SPEEDS, getChosenSpeeds, setChosenSpeed } from '../utils/tts';
+import { loadVoices } from '../utils/ttsVoices';
 
 let uid = 0;
-
-// Available voices per language, fetched once.
-const voicesCache = {};
-async function loadVoices(lang) {
-    if (voicesCache[lang]) return voicesCache[lang];
-    try {
-        const res = await fetch(`/api/tts/voices?lang=${encodeURIComponent(lang)}`, { credentials: 'same-origin' });
-        const data = await res.json();
-        voicesCache[lang] = (data.voices || []).map((v) => v.name);
-    } catch (e) {
-        voicesCache[lang] = [];
-    }
-    return voicesCache[lang];
-}
-
-// Prefer the most natural voices (Chirp 3 HD), then Neural2, then WaveNet.
-function rankVoices(names) {
-    const rank = (n) => (n.includes('Chirp3-HD') ? 0 : n.includes('Chirp') ? 1 : n.includes('Neural2') ? 2 : n.includes('Wavenet') ? 3 : 4);
-    return [...names].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
-}
 
 // Read-aloud control: a play/pause button, a stop button while active, and a
 // voice picker. `getChunks` returns the chunks to read (may be async, e.g. a
@@ -60,8 +41,8 @@ function ReadAloud({ getChunks, title, label }) {
     const showLang = async (lang) => {
         setPickerLang(lang);
         if (voices[lang]) return;
-        const names = rankVoices(await loadVoices(lang));
-        setVoices((prev) => ({ ...prev, [lang]: names }));
+        const list = await loadVoices(lang);
+        setVoices((prev) => ({ ...prev, [lang]: list }));
     };
 
     const openMenu = () => {
@@ -129,11 +110,12 @@ function ReadAloud({ getChunks, title, label }) {
                             <div className="read-aloud__lang">
                                 <button type="button" className={`read-aloud__voice${!chosen[pickerLang] ? ' on' : ''}`}
                                     onClick={() => pick(pickerLang, '')}>Auto</button>
-                                {(voices[pickerLang] || []).map((name) => (
-                                    <button type="button" key={name}
-                                        className={`read-aloud__voice${chosen[pickerLang] === name ? ' on' : ''}`}
-                                        onClick={() => pick(pickerLang, name)}>
-                                        {name.replace(`${pickerLang}-`, '')}
+                                {(voices[pickerLang] || []).map((v) => (
+                                    <button type="button" key={v.name}
+                                        className={`read-aloud__voice${chosen[pickerLang] === v.name ? ' on' : ''}`}
+                                        onClick={() => pick(pickerLang, v.name)}>
+                                        {v.label}
+                                        {v.gender && <span className={`voice-pick__gender voice-pick__gender--${v.gender}`}>{v.gender}</span>}
                                     </button>
                                 ))}
                                 {!voices[pickerLang] && <div className="read-aloud__none">Loading voices…</div>}

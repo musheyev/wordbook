@@ -21,9 +21,17 @@ export const TTS_LANGUAGES = [
     { code: 'es-US', label: 'Spanish (LA)' },
     { code: 'fr-FR', label: 'French' },
     { code: 'it-IT', label: 'Italian' },
+    { code: 'de-DE', label: 'German' },
 ];
 export const MARKABLE_LANGUAGES = TTS_LANGUAGES.slice(2);
-const MARKABLE_CODES = MARKABLE_LANGUAGES.map((l) => l.code);
+const ALL_CODES = TTS_LANGUAGES.map((l) => l.code);
+export const languageLabel = (code) => (TTS_LANGUAGES.find((l) => l.code === code) || {}).label || code;
+
+// A voice's name for people: "es-US-Chirp3-HD-Achernar" -> "Achernar",
+// "es-US-Neural2-A" -> "Neural2-A".
+export const voiceLabel = (name) => String(name || '')
+    .replace(/^[a-z]{2,3}-[A-Z]{2}-/, '')
+    .replace(/^Chirp3-HD-/, '');
 
 // Parse note HTML, minus everything that isn't read, with a newline after
 // each block so sentences don't run together.
@@ -91,28 +99,36 @@ export function textToChunks(text) {
     return chunksOf(text, null);
 }
 
-// The language a text node is marked with (its nearest .tts-lang), or null.
-function markedLanguage(node) {
+// How a text node is marked to be read (its nearest .tts-lang): { lang,
+// voice? }, or null. A mark can set a language (Spanish…) and optionally a
+// specific voice; English and Hebrew are only marked with a voice.
+function markedReading(node) {
     const el = node.parentElement && node.parentElement.closest('.tts-lang[lang]');
     const lang = el && el.getAttribute('lang');
-    return MARKABLE_CODES.includes(lang) ? lang : null;
+    if (!ALL_CODES.includes(lang)) return null;
+    return { lang, voice: el.getAttribute('data-voice') || undefined };
 }
+const sameReading = (a, b) => (a && b ? a.lang === b.lang && a.voice === b.voice : a === b);
 
-// Note HTML -> chunks. The text is cut into stretches of the same marked
-// language (bold, links etc. don't cut it), and each stretch is chunked on
-// its own: marked stretches in their language, the rest automatically.
+// Note HTML -> chunks. The text is cut into stretches marked the same way
+// (bold, links etc. don't cut it), and each stretch is chunked on its own:
+// marked stretches in their language (and voice, if one was chosen), the
+// rest automatically.
 export function htmlToChunks(html) {
     if (!html) return [];
     const doc = readableDoc(html);
     const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
-    const stretches = []; // { text, lang }
+    const stretches = []; // { text, reading }
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-        const lang = markedLanguage(node);
+        const reading = markedReading(node);
         const last = stretches[stretches.length - 1];
-        if (last && last.lang === lang) last.text += node.textContent;
-        else stretches.push({ text: node.textContent, lang });
+        if (last && sameReading(last.reading, reading)) last.text += node.textContent;
+        else stretches.push({ text: node.textContent, reading });
     }
-    return stretches.flatMap((s) => chunksOf(tidy(s.text), s.lang));
+    return stretches.flatMap((s) => {
+        const chunks = chunksOf(tidy(s.text), s.reading ? s.reading.lang : null);
+        return s.reading && s.reading.voice ? chunks.map((c) => ({ ...c, voice: s.reading.voice })) : chunks;
+    });
 }
 
 // Chosen voices per language, persisted per viewer. { 'en-US': name, 'he-IL': name }

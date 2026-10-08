@@ -1,16 +1,20 @@
 import { Mark, mergeAttributes } from '@tiptap/core';
-import { MARKABLE_LANGUAGES } from '../../utils/tts';
+import { TTS_LANGUAGES } from '../../utils/tts';
 
-// "Read in <language>" inline mark: tells read-aloud to use that language's
-// voice for the marked words, e.g. a Spanish phrase in an English note.
-// English and Hebrew need no mark (they're told apart by alphabet); this is
-// for languages written in the same letters as English.
+// "Read this as…" inline mark: tells read-aloud which language, and optionally
+// which voice, to read the marked words in. E.g. a Spanish phrase in an
+// English note, or one character's lines in a different voice.
+//   - A language alone (Spanish, French…): for languages written in the same
+//     letters as English, which read-aloud can't tell apart by itself.
+//   - A language and a voice: any language, English and Hebrew included.
 //
-// Stored as <span class="tts-lang" lang="es-ES">…</span>. `lang` is also the
-// standard HTML way to say what language text is in. It's visible ONLY in
-// the editor (a light tint per language, see .rte-content .tts-lang in
-// styles.css); a note being read looks exactly like plain text.
-const CODES = MARKABLE_LANGUAGES.map((l) => l.code);
+// Stored as <span class="tts-lang" lang="es-US" data-voice="es-US-…">…</span>.
+// `lang` is also the standard HTML way to say what language text is in. The
+// voice is saved in the note, so it's the same on every device and for anyone
+// the note is shared with. Visible ONLY in the editor (a light tint per
+// language, see .rte-content .tts-lang in styles.css); a note being read looks
+// like plain text.
+const CODES = TTS_LANGUAGES.map((l) => l.code);
 
 export const TtsLang = Mark.create({
     name: 'ttsLang',
@@ -21,6 +25,11 @@ export const TtsLang = Mark.create({
                 default: null,
                 parseHTML: (el) => el.getAttribute('lang'),
                 renderHTML: (attrs) => (attrs.lang ? { lang: attrs.lang } : {}),
+            },
+            voice: {
+                default: null,
+                parseHTML: (el) => el.getAttribute('data-voice'),
+                renderHTML: (attrs) => (attrs.voice ? { 'data-voice': attrs.voice } : {}),
             },
         };
     },
@@ -39,19 +48,27 @@ export const TtsLang = Mark.create({
     },
 
     addCommands() {
+        // Replace the mark on the selection. With just a cursor inside marked
+        // text, the whole marked phrase changes (like changing a link), not
+        // only the next letters typed. No attrs removes the mark.
+        const apply = (attrs) => ({ editor, chain }) => {
+            let next = chain();
+            if (editor.state.selection.empty && editor.isActive(this.name)) {
+                next = next.extendMarkRange(this.name);
+            }
+            next = next.unsetMark(this.name);
+            if (attrs) next = next.setMark(this.name, attrs);
+            return next.run();
+        };
         return {
-            // Mark the selection as `lang`; null (Automatic) removes the mark.
-            // With just a cursor inside marked text, the whole marked phrase
-            // changes (like changing a link), not only the next letters typed.
-            setTtsLang: (lang) => ({ editor, chain }) => {
-                let next = chain();
-                if (editor.state.selection.empty && editor.isActive(this.name)) {
-                    next = next.extendMarkRange(this.name);
-                }
-                next = next.unsetMark(this.name);
-                if (lang) next = next.setMark(this.name, { lang });
-                return next.run();
-            },
+            // A language read with that language's default voice; null
+            // (Automatic) removes the mark.
+            setTtsLang: (lang) => apply(lang ? { lang, voice: null } : null),
+            // A language and a specific voice. Without a voice, English and
+            // Hebrew need no mark (read automatically), so it's removed.
+            setTtsVoice: (lang, voice) => apply(
+                voice ? { lang, voice } : (lang && lang !== 'en-US' && lang !== 'he-IL' ? { lang, voice: null } : null)
+            ),
         };
     },
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import { Extension, nodeInputRule } from '@tiptap/core';
+import { Extension, nodeInputRule, getMarkRange } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Mathematics } from '@tiptap/extension-mathematics';
 import { TableKit } from '@tiptap/extension-table';
@@ -12,7 +12,10 @@ import { Image } from '@tiptap/extension-image';
 import { MarkdownPaste } from './editor/markdownPaste';
 import { TtsSkip } from './editor/ttsSkip';
 import { TtsLang } from './editor/ttsLang';
-import { MARKABLE_LANGUAGES } from '../utils/tts';
+import { MARKABLE_LANGUAGES, languageLabel, voiceLabel } from '../utils/tts';
+import VoicePickerDialog from './VoicePickerDialog';
+
+const HEBREW_LETTERS = /[֐-׿]/;
 import { Indent } from './editor/indent';
 import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
@@ -121,8 +124,9 @@ const RichTextEditor = ({ value, onChange }) => {
     const [markdownPaste, setMarkdownPaste] = React.useState(false);
     // Highlight color palette popover.
     const [showHl, setShowHl] = React.useState(false);
-    // "Read in <language>" menu (next to 🔇).
+    // "Read in <language>" menu (next to 🔇) and its voice picker.
     const [showLang, setShowLang] = React.useState(false);
+    const [voicePick, setVoicePick] = React.useState(false);
     // Kept current so the paste/drop handlers (defined at editor-config time) can
     // reach the editor instance, which only exists after useEditor returns.
     const editorRef = React.useRef(null);
@@ -308,6 +312,15 @@ const RichTextEditor = ({ value, onChange }) => {
     // Indent/outdent: in a list, items nest/un-nest or the whole list moves
     // (never out of the list; see editor/indent.js); other blocks use the
     // Indent extension's margin levels.
+    // Text to preview a voice with: the selection, or with just a cursor, the
+    // whole marked phrase it's in ('' when there's neither).
+    const selectedText = () => {
+        const { from, to, empty, $from } = editor.state.selection;
+        if (!empty) return editor.state.doc.textBetween(from, to, ' ');
+        const range = getMarkRange($from, editor.schema.marks.ttsLang);
+        return range ? editor.state.doc.textBetween(range.from, range.to, ' ') : '';
+    };
+
     const indentMore = () => {
         if (editor.isActive('listItem')) editor.chain().focus().listAwareIndent().run();
         else editor.chain().focus().indentMore().run();
@@ -358,15 +371,17 @@ const RichTextEditor = ({ value, onChange }) => {
                     onClick={() => editor.chain().focus().toggleCode().run()} />
                 <Btn label="🔇" title="Don't read aloud (mute for text-to-speech)" active={editor.isActive('ttsSkip')}
                     onClick={() => editor.chain().focus().toggleTtsSkip().run()} />
-                {/* Read-aloud language for the selection: Automatic (English, or
-                    Hebrew by its letters) or a marked language (editor/ttsLang.js). */}
+                {/* How the selection is read aloud: Automatic (English, or Hebrew
+                    by its letters), a marked language, or a chosen voice
+                    (editor/ttsLang.js, VoicePickerDialog). */}
                 <span className="rte-hl">
                     {(() => {
-                        const current = editor.getAttributes('ttsLang').lang;
-                        const label = (MARKABLE_LANGUAGES.find((l) => l.code === current) || {}).label;
+                        const { lang: current, voice } = editor.getAttributes('ttsLang');
+                        const label = current
+                            ? `${languageLabel(current)}${voice ? ` · ${voiceLabel(voice)}` : ''}` : '';
                         return (
                             <button type="button" className={`rte-btn${label ? ' active' : ''}`}
-                                title={label ? `Read aloud in ${label}` : 'Read aloud in another language'}
+                                title={label ? `Read aloud as ${label}` : 'Read aloud in another language or voice'}
                                 aria-haspopup="true" aria-expanded={showLang}
                                 onMouseDown={(e) => e.preventDefault()} onClick={() => setShowLang((v) => !v)}>
                                 🗣{label ? ` ${label}` : ''}<span className="rte-hl__caret">▾</span>
@@ -391,9 +406,29 @@ const RichTextEditor = ({ value, onChange }) => {
                                         </button>
                                     );
                                 })}
+                                <div className="rte-lang__sep" role="separator" />
+                                <button type="button" role="menuitem" className="rte-lang__item"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => { setShowLang(false); setVoicePick(true); }}>
+                                    <i className="user circle outline icon rte-lang__icon" aria-hidden="true"></i>
+                                    Choose voice…
+                                    {editor.getAttributes('ttsLang').voice && (
+                                        <span className="rte-lang__hint">{voiceLabel(editor.getAttributes('ttsLang').voice)}</span>
+                                    )}
+                                </button>
                             </div>
                         </>
                     )}
+                    <VoicePickerDialog
+                        open={voicePick}
+                        initialLang={editor.getAttributes('ttsLang').lang || (HEBREW_LETTERS.test(selectedText()) ? 'he-IL' : 'en-US')}
+                        initialVoice={editor.getAttributes('ttsLang').voice || null}
+                        sampleText={selectedText()}
+                        onClose={() => setVoicePick(false)}
+                        onApply={(lang, voice) => {
+                            editor.chain().focus().setTtsVoice(lang, voice).run();
+                            setVoicePick(false);
+                        }} />
                 </span>
                 <span className="rte-hl">
                     <button type="button" className={`rte-btn${editor.isActive('highlight') ? ' active' : ''}`}
