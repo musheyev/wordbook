@@ -15,7 +15,6 @@ import { TtsLang } from './editor/ttsLang';
 import { MARKABLE_LANGUAGES, languageLabel, voiceLabel } from '../utils/tts';
 import VoicePickerDialog from './VoicePickerDialog';
 
-const HEBREW_LETTERS = /[֐-׿]/;
 import { Indent } from './editor/indent';
 import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
@@ -376,12 +375,15 @@ const RichTextEditor = ({ value, onChange }) => {
                     (editor/ttsLang.js, VoicePickerDialog). */}
                 <span className="rte-hl">
                     {(() => {
-                        const { lang: current, voice } = editor.getAttributes('ttsLang');
-                        const label = current
-                            ? `${languageLabel(current)}${voice ? ` · ${voiceLabel(voice)}` : ''}` : '';
+                        const { lang: current, voice, speed } = editor.getAttributes('ttsLang');
+                        const label = [
+                            current ? languageLabel(current) : null,
+                            voice ? voiceLabel(voice) : null,
+                            speed ? `${speed}×` : null,
+                        ].filter(Boolean).join(' · ');
                         return (
                             <button type="button" className={`rte-btn${label ? ' active' : ''}`}
-                                title={label ? `Read aloud as ${label}` : 'Read aloud in another language or voice'}
+                                title={label ? `Read aloud as ${label}` : 'Read aloud in another language, voice or speed'}
                                 aria-haspopup="true" aria-expanded={showLang}
                                 onMouseDown={(e) => e.preventDefault()} onClick={() => setShowLang((v) => !v)}>
                                 🗣{label ? ` ${label}` : ''}<span className="rte-hl__caret">▾</span>
@@ -411,22 +413,25 @@ const RichTextEditor = ({ value, onChange }) => {
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => { setShowLang(false); setVoicePick(true); }}>
                                     <i className="user circle outline icon rte-lang__icon" aria-hidden="true"></i>
-                                    Choose voice…
-                                    {editor.getAttributes('ttsLang').voice && (
-                                        <span className="rte-lang__hint">{voiceLabel(editor.getAttributes('ttsLang').voice)}</span>
-                                    )}
+                                    Voice and speed…
+                                    {(() => {
+                                        const { voice, speed } = editor.getAttributes('ttsLang');
+                                        const hint = [voice ? voiceLabel(voice) : null, speed ? `${speed}×` : null].filter(Boolean).join(' · ');
+                                        return hint ? <span className="rte-lang__hint">{hint}</span> : null;
+                                    })()}
                                 </button>
                             </div>
                         </>
                     )}
                     <VoicePickerDialog
                         open={voicePick}
-                        initialLang={editor.getAttributes('ttsLang').lang || (HEBREW_LETTERS.test(selectedText()) ? 'he-IL' : 'en-US')}
+                        initialLang={editor.getAttributes('ttsLang').lang || null}
                         initialVoice={editor.getAttributes('ttsLang').voice || null}
+                        initialSpeed={editor.getAttributes('ttsLang').speed || null}
                         sampleText={selectedText()}
                         onClose={() => setVoicePick(false)}
-                        onApply={(lang, voice) => {
-                            editor.chain().focus().setTtsVoice(lang, voice).run();
+                        onApply={(reading) => {
+                            editor.chain().focus().setTtsReading(reading).run();
                             setVoicePick(false);
                         }} />
                 </span>

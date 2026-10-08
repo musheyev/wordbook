@@ -100,15 +100,22 @@ export function textToChunks(text) {
 }
 
 // How a text node is marked to be read (its nearest .tts-lang): { lang,
-// voice? }, or null. A mark can set a language (Spanish…) and optionally a
-// specific voice; English and Hebrew are only marked with a voice.
+// voice?, speed? }, or null. A mark can set a language (Spanish…), a
+// specific voice (needs a language), and a speed. Without a language
+// (lang null) the text is read automatically, English or Hebrew by its
+// letters, just at the marked speed.
 function markedReading(node) {
-    const el = node.parentElement && node.parentElement.closest('.tts-lang[lang]');
-    const lang = el && el.getAttribute('lang');
-    if (!ALL_CODES.includes(lang)) return null;
-    return { lang, voice: el.getAttribute('data-voice') || undefined };
+    const el = node.parentElement && node.parentElement.closest('.tts-lang');
+    if (!el) return null;
+    const lang = ALL_CODES.includes(el.getAttribute('lang')) ? el.getAttribute('lang') : null;
+    const speed = Number(el.getAttribute('data-speed'));
+    const validSpeed = TTS_SPEEDS.includes(speed) ? speed : undefined;
+    if (!lang && !validSpeed) return null;
+    return { lang, voice: lang ? el.getAttribute('data-voice') || undefined : undefined, speed: validSpeed };
 }
-const sameReading = (a, b) => (a && b ? a.lang === b.lang && a.voice === b.voice : a === b);
+const sameReading = (a, b) => (a && b
+    ? a.lang === b.lang && a.voice === b.voice && a.speed === b.speed
+    : a === b);
 
 // Note HTML -> chunks. The text is cut into stretches marked the same way
 // (bold, links etc. don't cut it), and each stretch is chunked on its own:
@@ -126,8 +133,14 @@ export function htmlToChunks(html) {
         else stretches.push({ text: node.textContent, reading });
     }
     return stretches.flatMap((s) => {
-        const chunks = chunksOf(tidy(s.text), s.reading ? s.reading.lang : null);
-        return s.reading && s.reading.voice ? chunks.map((c) => ({ ...c, voice: s.reading.voice })) : chunks;
+        const r = s.reading;
+        const chunks = chunksOf(tidy(s.text), r ? r.lang : null);
+        if (!r || (!r.voice && !r.speed)) return chunks;
+        return chunks.map((c) => ({
+            ...c,
+            ...(r.voice ? { voice: r.voice } : {}),
+            ...(r.speed ? { speed: r.speed } : {}),
+        }));
     });
 }
 

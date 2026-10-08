@@ -166,10 +166,11 @@ class TtsPlayer {
         this._currentUrl = url;
         const a = getAudio();
         a.src = url;
-        // The chunk's language's chosen speed (e.g. slower Spanish). Set after
+        // The chunk's speed (e.g. slower Spanish). Set after
         // `src`: loading a new file resets the rate to defaultPlaybackRate, so
         // both are set. Pitch stays natural while slowed.
-        const speed = getChosenSpeeds()[chunk.lang] || 1;
+        // A speed set on the text in the note wins over the language's.
+        const speed = chunk.speed || getChosenSpeeds()[chunk.lang] || 1;
         a.defaultPlaybackRate = speed;
         a.playbackRate = speed;
         a.preservesPitch = true;
