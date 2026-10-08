@@ -114,6 +114,7 @@ wordbookRouter.get("/list", function (req, res) {
 // Full-text search inside one notebook (see notebook-search.js).
 // GET /wordbook/search?wordbook=…&q=…&definitions=1 -> [{ type, id, title, where, snippet }]
 wordbookRouter.get("/search", function (req, res) {
+    if (!req.cookies.id_token) return res.status(401).end("Please log in.");
     notebookSearch.searchNotebook(req.cookies.id_token, req.query.wordbook, req.query.q,
         { definitions: req.query.definitions === "1" })
         .then((results) => res.json(results))
