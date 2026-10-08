@@ -885,6 +885,15 @@ nav-button-as-link {
 .read-aloud__voice:hover { background: var(--cb-surface); }
 .read-aloud__voice.on { background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 500; }
 .read-aloud__none { padding: 6px 8px; font-size: 0.8rem; color: var(--cb-ink-3); }
+/* Reading speed for the language shown in the voice picker (ReadAloud.js). */
+.read-aloud__speed { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 2px 0 8px; border-bottom: 1px solid var(--cb-border); margin-bottom: 4px; }
+.read-aloud__speed-label { flex-basis: 100%; font-size: 0.75rem; color: var(--cb-ink-3); padding: 0 2px 2px; }
+.read-aloud__speed-btn {
+  flex: 1 1 0; min-width: 0; padding: 4px 0; border: 1px solid var(--cb-border-strong); border-radius: 999px; background: none;
+  font-size: 0.78rem; color: var(--cb-ink-2); cursor: pointer;
+}
+.read-aloud__speed-btn:hover { border-color: var(--cb-accent); }
+.read-aloud__speed-btn.on { background: var(--cb-accent-weak); border-color: var(--cb-accent); color: var(--cb-accent); font-weight: 600; }
 /* "Voice for [language]" at the top of the voice picker; • marks languages
    with a chosen voice. Sticky so it stays visible while the list scrolls. */
 .read-aloud__lang-pick {

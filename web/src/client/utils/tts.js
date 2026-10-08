@@ -125,3 +125,18 @@ export function setChosenVoice(lang, name) {
     if (name) v[lang] = name; else delete v[lang];
     try { localStorage.setItem(VOICE_KEY, JSON.stringify(v)); } catch (e) { /* ignore */ }
 }
+
+// Reading speed per language, persisted per viewer: { 'es-US': 0.75, ... }.
+// A language with no entry plays at normal speed (1). Applied by slowing the
+// audio in the browser (pitch kept natural), so it works with every voice and
+// with audio already generated, at no extra cost.
+export const TTS_SPEEDS = [0.6, 0.75, 0.9, 1, 1.25];
+const SPEED_KEY = 'tts-speeds';
+export function getChosenSpeeds() {
+    try { return JSON.parse(localStorage.getItem(SPEED_KEY)) || {}; } catch (e) { return {}; }
+}
+export function setChosenSpeed(lang, speed) {
+    const v = getChosenSpeeds();
+    if (speed && speed !== 1) v[lang] = speed; else delete v[lang];
+    try { localStorage.setItem(SPEED_KEY, JSON.stringify(v)); } catch (e) { /* ignore */ }
+}

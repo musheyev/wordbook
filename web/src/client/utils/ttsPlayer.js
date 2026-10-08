@@ -2,7 +2,7 @@
 // sentence/language-run) by fetching MP3s from /api/tts and chaining them on one
 // reused <audio> element, so playback continues in the background / on the iOS
 // lock screen and shows Media Session controls (play/pause/next/prev).
-import { getChosenVoices } from './tts';
+import { getChosenVoices, getChosenSpeeds } from './tts';
 
 let audioEl = null;
 function getAudio() {
@@ -126,6 +126,15 @@ class TtsPlayer {
         this._currentUrl = url;
         const a = getAudio();
         a.src = url;
+        // The chunk's language's chosen speed (e.g. slower Spanish). Set after
+        // `src`: loading a new file resets the rate to defaultPlaybackRate, so
+        // both are set. Pitch stays natural while slowed.
+        const speed = getChosenSpeeds()[chunk.lang] || 1;
+        a.defaultPlaybackRate = speed;
+        a.playbackRate = speed;
+        a.preservesPitch = true;
+        a.webkitPreservesPitch = true;
+        a.mozPreservesPitch = true;
         try { await a.play(); this.status = 'playing'; } catch (e) { this.status = 'paused'; }
         this._updateSession();
         this._emit();

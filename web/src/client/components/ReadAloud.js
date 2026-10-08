@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ttsPlayer from '../utils/ttsPlayer';
-import { getChosenVoices, setChosenVoice, TTS_LANGUAGES } from '../utils/tts';
+import { getChosenVoices, setChosenVoice, TTS_LANGUAGES, TTS_SPEEDS, getChosenSpeeds, setChosenSpeed } from '../utils/tts';
 
 let uid = 0;
 
@@ -37,6 +37,7 @@ function ReadAloud({ getChunks, title, label }) {
     const [pickerLang, setPickerLang] = useState('en-US');
     const [voices, setVoices] = useState({});
     const [chosen, setChosen] = useState(getChosenVoices());
+    const [speeds, setSpeeds] = useState(getChosenSpeeds());
 
     useEffect(() => ttsPlayer.subscribe(setState), []);
 
@@ -70,6 +71,8 @@ function ReadAloud({ getChunks, title, label }) {
     };
 
     const pick = (lang, name) => { setChosenVoice(lang, name); setChosen(getChosenVoices()); };
+    // Takes effect from the next sentence read in that language.
+    const pickSpeed = (lang, speed) => { setChosenSpeed(lang, speed); setSpeeds(getChosenSpeeds()); };
 
     const playIcon = state.status === 'loading' ? 'spinner loading'
         : (mine && state.status === 'playing') ? 'pause' : 'volume up';
@@ -108,11 +111,21 @@ function ReadAloud({ getChunks, title, label }) {
                                 <select value={pickerLang} onChange={(e) => showLang(e.target.value)}>
                                     {TTS_LANGUAGES.map((l) => (
                                         <option key={l.code} value={l.code}>
-                                            {l.label}{chosen[l.code] ? ' •' : ''}
+                                            {l.label}{chosen[l.code] ? ' •' : ''}{speeds[l.code] ? ` (${speeds[l.code]}×)` : ''}
                                         </option>
                                     ))}
                                 </select>
                             </label>
+                            <div className="read-aloud__speed" role="group" aria-label="Reading speed">
+                                <span className="read-aloud__speed-label">Speed</span>
+                                {TTS_SPEEDS.map((sp) => (
+                                    <button type="button" key={sp} aria-pressed={(speeds[pickerLang] || 1) === sp}
+                                        className={`read-aloud__speed-btn${(speeds[pickerLang] || 1) === sp ? ' on' : ''}`}
+                                        onClick={() => pickSpeed(pickerLang, sp)}>
+                                        {sp}×
+                                    </button>
+                                ))}
+                            </div>
                             <div className="read-aloud__lang">
                                 <button type="button" className={`read-aloud__voice${!chosen[pickerLang] ? ' on' : ''}`}
                                     onClick={() => pick(pickerLang, '')}>Auto</button>
