@@ -3,6 +3,7 @@ const wordbook = require("../wordbook.js");
 const cards = require("../cards.js");
 const userSettings = require("../user-settings.js");
 const ttsRefs = require("../tts-refs.js");
+const notebookSearch = require("../notebook-search.js");
 
 let wordbookRouter = express.Router();
 
@@ -108,6 +109,23 @@ wordbookRouter.get("/list", function (req, res) {
             }
 
         })
+});
+
+// Full-text search inside one notebook (see notebook-search.js).
+// GET /wordbook/search?wordbook=…&q=…&definitions=1 -> [{ type, id, title, where, snippet }]
+wordbookRouter.get("/search", function (req, res) {
+    notebookSearch.searchNotebook(req.cookies.id_token, req.query.wordbook, req.query.q,
+        { definitions: req.query.definitions === "1" })
+        .then((results) => res.json(results))
+        .catch((err) => {
+            if (err instanceof notebookSearch.SearchError) return res.status(err.status).end(err.message);
+            console.log(`notebook search error: ${err.name}`);
+            if (err.name === "TokenExpiredError") {
+                res.status(401).end("Your login session expired.  Please login again.");
+            } else {
+                res.status(500).end("Couldn't search this notebook.");
+            }
+        });
 });
 
 // How My Notebooks is sorted, saved on the account (see user-settings.js).

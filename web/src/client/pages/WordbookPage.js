@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
 import {
@@ -17,6 +17,7 @@ import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
 import { itemPath, notebookPath } from '../utils/notebookPaths';
 import { cardChunks } from '../utils/tts';
+import { highlightFirstMatch } from '../utils/highlightMatch';
 
 const HEBREW = /[֐-׿]/;
 
@@ -32,6 +33,9 @@ function WordbookPage({
 }) {
     const { name, type, id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
+    // Opened from a notebook search result: ?q=<what was searched>.
+    const searchedFor = new URLSearchParams(location.search).get('q');
     const [addOpen, setAddOpen] = useState(false);
 
     useEffect(() => {
@@ -69,6 +73,19 @@ function WordbookPage({
             navigate(notebookPath(name), { replace: true });
         }
     }, [id, listFresh, index, cardEditorOpen]);
+
+    // Opened from a search result: once the item's content has loaded,
+    // scroll to the first match and highlight it. The content arrives after
+    // the page, so look for it a few times.
+    useEffect(() => {
+        if (!id || !searchedFor) return undefined;
+        let tries = 0;
+        const timer = setInterval(() => {
+            const content = document.getElementById('worddefinition');
+            if (highlightFirstMatch(content, searchedFor) || ++tries >= 25) clearInterval(timer);
+        }, 200);
+        return () => clearInterval(timer);
+    }, [type, id, searchedFor]);
 
     const goTo = (i) => navigate(itemPath(name, items[i]), { replace: true });
 

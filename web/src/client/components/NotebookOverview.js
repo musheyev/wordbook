@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { itemPath } from '../utils/notebookPaths';
 import ReadAloud from './ReadAloud';
+import NotebookSearchBar, { NotebookSearchStatus, MatchSnippet } from './NotebookSearchBar';
+import useNotebookSearch from '../utils/useNotebookSearch';
 
 // A notebook's overview on desktop, shown when no item is open (the
 // notebook name in the rail leads here). Every note and word as a card, in
@@ -9,9 +11,11 @@ import ReadAloud from './ReadAloud';
 //   note  its title and the start of its text
 //   word  the word
 // with the same icons as the phone list (NotebookItemList).
-// A filter box matches titles as you type; All / Notes / Words narrows by
-// type. Clicking a card opens the item. Phones show their own list instead
-// (NotebookItemList), so this is hidden there (styles.css).
+// The search box matches titles as you type, or searches everything in the
+// notebook (useNotebookSearch); text matches show the passage that matched.
+// All / Notes / Words narrows by type. Clicking a card opens the item, at
+// the match when it was found in the text. Phones show their own list
+// instead (NotebookItemList), so this is hidden there (styles.css).
 const TYPES = [
     { key: 'all', label: 'All' },
     { key: 'card', label: 'Notes' },
@@ -21,14 +25,15 @@ const TYPES = [
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export default function NotebookOverview({ name, items, onAdd, getReadAloudChunks }) {
-    const [query, setQuery] = useState('');
     const [type, setType] = useState('all');
+    const search = useNotebookSearch(name, items);
 
     const notes = items.filter((item) => item.type === 'card').length;
     const words = items.length - notes;
-    const q = query.trim().toLowerCase();
-    const shown = items.filter((item) => (type === 'all' || item.type === type)
-        && (!q || (item.title || '').toLowerCase().includes(q)));
+    const shown = search.results.filter((r) => type === 'all' || r.item.type === type);
+    // Opening a text match goes to the match (WordbookPage reads ?q=).
+    const linkTo = (item) => itemPath(name, item)
+        + (search.textSearch && !search.tooShort ? `?q=${encodeURIComponent(search.query.trim())}` : '');
 
     return (
         <div className="nb-overview">
@@ -49,15 +54,7 @@ export default function NotebookOverview({ name, items, onAdd, getReadAloudChunk
             </div>
 
             <div className="nb-overview__tools">
-                <div className="nb-tools__search">
-                    <i className="search icon" aria-hidden="true"></i>
-                    <input type="search" placeholder="Filter this notebook…" aria-label="Filter this notebook"
-                        value={query} onChange={(e) => setQuery(e.target.value)} />
-                    {query && (
-                        <button type="button" className="nb-tools__clear" aria-label="Clear filter"
-                            onClick={() => setQuery('')}>×</button>
-                    )}
-                </div>
+                <NotebookSearchBar search={search} />
                 {notes > 0 && words > 0 && (
                     <div className="nb-overview__types" role="group" aria-label="Show">
                         {TYPES.map((t) => (
@@ -69,23 +66,26 @@ export default function NotebookOverview({ name, items, onAdd, getReadAloudChunk
                 )}
             </div>
 
-            {shown.length === 0 ? (
-                <div className="cb-empty">Nothing in this notebook matches “{query.trim()}”.</div>
-            ) : (
+            <NotebookSearchStatus search={search} />
+            {shown.length > 0 && (
                 <ul className="nb-overview__grid">
-                    {shown.map((item) => {
+                    {shown.map(({ item, snippet, where }) => {
                         const isNote = item.type === 'card';
                         return (
                             <li key={`${item.type}:${item.id}`}>
-                                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}`} to={itemPath(name, item)}>
+                                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}`} to={linkTo(item)}>
                                     <span className={`nb-card__icon nb-row__icon nb-row__icon--${isNote ? 'card' : 'word'}`}
                                         aria-hidden="true">
                                         <i className={`${isNote ? 'sticky note outline' : 'font'} icon`}></i>
                                     </span>
                                     <span className="nb-card__text">
                                         <span className="nb-card__title">{item.title}</span>
-                                        {isNote && item.preview && <span className="nb-card__preview">{item.preview}</span>}
-                                        {!isNote && <span className="nb-card__kind">Word</span>}
+                                        {snippet ? <MatchSnippet snippet={snippet} where={where} /> : (
+                                            <>
+                                                {isNote && item.preview && <span className="nb-card__preview">{item.preview}</span>}
+                                                {!isNote && <span className="nb-card__kind">Word</span>}
+                                            </>
+                                        )}
                                     </span>
                                 </Link>
                             </li>

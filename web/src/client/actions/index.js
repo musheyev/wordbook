@@ -991,6 +991,18 @@ export const clearAudioArchive = () => async (dispatch, getState, api) => {
   catch (err) { throw adminErr(err, "Couldn't clear the audio archive."); }
 };
 
+// Full-text search inside a notebook (api/notebook-search.js). Resolves to
+// [{ type, id, title, where, snippet: { before, match, after } }]; rejects
+// with a message fit for the user.
+export const searchNotebook = (wordbook, q, definitions) => async (dispatch, getState, api) => {
+  try {
+    const res = await api.get('/wordbook/search', { params: { wordbook, q, definitions: definitions ? '1' : undefined } });
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    throw new Error(requestErrorMessage(err, "Couldn't search this notebook."));
+  }
+};
+
 export const FETCH_WORD_WORDBOOKS = 'fetch_word_wordbooks';
 export const fetchWordWordbooks = (word) => async (dispatch, getState, api) => {
   console.log("fetchWordWordbooks called");
