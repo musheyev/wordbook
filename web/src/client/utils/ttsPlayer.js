@@ -1,7 +1,12 @@
 // A single shared audio player for read-aloud. Plays a queue of chunks (each a
 // sentence/language-run) by fetching MP3s from /api/tts and chaining them on one
 // reused <audio> element, so playback continues in the background / on the iOS
-// lock screen and shows Media Session controls (play/pause/next/prev).
+// lock screen and shows Media Session controls (play/pause, ±5 seconds).
+//
+// Going back and forward (seekBy, the big controls in PlayerPanel and the
+// lock screen) works in seconds of listening, across sentences: back from
+// the start of a sentence continues into the end of the one before. The
+// last few sentences' audio stays in memory (KEEP_BEHIND) so that's instant.
 import { getChosenVoices, getChosenSpeeds, htmlToChunks } from './tts';
 
 let audioEl = null;
@@ -32,6 +37,17 @@ function silentUrl() {
 // The voice a chunk is read in: a voice chosen for that text in the note
 // (chunk.voice), else this device's choice for its language, else Google's
 // default for the language (undefined).
+// Sentences behind the current one whose audio is kept for going back.
+const KEEP_BEHIND = 8;
+
+// Resolves once the audio element knows the length of what's loaded.
+const whenLoaded = (a) => new Promise((resolve) => {
+    if (a.readyState >= 1 && Number.isFinite(a.duration)) { resolve(); return; }
+    const done = () => { a.removeEventListener('loadedmetadata', done); a.removeEventListener('error', done); resolve(); };
+    a.addEventListener('loadedmetadata', done);
+    a.addEventListener('error', done);
+});
+
 const voiceFor = (chunk) => chunk.voice || getChosenVoices()[chunk.lang] || undefined;
 
 const asRequest = (chunk) => ({ text: chunk.text, languageCode: chunk.lang, voiceName: voiceFor(chunk) });
@@ -95,7 +111,8 @@ class TtsPlayer {
         this.error = '';
         this.listeners = new Set();
         this._prefetch = null;
-        this._currentUrl = null;
+        this._urls = new Map(); // chunk index -> audio (blob URL) kept in memory
+        this._durations = new Map(); // chunk index -> seconds of audio
         this._unlocked = false;
         this._bound = false;
     }
@@ -140,7 +157,9 @@ class TtsPlayer {
         await this._playIdx(0);
     }
 
-    async _playIdx(i) {
+    // Play chunk i, from `startAt` seconds into its audio; `play: false`
+    // loads it and stays paused (going back while paused).
+    async _playIdx(i, { startAt = 0, play = true } = {}) {
         if (i < 0 || i >= this.queue.length) { this.stop(); return; }
         this.idx = i;
         const chunk = this.queue[i];
@@ -148,11 +167,13 @@ class TtsPlayer {
         this.status = 'loading';
         this._emit();
 
-        let url;
+        let url = this._urls.get(i);
         try {
-            url = (this._prefetch && this._prefetch.idx === i)
-                ? await this._prefetch.promise
-                : await fetchChunkUrl(chunk);
+            if (!url) {
+                url = (this._prefetch && this._prefetch.idx === i)
+                    ? await this._prefetch.promise
+                    : await fetchChunkUrl(chunk);
+            }
             if (!url) throw new Error('no audio');
         } catch (err) {
             this.error = err.status === 503
@@ -161,9 +182,11 @@ class TtsPlayer {
             this.status = 'idle'; this.sourceId = null; this._emit();
             return;
         }
+        // Another chunk was asked for while this one loaded (fast taps).
+        if (this.idx !== i) return;
 
-        this._revokeCurrent();
-        this._currentUrl = url;
+        this._urls.set(i, url);
+        this._forgetFarBehind();
         const a = getAudio();
         a.src = url;
         // The chunk's speed (e.g. slower Spanish). Set after
@@ -176,7 +199,14 @@ class TtsPlayer {
         a.preservesPitch = true;
         a.webkitPreservesPitch = true;
         a.mozPreservesPitch = true;
-        try { await a.play(); this.status = 'playing'; } catch (e) { this.status = 'paused'; }
+        await whenLoaded(a);
+        if (this.idx !== i) return;
+        if (Number.isFinite(a.duration)) this._durations.set(i, a.duration);
+        if (startAt > 0) a.currentTime = Math.min(startAt, Math.max(0, (a.duration || startAt) - 0.05));
+        if (!play) this.status = 'paused';
+        else {
+            try { await a.play(); this.status = 'playing'; } catch (e) { this.status = 'paused'; }
+        }
         this._updateSession();
         this._emit();
         this._prefetchNext();
@@ -184,13 +214,71 @@ class TtsPlayer {
 
     _prefetchNext() {
         const n = this.idx + 1;
-        if (n >= this.queue.length) { this._prefetch = null; return; }
+        if (n >= this.queue.length || this._urls.has(n)) { this._prefetch = null; return; }
+        if (this._prefetch && this._prefetch.idx === n) return;
+        // An earlier fetch that was never played (we went back past it).
+        const old = this._prefetch;
+        if (old && !this._urls.has(old.idx)) old.promise.then((u) => u && URL.revokeObjectURL(u)).catch(() => {});
         this._prefetch = { idx: n, promise: fetchChunkUrl(this.queue[n]).catch(() => null) };
     }
 
     _advance() { if (this.idx + 1 < this.queue.length) this._playIdx(this.idx + 1); else this.stop(); }
     next() { if (this.idx + 1 < this.queue.length) this._playIdx(this.idx + 1); }
     prev() { if (this.idx > 0) this._playIdx(this.idx - 1); }
+
+    /**
+     * Go back (negative) or forward by `seconds` of listening. At 0.6× speed,
+     * 5 seconds covers less of the text than at 1×. Crosses into the
+     * sentences before or after; forward past the last sentence ends the
+     * reading. Paused stays paused.
+     */
+    async seekBy(seconds) {
+        if (this.idx < 0 || this.status === 'idle' || this.status === 'loading') return;
+        const a = getAudio();
+        const play = this.status === 'playing';
+        const rate = (i) => this.queue[i].speed || getChosenSpeeds()[this.queue[i].lang] || 1;
+        const duration = Number.isFinite(a.duration) ? a.duration : (this._durations.get(this.idx) || 0);
+        const target = a.currentTime + seconds * rate(this.idx);
+
+        if (target >= 0 && target < duration) { a.currentTime = target; this._updateSession(); return; }
+
+        if (target < 0) {
+            // Listening seconds still to go back, through earlier sentences
+            // (their lengths are known: they were played).
+            let left = -target / rate(this.idx);
+            let i = this.idx - 1;
+            while (i >= 0) {
+                const len = (this._durations.get(i) || 0) / rate(i);
+                if (left <= len || i === 0) {
+                    const into = Math.max(0, len - left) * rate(i);
+                    await this._playIdx(i, { startAt: into, play });
+                    return;
+                }
+                left -= len;
+                i -= 1;
+            }
+            a.currentTime = 0; // the first sentence: back to its start
+            return;
+        }
+
+        // Forward past this sentence: into the next ones (their lengths are
+        // only known once loaded, so _playIdx carries what's left over).
+        let left = (target - duration) / rate(this.idx);
+        let i = this.idx + 1;
+        while (i < this.queue.length) {
+            await this._playIdx(i, { play: false });
+            if (this.idx !== i || this.status === 'idle') return;
+            const len = (this._durations.get(i) || 0) / rate(i);
+            if (left < len || i === this.queue.length - 1) {
+                getAudio().currentTime = Math.min(left, len) * rate(i);
+                if (play) this.resume(); else this._emit();
+                return;
+            }
+            left -= len;
+            i += 1;
+        }
+        this.stop();
+    }
 
     pause() { getAudio().pause(); this.status = 'paused'; this._updateSession(); this._emit(); }
     resume() {
@@ -203,14 +291,21 @@ class TtsPlayer {
 
     stop(emit = true) {
         if (audioEl) { audioEl.pause(); try { audioEl.removeAttribute('src'); audioEl.load(); } catch (e) {} }
-        this._revokeCurrent();
+        this._urls.forEach((u) => URL.revokeObjectURL(u));
+        this._urls.clear();
+        this._durations.clear();
         if (this._prefetch) { this._prefetch.promise.then((u) => u && URL.revokeObjectURL(u)).catch(() => {}); this._prefetch = null; }
         this.queue = []; this.idx = -1; this.status = 'idle'; this.sourceId = null;
         this._clearSession();
         if (emit) this._emit();
     }
 
-    _revokeCurrent() { if (this._currentUrl) { URL.revokeObjectURL(this._currentUrl); this._currentUrl = null; } }
+    // Free the audio of sentences far behind (and any skipped ahead of).
+    _forgetFarBehind() {
+        this._urls.forEach((u, i) => {
+            if (i < this.idx - KEEP_BEHIND || i > this.idx + 1) { URL.revokeObjectURL(u); this._urls.delete(i); }
+        });
+    }
 
     _setSessionHandlers() {
         if (!('mediaSession' in navigator)) return;
@@ -219,8 +314,13 @@ class TtsPlayer {
         set('play', () => this.resume());
         set('pause', () => this.pause());
         set('stop', () => this.stop());
-        set('previoustrack', () => this.prev());
-        set('nexttrack', () => this.next());
+        // ±5 seconds on the lock screen and headphones. Phones show either
+        // these or previous/next sentence, not both, so sentence skipping
+        // is turned off.
+        set('seekbackward', (d) => this.seekBy(-((d && d.seekOffset) || 5)));
+        set('seekforward', (d) => this.seekBy((d && d.seekOffset) || 5));
+        set('previoustrack', null);
+        set('nexttrack', null);
     }
     _updateSession() {
         if (!('mediaSession' in navigator)) return;

@@ -2952,3 +2952,54 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .voice-pick__speed .read-aloud__speed-btn { padding: 6px 0; font-size: 0.85rem; }
 /* Text marked with only a speed (no language), in the editor. */
 .rte-content .ProseMirror .tts-lang:not([lang]) { background: #eeedfe; border-bottom-color: #534ab7; }
+
+/* Big read-aloud controls (PlayerPanel): a card at the bottom right on
+   desktop; on phones, full width just above the tab bar. */
+.player-panel {
+  position: fixed; right: 24px; bottom: 24px; z-index: 260;
+  width: 360px; padding: 14px 16px 12px;
+  background: #1f2430; color: #fff; border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(15, 20, 35, 0.35);
+}
+.player-panel__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; min-width: 0; }
+.player-panel__title { flex: 1; min-width: 0; font-weight: 600; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-panel__where { flex: none; font-size: 0.8rem; color: #aab3c5; }
+.player-panel__main { display: flex; justify-content: space-between; gap: 12px; }
+.player-panel__big {
+  flex: 1; height: 72px; border: none; border-radius: 14px;
+  background: #343b4d; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  font-family: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.player-panel__big:active:not(:disabled) { background: #4a5368; }
+.player-panel__big:disabled { opacity: 0.5; cursor: default; }
+.player-panel__arrow { font-size: 2rem; line-height: 1; }
+.player-panel__step { font-size: 1.15rem; font-weight: 700; }
+.player-panel__play { background: #2563eb; }
+.player-panel__play:active:not(:disabled) { background: #1d4ed8; }
+.player-panel__play .icon { font-size: 1.9rem; margin: 0; height: auto; }
+.player-panel__foot { display: flex; justify-content: space-between; margin-top: 10px; }
+.player-panel__small {
+  border: none; background: none; color: #c9d1e1; cursor: pointer;
+  font-family: inherit; font-size: 0.9rem; padding: 8px 6px; touch-action: manipulation;
+}
+.player-panel__small:hover { color: #fff; }
+.player-pill {
+  position: fixed; right: 24px; bottom: 24px; z-index: 260;
+  display: flex; align-items: center; gap: 6px; padding: 10px 16px;
+  border: none; border-radius: 999px; background: #1f2430; color: #fff;
+  font-family: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  box-shadow: 0 8px 24px rgba(15, 20, 35, 0.3);
+}
+.player-pill .icon { margin: 0; height: auto; }
+@media (max-width: 768px) {
+  .player-panel {
+    left: 8px; right: 8px; width: auto;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    padding: 14px 14px 8px;
+  }
+  .player-panel__big { height: 84px; }
+  .player-panel__arrow { font-size: 2.3rem; }
+  .player-panel__play .icon { font-size: 2.2rem; }
+  .player-pill { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+}
