@@ -1382,8 +1382,21 @@ nav-button-as-link {
 .card-tool:disabled { opacity: 0.45; cursor: default; }
 .card-tool:disabled:hover { background: var(--cb-surface-2); border-color: var(--cb-border); }
 
-/* Give the editor body room to grow toward the bottom of the pane on desktop. */
-.card-editor .rte-content { max-height: calc(100vh - 320px); }
+/* Desktop: the note editor fills the pane down to the bottom of the window;
+   the text area takes whatever height is left under the title, buttons and
+   toolbar, and scrolls inside. (The pane, #worddefinition, is a full-height
+   column on desktop; see "cardbook detail fills the viewport".) Clicking the
+   empty space below the text still puts the cursor in the note. */
+@media (min-width: 769px) {
+  .card-editor { flex: 1; min-height: 0; }
+  .card-editor > .rte { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .card-editor .rte-content { flex: 1; min-height: 0; max-height: none; }
+  .card-editor .rte-content .ProseMirror { min-height: 100%; }
+}
+/* Phones: the page scrolls, so keep the text area to most of the screen. */
+@media (max-width: 768px) {
+  .card-editor .rte-content { max-height: calc(100vh - 320px); }
+}
 
 /* While editing on mobile, the in-place editor owns the pane: hide the
    cardbook title / add / swipe-strip bar. */
