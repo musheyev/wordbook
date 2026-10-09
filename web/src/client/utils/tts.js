@@ -117,22 +117,38 @@ const sameReading = (a, b) => (a && b
     ? a.lang === b.lang && a.voice === b.voice && a.speed === b.speed
     : a === b);
 
+// Pauses a note can have (the editor's ⏸ button, editor/ttsPause.js), in
+// seconds. validPause: the number if it's one of these, else null.
+export const TTS_PAUSES = [2, 3, 5];
+export const validPause = (s) => (TTS_PAUSES.includes(Number(s)) ? Number(s) : null);
+
 // Note HTML -> chunks. The text is cut into stretches marked the same way
 // (bold, links etc. don't cut it), and each stretch is chunked on its own:
 // marked stretches in their language (and voice, if one was chosen), the
-// rest automatically.
+// rest automatically. A pause (<span class="tts-pause" data-seconds="3">)
+// cuts the text too and becomes a chunk of its own: { pause: 3 }, which
+// ttsPlayer plays as that many seconds of silence.
 export function htmlToChunks(html) {
     if (!html) return [];
     const doc = readableDoc(html);
-    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
-    const stretches = []; // { text, reading }
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+        acceptNode: (n) => (n.nodeType === Node.TEXT_NODE || n.classList.contains('tts-pause')
+            ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+    });
+    const stretches = []; // { text, reading } or { pause }
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (node.nodeType !== Node.TEXT_NODE) {
+            const seconds = validPause(node.getAttribute('data-seconds'));
+            if (seconds) stretches.push({ pause: seconds });
+            continue;
+        }
         const reading = markedReading(node);
         const last = stretches[stretches.length - 1];
-        if (last && sameReading(last.reading, reading)) last.text += node.textContent;
+        if (last && !last.pause && sameReading(last.reading, reading)) last.text += node.textContent;
         else stretches.push({ text: node.textContent, reading });
     }
     return stretches.flatMap((s) => {
+        if (s.pause) return [{ pause: s.pause }];
         const r = s.reading;
         const chunks = chunksOf(tidy(s.text), r ? r.lang : null);
         if (!r || (!r.voice && !r.speed)) return chunks;

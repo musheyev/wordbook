@@ -1879,6 +1879,32 @@ nav-button-as-link {
 
 /* Formula help: shown only while editing a math node. Tinted so "formula mode"
    reads as a distinct, active state. */
+/* Read-aloud pause (editor/ttsPause.js): an empty span in the saved note,
+   drawn only in the editor as a small "⏸ 3s" chip. */
+.rte-content .tts-pause {
+  display: inline-block; margin: 0 2px; padding: 0 6px; border-radius: 999px;
+  background: #eef0f4; border: 1px solid #d9dbe0; color: #4b5563;
+  font-size: 0.8em; line-height: 1.5; vertical-align: 0.1em; cursor: pointer; user-select: none;
+}
+.rte-content .tts-pause::before { content: "⏸ " attr(data-seconds) "s"; }
+.rte-content .tts-pause.ProseMirror-selectednode { background: #dbeafe; border-color: #2563eb; color: #1d4ed8; outline: none; }
+.tts-pause:empty { display: none; }
+.rte-content .tts-pause:empty { display: inline-block; }
+.rte-pause__pop { display: block; padding: 10px; min-width: 190px; }
+.rte-pause__label { font-size: 0.8rem; color: #6b7280; margin-bottom: 6px; }
+.rte-pause__choices { display: flex; gap: 6px; }
+.rte-pause__choice {
+  flex: 1; min-width: 38px; height: 34px; border: 1px solid #d9dbe0; border-radius: 6px;
+  background: #fff; font: inherit; font-size: 0.9rem; cursor: pointer;
+}
+.rte-pause__choice:hover { background: #f2f4f8; }
+.rte-pause__choice.on { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; font-weight: 600; }
+.rte-pause__remove {
+  display: block; width: 100%; margin-top: 8px; padding: 6px; border: none; border-radius: 6px;
+  background: none; color: #b91c1c; font: inherit; font-size: 0.85rem; text-align: left; cursor: pointer;
+}
+.rte-pause__remove:hover { background: #fef2f2; }
+
 /* Find and replace (RichTextEditor FindBar, editor/findReplace.js). */
 .rte-find-bar { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; background: #f8f9fb; }
 .rte-find-bar__row { display: flex; align-items: center; gap: 6px; min-width: 0; }

@@ -12,7 +12,8 @@ import { Image } from '@tiptap/extension-image';
 import { MarkdownPaste } from './editor/markdownPaste';
 import { TtsSkip } from './editor/ttsSkip';
 import { TtsLang } from './editor/ttsLang';
-import { MARKABLE_LANGUAGES, languageLabel, voiceLabel } from '../utils/tts';
+import { TtsPause } from './editor/ttsPause';
+import { MARKABLE_LANGUAGES, TTS_PAUSES, languageLabel, voiceLabel } from '../utils/tts';
 import VoicePickerDialog from './VoicePickerDialog';
 
 import { Indent } from './editor/indent';
@@ -129,6 +130,8 @@ const RichTextEditor = ({ value, onChange }) => {
     // "Read in <language>" menu (next to 🔇) and its voice picker.
     const [showLang, setShowLang] = React.useState(false);
     const [voicePick, setVoicePick] = React.useState(false);
+    // ⏸ menu: insert a read-aloud pause, or change/remove the selected one.
+    const [showPause, setShowPause] = React.useState(false);
     // Kept current so the paste/drop handlers (defined at editor-config time) can
     // reach the editor instance, which only exists after useEditor returns.
     const editorRef = React.useRef(null);
@@ -201,6 +204,7 @@ const RichTextEditor = ({ value, onChange }) => {
             MarkdownPaste,
             TtsSkip,
             TtsLang,
+            TtsPause,
             // TextStyle must come before FontFamily/FontSize (they add attributes
             // to its mark). Highlight is multicolor so it can store a chosen color.
             TextStyle,
@@ -219,6 +223,12 @@ const RichTextEditor = ({ value, onChange }) => {
         onUpdate: ({ editor }) => onChange(editor.getHTML()),
         // Pasting or dropping an image file uploads it and inserts the URL.
         editorProps: {
+            // Clicking a pause chip selects it and opens the ⏸ menu to
+            // change or remove it.
+            handleClickOn: (view, pos, node) => {
+                if (node.type.name === 'ttsPause') setShowPause(true);
+                return false;
+            },
             handlePaste: (view, event) => {
                 const cd = event.clipboardData;
                 let files = imageFilesFrom(cd && cd.files);
@@ -458,6 +468,56 @@ const RichTextEditor = ({ value, onChange }) => {
                             editor.chain().focus().setTtsReading(reading).run();
                             setVoicePick(false);
                         }} />
+                </span>
+                {/* ⏸: a read-aloud pause at the cursor (editor/ttsPause.js);
+                    with a pause selected, change its length or remove it. */}
+                <span className="rte-hl">
+                    {(() => {
+                        const selected = editor.isActive('ttsPause');
+                        const current = selected ? editor.getAttributes('ttsPause').seconds : null;
+                        return (
+                            <>
+                                <button type="button" className={`rte-btn${selected ? ' active' : ''}`}
+                                    title={selected ? `Read-aloud pause: ${current} s` : 'Insert a read-aloud pause'}
+                                    aria-haspopup="true" aria-expanded={showPause}
+                                    onMouseDown={(e) => e.preventDefault()} onClick={() => setShowPause((v) => !v)}>
+                                    ⏸{selected ? ` ${current}s` : ''}<span className="rte-hl__caret">▾</span>
+                                </button>
+                                {showPause && (
+                                    <>
+                                        <div className="rte-hl__backdrop" onMouseDown={() => setShowPause(false)} />
+                                        <div className="rte-hl__pop rte-pause__pop" role="menu">
+                                            <div className="rte-pause__label">
+                                                {selected ? 'Change pause' : 'Pause reading for'}
+                                            </div>
+                                            <div className="rte-pause__choices">
+                                                {TTS_PAUSES.map((sec) => (
+                                                    <button type="button" key={sec} role="menuitemradio"
+                                                        aria-checked={current === sec}
+                                                        className={`rte-pause__choice${current === sec ? ' on' : ''}`}
+                                                        onMouseDown={(e) => e.preventDefault()}
+                                                        onClick={() => {
+                                                            if (selected) editor.chain().focus().setTtsPauseSeconds(sec).run();
+                                                            else editor.chain().focus().insertTtsPause(sec).run();
+                                                            setShowPause(false);
+                                                        }}>
+                                                        {sec}s
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {selected && (
+                                                <button type="button" role="menuitem" className="rte-pause__remove"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => { editor.chain().focus().deleteSelection().run(); setShowPause(false); }}>
+                                                    Remove pause
+                                                </button>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </>
+                        );
+                    })()}
                 </span>
                 <span className="rte-hl">
                     <button type="button" className={`rte-btn${editor.isActive('highlight') ? ' active' : ''}`}

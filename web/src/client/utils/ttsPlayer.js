@@ -18,12 +18,15 @@ function getAudio() {
     return audioEl;
 }
 
-// A tiny silent clip, built at runtime. Playing it inside the click handler
-// "unlocks" the audio element so iOS lets us set a real src after the async
-// fetch (which would otherwise be blocked as not user-initiated).
-function silentUrl() {
+// A silent clip, built at runtime. A tiny one, played inside the click
+// handler, "unlocks" the audio element so iOS lets us set a real src after the
+// async fetch (which would otherwise be blocked as not user-initiated).
+// Longer ones are a note's pauses (chunks { pause: seconds }): silence keeps
+// the reading going on a locked phone, where simply waiting could stop it,
+// and ±5 seconds works inside a pause like in a sentence.
+function silentUrl(seconds = 0.05) {
     const sr = 8000;
-    const n = Math.floor(sr * 0.05);
+    const n = Math.floor(sr * seconds);
     const buf = new ArrayBuffer(44 + n * 2);
     const view = new DataView(buf);
     const wr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
@@ -67,7 +70,7 @@ export function reportItemAudio(item, chunks) {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ item, chunks: chunks.map(asRequest) }),
+        body: JSON.stringify({ item, chunks: chunks.filter((c) => !c.pause).map(asRequest) }),
     }).catch(() => {});
 }
 
@@ -86,6 +89,7 @@ function reportItems(chunks) {
 }
 
 async function fetchChunkUrl(chunk) {
+    if (chunk.pause) return silentUrl(chunk.pause);
     const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -119,7 +123,13 @@ class TtsPlayer {
 
     subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
     snapshot() {
-        return { status: this.status, sourceId: this.sourceId, title: this.title, error: this.error, index: this.idx, total: this.queue.length };
+        // index/total count sentences ("3 of 12"), not pauses; during a
+        // pause, index is the sentence before it.
+        const spoken = (list) => list.filter((c) => !c.pause).length;
+        return {
+            status: this.status, sourceId: this.sourceId, title: this.title, error: this.error,
+            index: Math.max(0, spoken(this.queue.slice(0, this.idx + 1)) - 1), total: spoken(this.queue),
+        };
     }
     _emit() { const s = this.snapshot(); this.listeners.forEach((fn) => fn(s)); }
 
