@@ -1879,6 +1879,28 @@ nav-button-as-link {
 
 /* Formula help: shown only while editing a math node. Tinted so "formula mode"
    reads as a distinct, active state. */
+/* Find and replace (RichTextEditor FindBar, editor/findReplace.js). */
+.rte-find-bar { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; background: #f8f9fb; }
+.rte-find-bar__row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rte-find-bar__input { flex: 1 1 auto; min-width: 0; height: 32px; padding: 4px 8px; border: 1px solid #d9dbe0; border-radius: 6px; font: inherit; font-size: 14px; background: #fff; }
+.rte-find-bar__input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15); }
+.rte-find-bar__count { flex: none; min-width: 64px; font-size: 13px; color: #6b7280; text-align: center; white-space: nowrap; }
+.rte-find-bar__count.is-none { color: #b91c1c; }
+.rte-find-bar__btn { flex: none; min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid #d9dbe0; border-radius: 6px; background: #fff; color: #374151; font-size: 14px; cursor: pointer; }
+.rte-find-bar__btn:hover:not(:disabled) { background: #f2f4f8; }
+.rte-find-bar__btn:disabled { opacity: 0.45; cursor: default; }
+.rte-find-bar__exact.on { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; font-weight: 600; }
+.rte-find-bar__close { border-color: transparent; background: transparent; }
+.rte-find-bar__wide { padding: 0 12px; }
+.rte-content .rte-find { background: #fde68a; border-radius: 2px; }
+.rte-content .rte-find--current { background: #fb923c; color: #111; }
+@media (max-width: 768px) {
+  /* 16px so iPhone Safari doesn't zoom in when the box is tapped. */
+  .rte-find-bar__input { font-size: 16px; }
+  .rte-find-bar__count { min-width: 0; font-size: 12px; }
+  .rte-find-bar__wide { padding: 0 8px; font-size: 13px; }
+}
+
 .rte-mathhelp {
   border-top: 2px solid #cfe0f3;
   background: #eef5fc;

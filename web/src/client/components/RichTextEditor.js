@@ -16,6 +16,7 @@ import { MARKABLE_LANGUAGES, languageLabel, voiceLabel } from '../utils/tts';
 import VoicePickerDialog from './VoicePickerDialog';
 
 import { Indent } from './editor/indent';
+import { FindReplace, findReplaceKey } from './editor/findReplace';
 import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
 import katex from 'katex';
@@ -83,6 +84,8 @@ const renderTex = (tex) => {
 //                 it changes nothing on its own
 //   MarkdownPaste turns pasted Markdown into formatted content; see
 //                 editor/markdownPaste.js and the "M↓" toggle below
+//   FindReplace   find and replace in the note (🔍 or Cmd/Ctrl+F); see
+//                 editor/findReplace.js and FindBar below
 // Pale highlight colors — light enough that black text stays easy to read.
 const HIGHLIGHTS = [
     { name: 'Yellow', color: '#FEF3C7' },
@@ -130,6 +133,9 @@ const RichTextEditor = ({ value, onChange }) => {
     // reach the editor instance, which only exists after useEditor returns.
     const editorRef = React.useRef(null);
     const fileInputRef = React.useRef(null);
+    // Find and replace bar (🔍 / Cmd+F): { seed: the selected words it opens
+    // with, n: bumped on every open so the bar refocuses }.
+    const [find, setFind] = React.useState(null); // null = closed, else { seed, n }
 
     // Upload an image file to the backend (S3) and return its URL. Notes store
     // only this URL, never the image bytes (DynamoDB items cap at 400 KB).
@@ -175,6 +181,9 @@ const RichTextEditor = ({ value, onChange }) => {
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
+                // No spell-check squiggles under code (commands, paths, names).
+                code: { HTMLAttributes: { spellcheck: 'false' } },
+                codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
                 link: {
                     openOnClick: false,
                     HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
@@ -201,6 +210,7 @@ const RichTextEditor = ({ value, onChange }) => {
             Indent,
             // Images are uploaded to S3; the note stores only the URL (no base64).
             Image.configure({ inline: false, allowBase64: false }),
+            FindReplace,
         ],
         // Saved notes are HTML. Say so explicitly, since with the Markdown
         // extension loaded a string could otherwise be read as Markdown.
@@ -249,6 +259,17 @@ const RichTextEditor = ({ value, onChange }) => {
             editor.off('transaction', handler);
         };
     }, [editor]);
+
+    // Cmd/Ctrl+F in the note opens the bar, with the selected words in it.
+    const openFind = () => {
+        const ed = editorRef.current;
+        if (!ed) return;
+        const { from, to, empty } = ed.state.selection;
+        const picked = empty ? '' : ed.state.doc.textBetween(from, to, '\n');
+        const seed = picked && picked.length <= 100 && !picked.includes('\n') ? picked : null;
+        setFind((f) => ({ seed, n: (f ? f.n : 0) + 1 }));
+    };
+    if (editor) editor.storage.findReplace.onOpen = openFind;
 
     if (!editor) {
         return null;
@@ -328,6 +349,9 @@ const RichTextEditor = ({ value, onChange }) => {
         if (editor.isActive('listItem')) editor.chain().focus().listAwareOutdent().run();
         else editor.chain().focus().indentLess().run();
     };
+
+    // Closing clears the tints and puts the cursor on the current match.
+    const closeFind = () => { setFind(null); editor.chain().focus().closeFind().run(); };
 
     const applyHighlight = (color) => { editor.chain().focus().setHighlight({ color }).run(); setShowHl(false); };
     const clearHighlight = () => { editor.chain().focus().unsetHighlight().run(); setShowHl(false); };
@@ -483,6 +507,8 @@ const RichTextEditor = ({ value, onChange }) => {
                     onClick={toggleMarkdownPaste} />
                 <Btn label="Select all" title="Select all text"
                     onClick={() => editor.chain().focus().selectAll().run()} />
+                <Btn label="🔍" title="Find and replace (Ctrl+F / ⌘F)" active={!!find}
+                    onClick={() => (find ? closeFind() : openFind())} />
                 <select className="rte-select rte-desktop-only" title="Font" value={curFont}
                     onMouseDown={(e) => e.stopPropagation()}
                     onChange={(e) => applyFont(e.target.value)}>
@@ -507,6 +533,7 @@ const RichTextEditor = ({ value, onChange }) => {
             <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp"
                 style={{ display: 'none' }}
                 onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) insertImageFile(f); e.target.value = ''; }} />
+            {find && <FindBar editor={editor} open={find} onClose={closeFind} />}
             <EditorContent editor={editor} className="rte-content" />
 
             {(mathType || showHelp) && (
@@ -546,5 +573,73 @@ const RichTextEditor = ({ value, onChange }) => {
         </div>
     );
 };
+
+// The find and replace bar, between the toolbar and the text:
+//   Find    [……]  3 of 12  ↑ ↓  [Aa]  ✕
+//   Replace [……]  [Replace] [Replace all]
+// Enter finds the next match (Shift+Enter the previous), Enter in Replace
+// replaces, Esc closes. [Aa] = match capitals and accents exactly.
+function FindBar({ editor, open, onClose }) {
+    const [query, setQuery] = React.useState(open.seed || '');
+    const [replacement, setReplacement] = React.useState('');
+    const [exact, setExact] = React.useState(false);
+    const findRef = React.useRef(null);
+    const { matches, current } = findReplaceKey.getState(editor.state);
+
+    // Opened again (🔍, Cmd+F): take the new selection and focus the box.
+    React.useEffect(() => {
+        if (open.seed) setQuery(open.seed);
+        const el = findRef.current;
+        if (el) { el.focus(); el.select(); }
+    }, [open.n]);
+
+    React.useEffect(() => { editor.commands.setFindQuery(query, exact); }, [editor, query, exact]);
+
+    // Keep the current match in view.
+    React.useEffect(() => {
+        const el = editor.view.dom.querySelector('.rte-find--current');
+        if (el) el.scrollIntoView({ block: 'nearest' });
+    }, [editor, current, matches.length, query]);
+
+    const keys = (e, onEnter) => {
+        if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+        else if (e.key === 'Enter') { e.preventDefault(); onEnter(e); }
+        else if (e.key === 'f' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); findRef.current.select(); }
+    };
+    const status = !query ? '' : matches.length ? `${current + 1} of ${matches.length}` : 'No matches';
+    const none = matches.length === 0;
+    // onMouseDown preventDefault keeps focus in the box while clicking arrows.
+    const keep = (e) => e.preventDefault();
+
+    return (
+        <div className="rte-find-bar" role="search" aria-label="Find and replace in this note">
+            <div className="rte-find-bar__row">
+                <input ref={findRef} type="text" className="rte-find-bar__input" placeholder="Find"
+                    aria-label="Find" value={query} onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => keys(e, (ev) => (ev.shiftKey ? editor.commands.findPrevious() : editor.commands.findNext()))} />
+                <span className={`rte-find-bar__count${query && none ? ' is-none' : ''}`} aria-live="polite">{status}</span>
+                <button type="button" className="rte-find-bar__btn" title="Previous (Shift+Enter)" aria-label="Previous match"
+                    disabled={none} onMouseDown={keep} onClick={() => editor.commands.findPrevious()}>↑</button>
+                <button type="button" className="rte-find-bar__btn" title="Next (Enter)" aria-label="Next match"
+                    disabled={none} onMouseDown={keep} onClick={() => editor.commands.findNext()}>↓</button>
+                <button type="button" aria-pressed={exact}
+                    className={`rte-find-bar__btn rte-find-bar__exact${exact ? ' on' : ''}`}
+                    title={exact ? 'Matching capitals and accents exactly' : 'Ignoring capitals and accents (click to match exactly)'}
+                    onMouseDown={keep} onClick={() => setExact((v) => !v)}>Aa</button>
+                <button type="button" className="rte-find-bar__btn rte-find-bar__close" title="Close (Esc)"
+                    aria-label="Close find and replace" onMouseDown={keep} onClick={onClose}>✕</button>
+            </div>
+            <div className="rte-find-bar__row">
+                <input type="text" className="rte-find-bar__input" placeholder="Replace with"
+                    aria-label="Replace with" value={replacement} onChange={(e) => setReplacement(e.target.value)}
+                    onKeyDown={(e) => keys(e, () => editor.commands.replaceMatch(replacement))} />
+                <button type="button" className="rte-find-bar__btn rte-find-bar__wide" disabled={none}
+                    onMouseDown={keep} onClick={() => editor.commands.replaceMatch(replacement)}>Replace</button>
+                <button type="button" className="rte-find-bar__btn rte-find-bar__wide" disabled={none}
+                    onMouseDown={keep} onClick={() => editor.commands.replaceAllMatches(replacement)}>Replace all</button>
+            </div>
+        </div>
+    );
+}
 
 export default RichTextEditor;
