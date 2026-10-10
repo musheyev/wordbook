@@ -141,9 +141,14 @@ class TtsPlayer {
         // index/total count sentences ("3 of 12"), not pauses; during a
         // pause, index is the sentence before it.
         const spoken = (list) => list.filter((c) => !c.pause).length;
+        // Notes (Play all, Play selected): their first chunks carry a title.
+        const noteStarts = this._noteStarts();
+        const note = noteStarts.filter((i) => i <= this.idx).length;
         return {
             status: this.status, sourceId: this.sourceId, title: this.title, error: this.error, skip: this.skip,
             index: Math.max(0, spoken(this.queue.slice(0, this.idx + 1)) - 1), total: spoken(this.queue),
+            notes: noteStarts.length, note: Math.max(1, note),
+            bookmarks: this.queue.some((c) => c.bookmark),
         };
     }
     _emit() { const s = this.snapshot(); this.listeners.forEach((fn) => fn(s)); }
@@ -323,6 +328,53 @@ class TtsPlayer {
             i += 1;
         }
         this.stop();
+    }
+
+    // Where notes start in the queue (chunks with a title; Play all tags each
+    // note's first chunk). One note read on its own has none.
+    _noteStarts() {
+        const out = [];
+        this.queue.forEach((c, i) => { if (c.title) out.push(i); });
+        return out;
+    }
+
+    // Jump to the chunk at `i` (keeps playing, or stays paused).
+    _jumpTo(i) {
+        if (i < 0 || i >= this.queue.length) return;
+        this._pendingSeek = 0;
+        this._playIdx(i, { play: this._wantPlay });
+    }
+
+    // Previous stop among `starts`: the start of the current one if we're
+    // more than a moment into it, else the one before (like a music
+    // player's ⏮). Before the first stop: the start of the reading.
+    _prevOf(starts) {
+        const a = getAudio();
+        const into = this.status === 'loading' ? 0 : a.currentTime;
+        const here = starts.filter((i) => i <= this.idx);
+        let target = here.length ? here[here.length - 1] : 0;
+        if (target === this.idx && into < 1.5) {
+            target = here.length > 1 ? here[here.length - 2] : 0;
+            if (target === this.idx) { a.currentTime = 0; return; }
+        }
+        if (target === this.idx) { a.currentTime = 0; return; }
+        this._jumpTo(target);
+    }
+
+    // The next bookmark / note (headings and 🔖 in notes; see htmlToChunks).
+    nextBookmark() {
+        const i = this.queue.findIndex((c, k) => k > this.idx && c.bookmark);
+        if (i !== -1) this._jumpTo(i);
+    }
+    prevBookmark() {
+        this._prevOf(this.queue.map((c, k) => (c.bookmark ? k : -1)).filter((k) => k !== -1));
+    }
+    nextNote() {
+        const i = this._noteStarts().find((k) => k > this.idx);
+        if (i !== undefined) this._jumpTo(i);
+    }
+    prevNote() {
+        this._prevOf(this._noteStarts());
     }
 
     pause() { this._wantPlay = false; getAudio().pause(); this.status = 'paused'; this._updateSession(); this._emit(); }

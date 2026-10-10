@@ -13,6 +13,7 @@ import { MarkdownPaste } from './editor/markdownPaste';
 import { TtsSkip } from './editor/ttsSkip';
 import { TtsLang } from './editor/ttsLang';
 import { TtsPause } from './editor/ttsPause';
+import { TtsBookmark } from './editor/ttsBookmark';
 import { MARKABLE_LANGUAGES, TTS_PAUSES, TTS_SPEEDS, htmlToChunks, languageLabel, voiceLabel } from '../utils/tts';
 import VoicePickerDialog from './VoicePickerDialog';
 
@@ -221,6 +222,7 @@ const RichTextEditor = ({ value, onChange }) => {
             TtsSkip,
             TtsLang,
             TtsPause,
+            TtsBookmark,
             // TextStyle must come before FontFamily/FontSize (they add attributes
             // to its mark). Highlight is multicolor so it can store a chosen color.
             TextStyle,
@@ -325,10 +327,11 @@ const RichTextEditor = ({ value, onChange }) => {
             const sel = state.selection;
             const a = audioRef.current;
             const select = (from, to) => view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, from, to)));
-            const chip = e.target.closest && e.target.closest('.tts-pause');
+            const chip = e.target.closest && e.target.closest('.tts-pause, .tts-bookmark');
             if (chip) {
                 const at = view.posAtDOM(chip, 0);
-                const pos = [at, at - 1].find((p) => p >= 0 && state.doc.nodeAt(p) && state.doc.nodeAt(p).type.name === 'ttsPause');
+                const kind = chip.classList.contains('tts-pause') ? 'ttsPause' : 'ttsBookmark';
+                const pos = [at, at - 1].find((p) => p >= 0 && state.doc.nodeAt(p) && state.doc.nodeAt(p).type.name === kind);
                 if (pos !== undefined) {
                     a.anchor = null; a.fresh = true;
                     view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)));
@@ -548,6 +551,8 @@ const RichTextEditor = ({ value, onChange }) => {
                         </>
                     )}
                 </span>
+                <Btn label="🔖" title="Read-aloud bookmark here (the player can jump to it)"
+                    onClick={() => editor.chain().focus().insertTtsBookmark().run()} />
                 {/* ⏸: a read-aloud pause at the cursor (editor/ttsPause.js);
                     with a pause selected, change its length or remove it. */}
                 <span className="rte-hl">
@@ -819,7 +824,8 @@ function AudioBar({ editor, unit, setUnit, anchorPending, onApplied, onVoice }) 
 
     const sel = editor.state.selection;
     const pauseNode = sel.node && sel.node.type.name === 'ttsPause' ? sel.node : null;
-    const has = !sel.empty && !pauseNode;
+    const bookmarkNode = sel.node && sel.node.type.name === 'ttsBookmark' ? sel.node : null;
+    const has = !sel.empty && !sel.node;
     const { lang, voice, speed } = editor.getAttributes('ttsLang');
     const skipped = editor.isActive('ttsSkip');
     const text = has ? editor.state.doc.textBetween(sel.from, sel.to, ' ') : '';
@@ -849,7 +855,8 @@ function AudioBar({ editor, unit, setUnit, anchorPending, onApplied, onVoice }) 
     };
 
     let hint;
-    if (pauseNode) hint = 'Pause selected';
+    if (bookmarkNode) hint = 'Bookmark selected';
+    else if (pauseNode) hint = 'Pause selected';
     else if (has) hint = `“${text.length > 60 ? `${text.slice(0, 60)}…` : text}”`;
     else hint = unit === 'sentence' ? 'Tap a sentence to select it' : 'Tap a word';
     if (has && anchorPending) hint += ' · tap another word to select a phrase';
@@ -870,7 +877,13 @@ function AudioBar({ editor, unit, setUnit, anchorPending, onApplied, onVoice }) 
             </div>
             <div className="rte-audio-bar__hint">{hint}</div>
 
-            {pauseNode ? (
+            {bookmarkNode ? (
+                <div className="rte-audio-bar__row">
+                    <span className="rte-audio-bar__label">🔖 The player can jump here.</span>
+                    <button type="button" className="rte-audio-bar__plain rte-audio-bar__danger" onMouseDown={keep}
+                        onClick={() => { editor.chain().deleteSelection().run(); done(); }}>Remove bookmark</button>
+                </div>
+            ) : pauseNode ? (
                 <div className="rte-audio-bar__row">
                     <span className="rte-audio-bar__label">Pause</span>
                     {TTS_PAUSES.map((sec) => (
@@ -919,6 +932,13 @@ function AudioBar({ editor, unit, setUnit, anchorPending, onApplied, onVoice }) 
                             onClick={() => done(editor.chain().toggleTtsSkip().run())}>
                             🔇 {has && skipped ? 'Read it again' : 'Don’t read'}
                         </button>
+                        <button type="button" className="rte-audio-bar__plain" disabled={!has} onMouseDown={keep}
+                            title="Bookmark the start of the selection: the player can jump here"
+                            onClick={() => {
+                                const { from, to } = sel;
+                                editor.chain().insertTtsBookmarkAt(from).setTextSelection({ from: from + 1, to: to + 1 }).run();
+                                done();
+                            }}>🔖 Bookmark</button>
                         <button type="button" className="rte-audio-bar__plain" disabled={sel.empty} onMouseDown={keep}
                             onClick={() => { editor.chain().setTextSelection(sel.from).run(); onApplied(); }}>Clear</button>
                     </div>

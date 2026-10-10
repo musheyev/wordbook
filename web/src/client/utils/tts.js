@@ -128,36 +128,58 @@ export const validPause = (s) => (TTS_PAUSES.includes(Number(s)) ? Number(s) : n
 // rest automatically. A pause (<span class="tts-pause" data-seconds="3">)
 // cuts the text too and becomes a chunk of its own: { pause: 3 }, which
 // ttsPlayer plays as that many seconds of silence.
+//
+// Bookmarks (the player's 🔖 ⏭ / ⏮ 🔖 buttons jump between them): a 🔖 in
+// the note (<span class="tts-bookmark">) and the start of every heading.
+// The first chunk after one gets `bookmark: true`.
 export function htmlToChunks(html) {
     if (!html) return [];
     const doc = readableDoc(html);
     const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
         acceptNode: (n) => (n.nodeType === Node.TEXT_NODE || n.classList.contains('tts-pause')
+            || n.classList.contains('tts-bookmark')
             ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
     });
-    const stretches = []; // { text, reading } or { pause }
+    const stretches = []; // { text, reading }, { pause } or { bookmark }
+    let heading = null;
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
         if (node.nodeType !== Node.TEXT_NODE) {
+            if (node.classList.contains('tts-bookmark')) { stretches.push({ bookmark: true }); continue; }
             const seconds = validPause(node.getAttribute('data-seconds'));
             if (seconds) stretches.push({ pause: seconds });
             continue;
         }
+        const h = node.parentElement && node.parentElement.closest('h1, h2, h3, h4');
+        if (h && h !== heading) stretches.push({ bookmark: true });
+        heading = h;
         const reading = markedReading(node);
         const last = stretches[stretches.length - 1];
-        if (last && !last.pause && sameReading(last.reading, reading)) last.text += node.textContent;
+        if (last && last.text !== undefined && sameReading(last.reading, reading)) last.text += node.textContent;
         else stretches.push({ text: node.textContent, reading });
     }
-    return stretches.flatMap((s) => {
-        if (s.pause) return [{ pause: s.pause }];
-        const r = s.reading;
-        const chunks = chunksOf(tidy(s.text), r ? r.lang : null);
-        if (!r || (!r.voice && !r.speed)) return chunks;
-        return chunks.map((c) => ({
-            ...c,
-            ...(r.voice ? { voice: r.voice } : {}),
-            ...(r.speed ? { speed: r.speed } : {}),
-        }));
+    const out = [];
+    let marked = false;
+    stretches.forEach((st) => {
+        if (st.bookmark) { marked = true; return; }
+        chunksOfStretch(st).forEach((c) => {
+            out.push(marked ? { ...c, bookmark: true } : c);
+            marked = false;
+        });
     });
+    return out;
+}
+
+// One stretch's chunks: a pause, or its text read as marked.
+function chunksOfStretch(s) {
+    if (s.pause) return [{ pause: s.pause }];
+    const r = s.reading;
+    const chunks = chunksOf(tidy(s.text), r ? r.lang : null);
+    if (!r || (!r.voice && !r.speed)) return chunks;
+    return chunks.map((c) => ({
+        ...c,
+        ...(r.voice ? { voice: r.voice } : {}),
+        ...(r.speed ? { speed: r.speed } : {}),
+    }));
 }
 
 // Chosen voices per language, persisted per viewer. { 'en-US': name, 'he-IL': name }

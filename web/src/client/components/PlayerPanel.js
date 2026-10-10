@@ -4,10 +4,15 @@ import ttsPlayer, { SKIP_CHOICES } from '../utils/ttsPlayer';
 // Big read-aloud controls, over the bottom of the screen whenever something
 // is being read (a note, a word, Play all), e.g. for a phone in a car mount:
 //
-//   Valuation Dashboard Meeting          3 of 12
+//   Valuation Dashboard Meeting                 note 3 of 12
 //      [ ↺ 5 ]     [ ⏸ ]     [ 5 ↻ ]
+//   [⏮ Note] [⏮ 🔖]          [🔖 ⏭] [Note ⏭]
 //      [■ Stop]     Skip [5s] 10s    [⌄ Hide]
 //
+// Note buttons show when several notes are being read (Play all); bookmark
+// buttons when what's read has bookmarks (🔖 in a note, or headings). ⏮
+// goes to the start of the current note/bookmark, or the one before if
+// it's just started (ttsPlayer.prevNote / prevBookmark).
 // Skip sets how far ↺/↻ (and the lock screen) jump; this device remembers
 // it. Taps while the next sentence is still loading aren't lost: they're
 // applied as soon as it starts (ttsPlayer.seekBy).
@@ -49,7 +54,9 @@ export default function PlayerPanel() {
         <div className="player-panel" role="region" aria-label="Playback controls">
             <div className="player-panel__head">
                 <span className="player-panel__title">{state.title || 'Reading'}</span>
-                {state.total > 1 && (
+                {state.notes > 1 ? (
+                    <span className="player-panel__where">note {state.note} of {state.notes}</span>
+                ) : state.total > 1 && (
                     <span className="player-panel__where">{state.index + 1} of {state.total}</span>
                 )}
             </div>
@@ -70,6 +77,26 @@ export default function PlayerPanel() {
                     <span className="player-panel__step">{step}</span>
                 </button>
             </div>
+            {(state.notes > 1 || state.bookmarks) && (
+                <div className="player-panel__nav">
+                    {state.notes > 1 && (
+                        <button type="button" className="player-panel__jump" aria-label="Previous note"
+                            onClick={() => ttsPlayer.prevNote()}>⏮ Note</button>
+                    )}
+                    {state.bookmarks && (
+                        <button type="button" className="player-panel__jump" aria-label="Previous bookmark"
+                            onClick={() => ttsPlayer.prevBookmark()}>⏮ 🔖</button>
+                    )}
+                    {state.bookmarks && (
+                        <button type="button" className="player-panel__jump" aria-label="Next bookmark"
+                            onClick={() => ttsPlayer.nextBookmark()}>🔖 ⏭</button>
+                    )}
+                    {state.notes > 1 && (
+                        <button type="button" className="player-panel__jump" aria-label="Next note"
+                            onClick={() => ttsPlayer.nextNote()}>Note ⏭</button>
+                    )}
+                </div>
+            )}
             <div className="player-panel__foot">
                 <button type="button" className="player-panel__small" onClick={() => ttsPlayer.stop()}>
                     <i className="stop icon" aria-hidden="true"></i>Stop

@@ -1927,6 +1927,16 @@ nav-button-as-link {
   font-size: 0.8em; line-height: 1.5; vertical-align: 0.1em; cursor: pointer; user-select: none;
 }
 .rte-content .tts-pause::before { content: "⏸ " attr(data-seconds) "s"; }
+/* Read-aloud bookmark (editor/ttsBookmark.js): same chip, only in the editor. */
+.rte-content .tts-bookmark {
+  display: inline-block; margin: 0 2px; padding: 0 5px; border-radius: 999px;
+  background: #fff7e6; border: 1px solid #f5d48a; font-size: 0.8em; line-height: 1.5;
+  vertical-align: 0.1em; cursor: pointer; user-select: none;
+}
+.rte-content .tts-bookmark::before { content: "🔖"; }
+.rte-content .tts-bookmark.ProseMirror-selectednode { border-color: #2563eb; background: #dbeafe; outline: none; }
+.tts-bookmark:empty { display: none; }
+.rte-content .tts-bookmark:empty { display: inline-block; }
 .rte-content .tts-pause.ProseMirror-selectednode { background: #dbeafe; border-color: #2563eb; color: #1d4ed8; outline: none; }
 .tts-pause:empty { display: none; }
 .rte-content .tts-pause:empty { display: inline-block; }
@@ -3095,6 +3105,14 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .player-panel__play { background: #2563eb; }
 .player-panel__play:active:not(:disabled) { background: #1d4ed8; }
 .player-panel__play .icon { font-size: 1.9rem; margin: 0; height: auto; }
+/* Note / bookmark jumps (PlayerPanel). */
+.player-panel__nav { display: flex; gap: 8px; margin-top: 10px; }
+.player-panel__jump {
+  flex: 1 1 0; min-width: 0; height: 48px; padding: 0 6px; border: none; border-radius: 12px;
+  background: #2b3242; color: #e5e9f2; font-family: inherit; font-size: 0.95rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.player-panel__jump:active { background: #4a5368; }
 .player-panel__foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; }
 .player-panel__skip { display: flex; align-items: center; gap: 4px; }
 .player-panel__skip-label { font-size: 0.8rem; color: #aab3c5; margin-right: 2px; }
