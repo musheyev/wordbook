@@ -4,7 +4,7 @@
 // lock screen and shows Media Session controls (play/pause, back/forward).
 //
 // Going back and forward (seekBy, the big controls in PlayerPanel and the
-// lock screen; 2, 3 or 5 seconds, see SKIP_CHOICES) works in seconds of
+// lock screen; 5 or 10 seconds, see SKIP_CHOICES) works in seconds of
 // listening, across sentences: back from
 // the start of a sentence continues into the end of the one before. The
 // last few sentences' audio stays in memory (KEEP_BEHIND) so that's instant.
@@ -46,7 +46,7 @@ const KEEP_BEHIND = 8;
 
 // How far back/forward jumps (the big controls' Skip choice, and the lock
 // screen), remembered on this device.
-export const SKIP_CHOICES = [2, 3, 5];
+export const SKIP_CHOICES = [5, 10];
 const SKIP_KEY = 'player-skip-seconds';
 const readSkip = () => {
     try { const v = Number(localStorage.getItem(SKIP_KEY)); return SKIP_CHOICES.includes(v) ? v : 5; } catch (e) { return 5; }

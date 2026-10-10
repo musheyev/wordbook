@@ -6,7 +6,7 @@ import ttsPlayer, { SKIP_CHOICES } from '../utils/ttsPlayer';
 //
 //   Valuation Dashboard Meeting          3 of 12
 //      [ ↺ 5 ]     [ ⏸ ]     [ 5 ↻ ]
-//      [■ Stop]   Skip 2s 3s [5s]   [⌄ Hide]
+//      [■ Stop]     Skip [5s] 10s    [⌄ Hide]
 //
 // Skip sets how far ↺/↻ (and the lock screen) jump; this device remembers
 // it. Taps while the next sentence is still loading aren't lost: they're
