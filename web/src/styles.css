@@ -957,6 +957,14 @@ nav-button-as-link {
 .read-aloud__voice:hover { background: var(--cb-surface); }
 .read-aloud__voice.on { background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 500; }
 .read-aloud__none { padding: 6px 8px; font-size: 0.8rem; color: var(--cb-ink-3); }
+/* "Show read-aloud marks in notes" at the foot of the voice menu (sticky, so
+   it's there without scrolling the voices). */
+.read-aloud__marks {
+  position: sticky; bottom: -8px; display: flex; align-items: center; gap: 8px;
+  margin: 6px -8px -8px; padding: 10px 12px; border-top: 1px solid var(--cb-border);
+  background: var(--cb-surface-2); font-size: 0.82rem; color: var(--cb-ink-2); cursor: pointer;
+}
+.read-aloud__marks input { margin: 0; }
 /* Reading speed for the language shown in the voice picker (ReadAloud.js). */
 .read-aloud__speed { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 2px 0 8px; border-bottom: 1px solid var(--cb-border); margin-bottom: 4px; }
 .read-aloud__speed-label { flex-basis: 100%; font-size: 0.75rem; color: var(--cb-ink-3); padding: 0 2px 2px; }
@@ -1374,6 +1382,9 @@ nav-button-as-link {
 }
 
 .card-content p { margin: 0 0 8px; }
+/* A blank line in the editor is an empty paragraph: keep its height when the
+   note is read, so the spacing matches. */
+.card-content p:empty, .word-note__content p:empty { min-height: 1.5em; }
 /* Lists in notes: the same spacing in the editor (.rte-content), a note's
    view (.card-content) and a word's "Your note" (.word-note__content).
    A top-level list's text starts 28px in (margin + padding); each nested
@@ -1468,6 +1479,28 @@ nav-button-as-link {
 /* Phones: the page scrolls, so keep the text area to most of the screen. */
 @media (max-width: 768px) {
   .card-editor .rte-content { max-height: calc(100vh - 320px); }
+}
+/* Phones, while editing a note (CardEditorInline): the editor covers the
+   screen above the keyboard (--vvh / --vvtop come from visualViewport) and
+   only the text area scrolls, so typing never scrolls the whole page. */
+@media (max-width: 768px) {
+  html.editing-note, html.editing-note body { overflow: hidden; overscroll-behavior: none; }
+  .cb-detail--editing {
+    position: fixed; left: 0; right: 0; top: var(--vvtop, 0px); height: var(--vvh, 100dvh);
+    z-index: 220; display: flex; flex-direction: column; overflow: hidden; background: var(--cb-bg);
+  }
+  .cb-detail--editing #worddefinition {
+    flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 10px 12px 8px;
+  }
+  .cb-detail--editing .card-editor { flex: 1; min-height: 0; }
+  .cb-detail--editing .card-editor > .rte { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .cb-detail--editing .card-editor .rte-content {
+    flex: 1; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain;
+  }
+  .cb-detail--editing .card-editor .rte-content .ProseMirror { min-height: 100%; }
+  /* Audio mode: its bar sits under the text in the same column. */
+  .cb-detail--editing .rte--audio { margin-bottom: 0; }
+  .cb-detail--editing .rte-audio-bar { position: static; box-shadow: none; }
 }
 
 /* While editing on mobile, the in-place editor owns the pane: hide the
@@ -1905,24 +1938,26 @@ nav-button-as-link {
    faint mute icon) so the author knows what TTS will skip. Deliberately NOT
    styled in the read view (.word-note__content / .card-content), so readers see
    ordinary text. The TTS reader strips .tts-skip before speaking (utils/tts.js). */
-.rte-content .ProseMirror .tts-skip {
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-skip {
   border-bottom: 1px dotted #9aa0a6;
   color: #6b6f76;
 }
-.rte-content .ProseMirror .tts-skip::before {
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-skip::before {
   content: "\1F507";
   font-size: 0.8em;
   margin-right: 2px;
   opacity: 0.6;
 }
 /* Text marked "read aloud in <language>" (editor/ttsLang.js): a light tint per
-   language plus a dotted underline (so it isn't mistaken for a highlight),
-   shown ONLY in the editor. Notes being read show plain text. */
-.rte-content .ProseMirror .tts-lang { border-radius: 3px; border-bottom: 1.5px dotted; }
-.rte-content .ProseMirror .tts-lang[lang="es-ES"] { background: #fbe3d9; border-bottom-color: #c2532b; }
-.rte-content .ProseMirror .tts-lang[lang="es-US"] { background: #fdefc8; border-bottom-color: #c98a12; }
-.rte-content .ProseMirror .tts-lang[lang="fr-FR"] { background: #e6e3fb; border-bottom-color: #534ab7; }
-.rte-content .ProseMirror .tts-lang[lang="it-IT"] { background: #ddf2e8; border-bottom-color: #0f6e56; }
+   language plus a dotted underline (so it isn't mistaken for a highlight).
+   Shown in the editor, and in notes being read only when "Show read-aloud
+   marks" is on (utils/ttsMarks.js puts .tts-marks-on on <html>); the same
+   goes for don't-read text and the ⏸ / 🔖 chips. */
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-lang { border-radius: 3px; border-bottom: 1.5px dotted; }
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-lang[lang="es-ES"] { background: #fbe3d9; border-bottom-color: #c2532b; }
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-lang[lang="es-US"] { background: #fdefc8; border-bottom-color: #c98a12; }
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-lang[lang="fr-FR"] { background: #e6e3fb; border-bottom-color: #534ab7; }
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-lang[lang="it-IT"] { background: #ddf2e8; border-bottom-color: #0f6e56; }
 /* The language menu: a list, not the highlight menu's colour grid. */
 .rte-lang__pop { display: flex; flex-direction: column; gap: 0; min-width: 230px; padding: 4px; }
 .rte-lang__item {
@@ -1953,25 +1988,25 @@ nav-button-as-link {
    reads as a distinct, active state. */
 /* Read-aloud pause (editor/ttsPause.js): an empty span in the saved note,
    drawn only in the editor as a small "⏸ 3s" chip. */
-.rte-content .tts-pause {
+:is(.rte-content, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-pause {
   display: inline-block; margin: 0 2px; padding: 0 6px; border-radius: 999px;
   background: #eef0f4; border: 1px solid #d9dbe0; color: #4b5563;
   font-size: 0.8em; line-height: 1.5; vertical-align: 0.1em; cursor: pointer; user-select: none;
 }
-.rte-content .tts-pause::before { content: "⏸ " attr(data-seconds) "s"; }
+:is(.rte-content, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-pause::before { content: "⏸ " attr(data-seconds) "s"; }
 /* Read-aloud bookmark (editor/ttsBookmark.js): same chip, only in the editor. */
-.rte-content .tts-bookmark {
+:is(.rte-content, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-bookmark {
   display: inline-block; margin: 0 2px; padding: 0 5px; border-radius: 999px;
   background: #fff7e6; border: 1px solid #f5d48a; font-size: 0.8em; line-height: 1.5;
   vertical-align: 0.1em; cursor: pointer; user-select: none;
 }
-.rte-content .tts-bookmark::before { content: "🔖"; }
-.rte-content .tts-bookmark.ProseMirror-selectednode { border-color: #2563eb; background: #dbeafe; outline: none; }
+:is(.rte-content, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-bookmark::before { content: "🔖"; }
+:is(.rte-content, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-bookmark.ProseMirror-selectednode { border-color: #2563eb; background: #dbeafe; outline: none; }
 .tts-bookmark:empty { display: none; }
-.rte-content .tts-bookmark:empty { display: inline-block; }
-.rte-content .tts-pause.ProseMirror-selectednode { background: #dbeafe; border-color: #2563eb; color: #1d4ed8; outline: none; }
+:is(.rte-content, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-bookmark:empty { display: inline-block; }
+:is(.rte-content, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-pause.ProseMirror-selectednode { background: #dbeafe; border-color: #2563eb; color: #1d4ed8; outline: none; }
 .tts-pause:empty { display: none; }
-.rte-content .tts-pause:empty { display: inline-block; }
+:is(.rte-content, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-pause:empty { display: inline-block; }
 .rte-pause__pop { display: block; padding: 10px; min-width: 190px; }
 .rte-pause__label { font-size: 0.8rem; color: #6b7280; margin-bottom: 6px; }
 .rte-pause__choices { display: flex; gap: 6px; }
@@ -3074,9 +3109,9 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .rte-lang__sep { height: 1px; margin: 4px 6px; background: var(--cb-border); }
 .rte-lang__icon { margin: 0 !important; width: 10px; font-size: 0.85rem !important; color: var(--cb-ink-3); }
 /* German, and English/Hebrew text given a specific voice, in the editor. */
-.rte-content .ProseMirror .tts-lang[lang="de-DE"] { background: #f1efe8; border-bottom-color: #5f5e5a; }
-.rte-content .ProseMirror .tts-lang[lang="en-US"],
-.rte-content .ProseMirror .tts-lang[lang="he-IL"] { background: #e6f1fb; border-bottom-color: #185fa5; }
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-lang[lang="de-DE"] { background: #f1efe8; border-bottom-color: #5f5e5a; }
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-lang[lang="en-US"],
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-lang[lang="he-IL"] { background: #e6f1fb; border-bottom-color: #185fa5; }
 .rte-lang__dot--de-DE { background: #5f5e5a; }
 
 /* Notebook search (NotebookSearchBar.js): box + mode, status, and the
@@ -3110,7 +3145,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .voice-pick__speed-label { width: 100%; font-size: 0.88rem; color: var(--cb-ink-2); margin-bottom: 2px; }
 .voice-pick__speed .read-aloud__speed-btn { padding: 6px 0; font-size: 0.85rem; }
 /* Text marked with only a speed (no language), in the editor. */
-.rte-content .ProseMirror .tts-lang:not([lang]) { background: #eeedfe; border-bottom-color: #534ab7; }
+:is(.rte-content .ProseMirror, .tts-marks-on .card-content, .tts-marks-on .word-note__content) .tts-lang:not([lang]) { background: #eeedfe; border-bottom-color: #534ab7; }
 
 /* Big read-aloud controls (PlayerPanel): a card at the bottom right on
    desktop; on phones, full width just above the tab bar. */

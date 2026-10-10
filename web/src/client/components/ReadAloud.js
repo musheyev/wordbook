@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ttsPlayer from '../utils/ttsPlayer';
 import { getChosenVoices, setChosenVoice, TTS_LANGUAGES, TTS_SPEEDS, getChosenSpeeds, setChosenSpeed } from '../utils/tts';
 import { loadVoices } from '../utils/ttsVoices';
+import { getShowTtsMarks, setShowTtsMarks } from '../utils/ttsMarks';
 
 let uid = 0;
 
@@ -21,6 +22,7 @@ function ReadAloud({ getChunks, title, label, voices: withVoices = true }) {
     const [voices, setVoices] = useState({});
     const [chosen, setChosen] = useState(getChosenVoices());
     const [speeds, setSpeeds] = useState(getChosenSpeeds());
+    const [showMarks, setShowMarks] = useState(getShowTtsMarks);
 
     useEffect(() => ttsPlayer.subscribe(setState), []);
 
@@ -125,6 +127,13 @@ function ReadAloud({ getChunks, title, label, voices: withVoices = true }) {
                                     <div className="read-aloud__none">No voices found</div>
                                 )}
                             </div>
+                            {/* Notes being read show how they're read aloud too
+                                (utils/ttsMarks.js). */}
+                            <label className="read-aloud__marks">
+                                <input type="checkbox" checked={showMarks}
+                                    onChange={(e) => { setShowTtsMarks(e.target.checked); setShowMarks(e.target.checked); }} />
+                                Show read-aloud marks in notes
+                            </label>
                         </div>
                     </>
                 )}

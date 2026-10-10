@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { connect } from 'react-redux';
 import { closeCardEditor, createCard, updateCard, deleteCard, requestErrorMessage } from '../actions';
 import RichTextEditor from './LazyRichTextEditor';
@@ -19,6 +19,29 @@ import { timeAgo } from '../utils/timeAgo';
 // on this device (useDraft), so a closed tab or crash doesn't lose it; the
 // next time this note is edited, the editor offers to restore it.
 function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, updateCard, deleteCard }) {
+    // Phones: while editing, the note fills exactly the screen above the
+    // keyboard and scrolls inside itself, instead of the whole page scrolling
+    // (.cb-detail--editing in styles.css). The keyboard doesn't resize the
+    // page on iPhones, so the visible area comes from window.visualViewport.
+    useEffect(() => {
+        const root = document.documentElement;
+        const vv = window.visualViewport;
+        const update = () => {
+            if (!vv) return;
+            root.style.setProperty('--vvh', `${vv.height}px`);
+            root.style.setProperty('--vvtop', `${vv.offsetTop}px`);
+        };
+        root.classList.add('editing-note');
+        update();
+        if (vv) { vv.addEventListener('resize', update); vv.addEventListener('scroll', update); }
+        return () => {
+            root.classList.remove('editing-note');
+            root.style.removeProperty('--vvh');
+            root.style.removeProperty('--vvtop');
+            if (vv) { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); }
+        };
+    }, []);
+
     const isEdit = cardEditor.mode === 'edit';
     const card = cardEditor.card;
 

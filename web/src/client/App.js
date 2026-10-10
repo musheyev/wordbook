@@ -6,6 +6,10 @@ import NoteWindows from './components/NoteWindows';
 import PlayerPanel from './components/PlayerPanel';
 import { fetchCurrentUser, fetchInbox } from './actions';
 import { preloadRichTextEditor } from './components/LazyRichTextEditor';
+import { applyShowTtsMarks } from './utils/ttsMarks';
+
+// Notes show read-aloud marks if this device chose so (utils/ttsMarks.js).
+applyShowTtsMarks();
 
 // The card editor is now rendered in place inside the detail pane (see
 // CardEditorInline), not as a global modal.
