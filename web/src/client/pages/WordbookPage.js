@@ -20,6 +20,7 @@ import { cardChunks } from '../utils/tts';
 import { highlightFirstMatch } from '../utils/highlightMatch';
 import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
 import useNotebookSearch from '../utils/useNotebookSearch';
+import { keyOf } from '../components/NotebookSelect';
 
 const HEBREW = /[֐-׿]/;
 
@@ -33,7 +34,8 @@ const HEBREW = /[֐-׿]/;
 // Everything follows the notebook's chosen sort (utils/itemSort.js): the
 // overview, the phone list, stepping between items and Play all. The search
 // box and its filter (useNotebookSearch) live here too, so Play all reads
-// just what the filter shows.
+// just what the filter shows; so does the Play selected selection
+// (NotebookSelect.js), shared by the overview and the phone list.
 function WordbookPage({
     dispatch, wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditorOpen,
     itemSorts, fetchWordbookWords, fetchCardData, fetchWordData, clearCurrentSelection, closeCardEditor,
@@ -81,6 +83,26 @@ function WordbookPage({
     // What the search/filter shows (all items when there's none).
     const shownItems = search.results.map((r) => r.item);
     useEffect(() => { search.setQuery(''); }, [name]);
+
+    // Play selected: which items are ticked (keys "<type>:<id>").
+    const [selecting, setSelecting] = useState(false);
+    const [picked, setPicked] = useState(() => new Set());
+    useEffect(() => { setSelecting(false); setPicked(new Set()); }, [name]);
+    const selection = {
+        selecting,
+        picked,
+        isPicked: (item) => picked.has(keyOf(item)),
+        toggle: (item) => setPicked((prev) => {
+            const next = new Set(prev);
+            if (next.has(keyOf(item))) next.delete(keyOf(item)); else next.add(keyOf(item));
+            return next;
+        }),
+        setAll: (list) => setPicked(new Set(list.map(keyOf))),
+        start: () => setSelecting(true),
+        cancel: () => { setSelecting(false); setPicked(new Set()); },
+    };
+    // The ticked items, in the notebook's order.
+    const pickedItems = items.filter((item) => picked.has(keyOf(item)));
     const listReady = haveList;
     const listFresh = haveList && !wordbookWordsInProgress;
     const loadError = !haveList && wordbookWordsError && wordbookWordsError.wordbook === name
@@ -186,7 +208,8 @@ function WordbookPage({
                     </div>
                     {listReady ? (
                         items.length > 0 && (
-                            <NotebookItemList wordbook={name} items={items} search={search} sort={sort} onSort={setSort} />
+                            <NotebookItemList wordbook={name} items={items} search={search} sort={sort} onSort={setSort}
+                                selection={selection} playSelected={() => notebookChunks(pickedItems)} />
                         )
                     ) : loadError ? (
                         <LoadError message={loadError} onRetry={() => fetchWordbookWords(name)} />
@@ -196,6 +219,7 @@ function WordbookPage({
                 </div>
                 {emptyMessage || (listReady ? (
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
+                        selection={selection} playSelected={() => notebookChunks(pickedItems)}
                         onAdd={() => setAddOpen(true)} getReadAloudChunks={notebookChunks} />
                 ) : (
                     <div className="nb-overview-loading">

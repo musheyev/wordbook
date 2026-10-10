@@ -8,6 +8,7 @@ import GripIcon from './GripIcon';
 import NotebookSearchBar, {
     NotebookSearchStatus, MatchSnippet, TagPicker, SortSelect,
 } from './NotebookSearchBar';
+import { SelectBar, SelectCheck } from './NotebookSelect';
 
 // A notebook's items as tappable rows (the page a notebook opens on, on
 // phones), in the notebook's sort (`items` comes sorted; Sort changes it).
@@ -15,21 +16,28 @@ import NotebookSearchBar, {
 // new order is saved to the notebook (see reorderWordbookItems). A search box
 // above filters by title or tag, or searches everything (`search`, from
 // WordbookPage's useNotebookSearch); while searching, the matches show
-// without grips, with the passage that matched.
-function NotebookItemList({ wordbook, items, search, sort, onSort, reorderWordbookItems }) {
+// without grips, with the passage that matched. Select ticks rows (tapping a
+// row ticks it) for Play selected (`selection`, NotebookSelect.js).
+function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, reorderWordbookItems }) {
     const notes = items.filter((item) => item.type === 'card').length;
     const words = items.length - notes;
     const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
     const linkTo = (item) => itemPath(wordbook, item)
         + (search.textSearch && !search.tooShort ? `?q=${encodeURIComponent(search.query.trim())}` : '');
 
+    const ticking = selection.selecting;
     const row = (item, after) => {
         const isCard = item.type === 'card';
+        const picked = ticking && selection.isPicked(item);
         return (
-            <Link className="nb-row" to={linkTo(item)}>
-                <span className={`nb-row__icon nb-row__icon--${item.type}`} aria-hidden="true">
-                    <i className={`${isCard ? 'sticky note outline' : 'font'} icon`}></i>
-                </span>
+            <Link className={`nb-row${picked ? ' is-picked' : ''}`} to={linkTo(item)}
+                aria-pressed={ticking ? picked : undefined}
+                onClick={ticking ? (e) => { e.preventDefault(); selection.toggle(item); } : undefined}>
+                {ticking ? <SelectCheck on={picked} /> : (
+                    <span className={`nb-row__icon nb-row__icon--${item.type}`} aria-hidden="true">
+                        <i className={`${isCard ? 'sticky note outline' : 'font'} icon`}></i>
+                    </span>
+                )}
                 <span className="nb-row__text">
                     <span className="nb-row__title">{item.title}</span>
                     {after || (
@@ -41,10 +49,14 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, reorderWordbo
         );
     };
 
+    const shownItems = search.results.map((r) => r.item);
     const tools = (
         <>
             <NotebookSearchBar search={search} className="nb-search--list" />
             <TagPicker search={search} items={items} />
+            {ticking && (
+                <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={wordbook} />
+            )}
         </>
     );
 
@@ -72,7 +84,12 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, reorderWordbo
                     {plural(items.length, 'item', 'items')}
                     {notes > 0 && words > 0 && ` · ${plural(notes, 'note', 'notes')}, ${plural(words, 'word', 'words')}`}
                 </span>
-                <SortSelect sort={sort} onChange={onSort} />
+                <span className="nb-list__count-tools">
+                    {!ticking && (
+                        <button type="button" className="nb-list__select" onClick={selection.start}>Select</button>
+                    )}
+                    <SortSelect sort={sort} onChange={onSort} />
+                </span>
             </div>
             {sort !== 'custom' && (
                 <div className="nb-list__hint">To rearrange by dragging, sort by My order.</div>
@@ -80,7 +97,7 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, reorderWordbo
             <SortableList
                 className="nb-list__rows"
                 items={items}
-                disabled={sort !== 'custom'}
+                disabled={sort !== 'custom' || ticking}
                 getKey={(item) => `${item.type}:${item.id}`}
                 onReorder={(reordered) => reorderWordbookItems(wordbook, reordered)}
                 renderItem={(item, handleProps) => (

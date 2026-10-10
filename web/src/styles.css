@@ -617,6 +617,37 @@ nav-button-as-link {
 .nb-card-wrap:hover .nb-card__grip, .nb-card__grip:focus-visible, .sortable-row--dragging .nb-card__grip { opacity: 1; }
 .nb-card__grip:hover { background: var(--cb-surface); color: var(--cb-ink-2); }
 .sortable-row--dragging .nb-card { box-shadow: 0 10px 28px rgba(15, 20, 35, 0.18); border-color: var(--cb-accent); }
+/* Play selected (NotebookSelect.js): the bar while ticking, and the tick
+   boxes on cards and rows. */
+.nb-selectbar {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--cb-accent); border-radius: var(--cb-radius);
+  background: var(--cb-accent-weak);
+}
+.nb-selectbar__count { font-weight: 600; color: var(--cb-ink); font-size: 0.9rem; }
+.nb-selectbar__spacer { flex: 1; }
+.nb-selectbar__link {
+  border: none; background: none; padding: 6px 4px; color: var(--cb-accent); font-family: inherit;
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+}
+.nb-selectbar .cb-btn i.icon, .nb-overview__select i.icon { margin: 0 6px 0 0; }
+.nb-check {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border: 2px solid var(--cb-border-strong); border-radius: 6px; background: var(--cb-surface-2);
+}
+.nb-check.is-on { background: var(--cb-accent); border-color: var(--cb-accent); color: #fff; }
+.nb-check .icon { margin: 0; font-size: 0.8rem; height: auto; }
+.nb-card.is-picked { border-color: var(--cb-accent); background: var(--cb-accent-weak); }
+.nb-row.is-picked { background: var(--cb-accent-weak); }
+.nb-list__count-tools { display: inline-flex; align-items: center; gap: 8px; }
+.nb-list__select {
+  height: 32px; padding: 0 12px; border: 1px solid var(--cb-border-strong); border-radius: 999px;
+  background: var(--cb-surface-2); color: var(--cb-accent); font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.nb-list .nb-selectbar { margin: 0 16px 10px; top: 0; row-gap: 8px; }
+/* Phones: count, Select all, Cancel on top; a full-width Play selected below. */
+.nb-list .nb-selectbar > .read-aloud, .nb-list .nb-selectbar > .cb-btn { order: 5; flex: 1 1 100%; }
+.nb-list .nb-selectbar > .read-aloud .read-aloud__labelled { width: 100%; justify-content: center; }
 /* By tag: a heading per tag. */
 .nb-overview__group + .nb-overview__group { margin-top: 22px; }
 .nb-overview__group-title { margin: 0 0 10px; font-size: 1rem; font-weight: 600; color: var(--cb-ink); }

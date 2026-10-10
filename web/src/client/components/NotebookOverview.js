@@ -10,6 +10,7 @@ import GripIcon from './GripIcon';
 import NotebookSearchBar, {
     NotebookSearchStatus, MatchSnippet, TagPicker, SortSelect,
 } from './NotebookSearchBar';
+import { SelectBar, SelectCheck } from './NotebookSelect';
 
 // A notebook's overview on desktop, shown when no item is open (the
 // notebook name in the rail leads here). Every note and word as a card:
@@ -23,7 +24,8 @@ import NotebookSearchBar, {
 // everything in the notebook (`search`, WordbookPage's useNotebookSearch);
 // text matches show the passage that matched. Clicking a tag on a card
 // filters by it. All / Notes / Words narrows by type. Play all reads what's
-// shown, in this order. Clicking a card opens the item, at the match when it
+// shown, in this order. Select ticks cards (clicking a card ticks it instead
+// of opening it) for Play selected (`selection`, NotebookSelect.js). Clicking a card opens the item, at the match when it
 // was found in the text. Phones show their own list instead
 // (NotebookItemList), so this is hidden there (styles.css).
 const TYPES = [
@@ -35,7 +37,9 @@ const TYPES = [
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const keyOf = (item) => `${item.type}:${item.id}`;
 
-export default function NotebookOverview({ name, items, search, sort, onSort, onAdd, getReadAloudChunks }) {
+export default function NotebookOverview({
+    name, items, search, sort, onSort, selection, playSelected, onAdd, getReadAloudChunks,
+}) {
     const dispatch = useDispatch();
     const [type, setType] = useState('all');
 
@@ -51,9 +55,14 @@ export default function NotebookOverview({ name, items, search, sort, onSort, on
     const card = ({ item, snippet, where }, handleProps) => {
         const isNote = item.type === 'card';
         const tags = item.tags || [];
+        const ticking = selection.selecting;
+        const picked = ticking && selection.isPicked(item);
         return (
             <div className="nb-card-wrap">
-                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}`} to={linkTo(item)}>
+                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}${picked ? ' is-picked' : ''}`} to={linkTo(item)}
+                    aria-pressed={ticking ? picked : undefined}
+                    onClick={ticking ? (e) => { e.preventDefault(); selection.toggle(item); } : undefined}>
+                    {ticking && <SelectCheck on={picked} />}
                     <span className={`nb-card__icon nb-row__icon nb-row__icon--${isNote ? 'card' : 'word'}`}
                         aria-hidden="true">
                         <i className={`${isNote ? 'sticky note outline' : 'font'} icon`}></i>
@@ -109,7 +118,7 @@ export default function NotebookOverview({ name, items, search, sort, onSort, on
     } else if (shown.length > 0) {
         // Dragging only in My order with everything shown: a filtered or
         // differently sorted list has no sensible place to drop into.
-        const draggable = sort === 'custom' && !search.searching && type === 'all';
+        const draggable = sort === 'custom' && !search.searching && type === 'all' && !selection.selecting;
         const byKey = new Map(shown.map((r) => [keyOf(r.item), r]));
         grid = (
             <SortableList
@@ -139,6 +148,12 @@ export default function NotebookOverview({ name, items, search, sort, onSort, on
                         <i className="plus icon" aria-hidden="true"></i>Add
                     </button>
                     <ReadAloud getChunks={() => getReadAloudChunks(shownItems)} title={name} label="Play all" />
+                    {!selection.selecting && (
+                        <button type="button" className="cb-btn cb-btn--ghost nb-overview__select" onClick={selection.start}
+                            title="Tick notes to play just those">
+                            <i className="check square outline icon" aria-hidden="true"></i>Select
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -156,6 +171,9 @@ export default function NotebookOverview({ name, items, search, sort, onSort, on
                 )}
             </div>
             <TagPicker search={search} items={items} />
+            {selection.selecting && (
+                <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={name} />
+            )}
 
             <NotebookSearchStatus search={search} />
             {grid}

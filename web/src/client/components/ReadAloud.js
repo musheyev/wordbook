@@ -8,7 +8,9 @@ let uid = 0;
 // Read-aloud control: a play/pause button, a stop button while active, and a
 // voice picker. `getChunks` returns the chunks to read (may be async, e.g. a
 // whole notebook). Playback is shared across the app via ttsPlayer.
-function ReadAloud({ getChunks, title, label }) {
+// `voices={false}` leaves out the voice picker (e.g. Play selected, next to
+// Play all which has one).
+function ReadAloud({ getChunks, title, label, voices: withVoices = true }) {
     const idRef = useRef(`ra${++uid}`);
     const [state, setState] = useState(ttsPlayer.snapshot());
     const [error, setError] = useState('');
@@ -78,7 +80,7 @@ function ReadAloud({ getChunks, title, label }) {
                 </button>
             )}
 
-            <span className="read-aloud__voices-wrap">
+            {withVoices && <span className="read-aloud__voices-wrap">
                 <button type="button" className="card-tool read-aloud__voices" title="Choose voice"
                     aria-label="Choose voice" aria-haspopup="menu" aria-expanded={menuOpen} onClick={openMenu}>
                     <i className="angle down icon"></i>
@@ -126,7 +128,7 @@ function ReadAloud({ getChunks, title, label }) {
                         </div>
                     </>
                 )}
-            </span>
+            </span>}
 
             {error && <span className="read-aloud__error">{error}</span>}
         </span>
