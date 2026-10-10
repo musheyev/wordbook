@@ -3004,7 +3004,15 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .player-panel__play { background: #2563eb; }
 .player-panel__play:active:not(:disabled) { background: #1d4ed8; }
 .player-panel__play .icon { font-size: 1.9rem; margin: 0; height: auto; }
-.player-panel__foot { display: flex; justify-content: space-between; margin-top: 10px; }
+.player-panel__foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; }
+.player-panel__skip { display: flex; align-items: center; gap: 4px; }
+.player-panel__skip-label { font-size: 0.8rem; color: #aab3c5; margin-right: 2px; }
+.player-panel__skip-btn {
+  min-width: 36px; height: 30px; padding: 0 6px; border: 1px solid #3d4558; border-radius: 8px;
+  background: none; color: #c9d1e1; font-family: inherit; font-size: 0.85rem; cursor: pointer;
+  touch-action: manipulation;
+}
+.player-panel__skip-btn.on { background: #c9d1e1; border-color: #c9d1e1; color: #1f2430; font-weight: 700; }
 .player-panel__small {
   border: none; background: none; color: #c9d1e1; cursor: pointer;
   font-family: inherit; font-size: 0.9rem; padding: 8px 6px; touch-action: manipulation;

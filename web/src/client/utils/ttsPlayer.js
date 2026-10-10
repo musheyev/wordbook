@@ -1,10 +1,11 @@
 // A single shared audio player for read-aloud. Plays a queue of chunks (each a
 // sentence/language-run) by fetching MP3s from /api/tts and chaining them on one
 // reused <audio> element, so playback continues in the background / on the iOS
-// lock screen and shows Media Session controls (play/pause, ±5 seconds).
+// lock screen and shows Media Session controls (play/pause, back/forward).
 //
 // Going back and forward (seekBy, the big controls in PlayerPanel and the
-// lock screen) works in seconds of listening, across sentences: back from
+// lock screen; 2, 3 or 5 seconds, see SKIP_CHOICES) works in seconds of
+// listening, across sentences: back from
 // the start of a sentence continues into the end of the one before. The
 // last few sentences' audio stays in memory (KEEP_BEHIND) so that's instant.
 import { getChosenVoices, getChosenSpeeds, htmlToChunks } from './tts';
@@ -42,6 +43,14 @@ function silentUrl(seconds = 0.05) {
 // default for the language (undefined).
 // Sentences behind the current one whose audio is kept for going back.
 const KEEP_BEHIND = 8;
+
+// How far back/forward jumps (the big controls' Skip choice, and the lock
+// screen), remembered on this device.
+export const SKIP_CHOICES = [2, 3, 5];
+const SKIP_KEY = 'player-skip-seconds';
+const readSkip = () => {
+    try { const v = Number(localStorage.getItem(SKIP_KEY)); return SKIP_CHOICES.includes(v) ? v : 5; } catch (e) { return 5; }
+};
 
 // Resolves once the audio element knows the length of what's loaded.
 const whenLoaded = (a) => new Promise((resolve) => {
@@ -117,6 +126,12 @@ class TtsPlayer {
         this._prefetch = null;
         this._urls = new Map(); // chunk index -> audio (blob URL) kept in memory
         this._durations = new Map(); // chunk index -> seconds of audio
+        this.skip = readSkip(); // seconds back/forward jumps
+        this._pendingSeek = 0; // jumps tapped while a sentence was loading
+        // Whether the listener wants it playing (Play) or not (Pause).
+        // `status` can say "loading" or briefly "paused" while moving to
+        // another sentence, so jumps go by this instead.
+        this._wantPlay = false;
         this._unlocked = false;
         this._bound = false;
     }
@@ -127,7 +142,7 @@ class TtsPlayer {
         // pause, index is the sentence before it.
         const spoken = (list) => list.filter((c) => !c.pause).length;
         return {
-            status: this.status, sourceId: this.sourceId, title: this.title, error: this.error,
+            status: this.status, sourceId: this.sourceId, title: this.title, error: this.error, skip: this.skip,
             index: Math.max(0, spoken(this.queue.slice(0, this.idx + 1)) - 1), total: spoken(this.queue),
         };
     }
@@ -162,14 +177,17 @@ class TtsPlayer {
         this.error = '';
         if (this.queue.length === 0) { this.status = 'idle'; this._emit(); return; }
         reportItems(this.queue);
+        this._wantPlay = true;
         this._bind();
         this._setSessionHandlers();
         await this._playIdx(0);
     }
 
     // Play chunk i, from `startAt` seconds into its audio; `play: false`
-    // loads it and stays paused (going back while paused).
-    async _playIdx(i, { startAt = 0, play = true } = {}) {
+    // loads it and stays paused (going back while paused). `holdJumps`:
+    // the caller applies jumps tapped meanwhile itself (seekBy, which still
+    // has to set the position).
+    async _playIdx(i, { startAt = 0, play = true, holdJumps = false } = {}) {
         if (i < 0 || i >= this.queue.length) { this.stop(); return; }
         this.idx = i;
         const chunk = this.queue[i];
@@ -215,11 +233,26 @@ class TtsPlayer {
         if (startAt > 0) a.currentTime = Math.min(startAt, Math.max(0, (a.duration || startAt) - 0.05));
         if (!play) this.status = 'paused';
         else {
-            try { await a.play(); this.status = 'playing'; } catch (e) { this.status = 'paused'; }
+            try { await a.play(); this.status = 'playing'; } catch (e) { this.status = 'paused'; this._wantPlay = false; }
         }
         this._updateSession();
         this._emit();
         this._prefetchNext();
+        if (!holdJumps) this._applyPendingSeek();
+    }
+
+    // Jumps tapped while the sentence loaded count once it's ready.
+    _applyPendingSeek() {
+        const s = this._pendingSeek;
+        this._pendingSeek = 0;
+        if (s) this.seekBy(s);
+    }
+
+    setSkip(seconds) {
+        if (!SKIP_CHOICES.includes(seconds)) return;
+        this.skip = seconds;
+        try { localStorage.setItem(SKIP_KEY, String(seconds)); } catch (e) { /* not remembered */ }
+        this._emit();
     }
 
     _prefetchNext() {
@@ -243,9 +276,10 @@ class TtsPlayer {
      * reading. Paused stays paused.
      */
     async seekBy(seconds) {
-        if (this.idx < 0 || this.status === 'idle' || this.status === 'loading') return;
+        if (this.idx < 0 || this.status === 'idle') return;
+        if (this.status === 'loading') { this._pendingSeek += seconds; return; }
         const a = getAudio();
-        const play = this.status === 'playing';
+        const play = this._wantPlay;
         const rate = (i) => this.queue[i].speed || getChosenSpeeds()[this.queue[i].lang] || 1;
         const duration = Number.isFinite(a.duration) ? a.duration : (this._durations.get(this.idx) || 0);
         const target = a.currentTime + seconds * rate(this.idx);
@@ -276,12 +310,13 @@ class TtsPlayer {
         let left = (target - duration) / rate(this.idx);
         let i = this.idx + 1;
         while (i < this.queue.length) {
-            await this._playIdx(i, { play: false });
+            await this._playIdx(i, { play: false, holdJumps: true });
             if (this.idx !== i || this.status === 'idle') return;
             const len = (this._durations.get(i) || 0) / rate(i);
             if (left < len || i === this.queue.length - 1) {
                 getAudio().currentTime = Math.min(left, len) * rate(i);
-                if (play) this.resume(); else this._emit();
+                if (play) await this.resume(); else this._emit();
+                this._applyPendingSeek();
                 return;
             }
             left -= len;
@@ -290,9 +325,10 @@ class TtsPlayer {
         this.stop();
     }
 
-    pause() { getAudio().pause(); this.status = 'paused'; this._updateSession(); this._emit(); }
+    pause() { this._wantPlay = false; getAudio().pause(); this.status = 'paused'; this._updateSession(); this._emit(); }
     resume() {
-        getAudio().play().then(() => { this.status = 'playing'; this._updateSession(); this._emit(); }).catch(() => {});
+        this._wantPlay = true;
+        return getAudio().play().then(() => { this.status = 'playing'; this._updateSession(); this._emit(); }).catch(() => {});
     }
     toggle() {
         if (this.status === 'playing') this.pause();
@@ -304,6 +340,8 @@ class TtsPlayer {
         this._urls.forEach((u) => URL.revokeObjectURL(u));
         this._urls.clear();
         this._durations.clear();
+        this._pendingSeek = 0;
+        this._wantPlay = false;
         if (this._prefetch) { this._prefetch.promise.then((u) => u && URL.revokeObjectURL(u)).catch(() => {}); this._prefetch = null; }
         this.queue = []; this.idx = -1; this.status = 'idle'; this.sourceId = null;
         this._clearSession();
@@ -324,11 +362,12 @@ class TtsPlayer {
         set('play', () => this.resume());
         set('pause', () => this.pause());
         set('stop', () => this.stop());
-        // ±5 seconds on the lock screen and headphones. Phones show either
+        // Back/forward on the lock screen and headphones, by the chosen Skip
+        // (the phone's own suggested amount is ignored). Phones show either
         // these or previous/next sentence, not both, so sentence skipping
         // is turned off.
-        set('seekbackward', (d) => this.seekBy(-((d && d.seekOffset) || 5)));
-        set('seekforward', (d) => this.seekBy((d && d.seekOffset) || 5));
+        set('seekbackward', () => this.seekBy(-this.skip));
+        set('seekforward', () => this.seekBy(this.skip));
         set('previoustrack', null);
         set('nexttrack', null);
     }
