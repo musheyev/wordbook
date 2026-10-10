@@ -630,7 +630,8 @@ nav-button-as-link {
   border: none; background: none; padding: 6px 4px; color: var(--cb-accent); font-family: inherit;
   font-size: 0.9rem; font-weight: 600; cursor: pointer;
 }
-.nb-selectbar .cb-btn i.icon, .nb-overview__select i.icon { margin: 0 6px 0 0; }
+.nb-selectbar .cb-btn i.icon, .nb-overview__select i.icon, .copy-notes i.icon { margin: 0 6px 0 0; }
+.copy-notes--failed { color: var(--cb-danger); border-color: var(--cb-danger); }
 .nb-check {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; border: 2px solid var(--cb-border-strong); border-radius: 6px; background: var(--cb-surface-2);

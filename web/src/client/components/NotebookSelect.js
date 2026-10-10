@@ -14,7 +14,8 @@ export const keyOf = (item) => `${item.type}:${item.id}`;
 
 // The bar shown while selecting. `shownItems`: what's on screen (Select all
 // ticks those). `getChunks`: the read-aloud queue for the ticked items.
-export function SelectBar({ selection, shownItems, getChunks, title }) {
+// `extra`: more buttons after Play selected (the overview's Copy selected).
+export function SelectBar({ selection, shownItems, getChunks, title, extra = null }) {
     const n = selection.picked.size;
     const allPicked = shownItems.length > 0 && shownItems.every((item) => selection.isPicked(item));
     return (
@@ -27,6 +28,7 @@ export function SelectBar({ selection, shownItems, getChunks, title }) {
                     <i className="volume up icon" aria-hidden="true"></i>Play selected
                 </button>
             )}
+            {extra}
             <span className="nb-selectbar__spacer" />
             <button type="button" className="nb-selectbar__link"
                 onClick={() => selection.setAll(allPicked ? [] : shownItems)}>

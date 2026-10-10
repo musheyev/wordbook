@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { reorderWordbookItems } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
 import { tagGroups } from '../utils/itemSort';
@@ -11,6 +11,7 @@ import NotebookSearchBar, {
     NotebookSearchStatus, MatchSnippet, TagPicker, SortSelect,
 } from './NotebookSearchBar';
 import { SelectBar, SelectCheck } from './NotebookSelect';
+import CopyNotesButton from './CopyNotesButton';
 
 // A notebook's overview on desktop, shown when no item is open (the
 // notebook name in the rail leads here). Every note and word as a card:
@@ -25,7 +26,8 @@ import { SelectBar, SelectCheck } from './NotebookSelect';
 // text matches show the passage that matched. Clicking a tag on a card
 // filters by it. All / Notes / Words narrows by type. Play all reads what's
 // shown, in this order. Select ticks cards (clicking a card ticks it instead
-// of opening it) for Play selected (`selection`, NotebookSelect.js). Clicking a card opens the item, at the match when it
+// of opening it) for Play selected (`selection`, NotebookSelect.js). Admins
+// also get Copy (what's shown) and Copy selected (CopyNotesButton). Clicking a card opens the item, at the match when it
 // was found in the text. Phones show their own list instead
 // (NotebookItemList), so this is hidden there (styles.css).
 const TYPES = [
@@ -41,6 +43,7 @@ export default function NotebookOverview({
     name, items, search, sort, onSort, selection, playSelected, onAdd, getReadAloudChunks,
 }) {
     const dispatch = useDispatch();
+    const isAdmin = useSelector((state) => state.isAdmin);
     const [type, setType] = useState('all');
 
     const notes = items.filter((item) => item.type === 'card').length;
@@ -148,6 +151,9 @@ export default function NotebookOverview({
                         <i className="plus icon" aria-hidden="true"></i>Add
                     </button>
                     <ReadAloud getChunks={() => getReadAloudChunks(shownItems)} title={name} label="Play all" />
+                    {isAdmin && !selection.selecting && (
+                        <CopyNotesButton title={name} getItems={() => shownItems} />
+                    )}
                     {!selection.selecting && (
                         <button type="button" className="cb-btn cb-btn--ghost nb-overview__select" onClick={selection.start}
                             title="Tick notes to play just those">
@@ -172,7 +178,11 @@ export default function NotebookOverview({
             </div>
             <TagPicker search={search} items={items} />
             {selection.selecting && (
-                <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={name} />
+                <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={name}
+                    extra={isAdmin && selection.picked.size > 0 && (
+                        <CopyNotesButton title={name} label="Copy selected"
+                            getItems={() => items.filter((item) => selection.isPicked(item))} />
+                    )} />
             )}
 
             <NotebookSearchStatus search={search} />
