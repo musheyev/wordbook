@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
 import {
     SET_CURRENT_WORDBOOK, fetchWordbookWords, fetchCardData, fetchWordData,
-    clearCurrentSelection, closeCardEditor, getCardContent,
+    clearCurrentSelection, closeCardEditor, getCardContent, fetchItemSorts, saveItemSort,
 } from '../actions';
 import SearchResult from '../components/SearchResult';
 import CardEditorInline from '../components/CardEditorInline';
@@ -18,6 +18,8 @@ import LoadError from '../components/LoadError';
 import { itemPath, notebookPath } from '../utils/notebookPaths';
 import { cardChunks } from '../utils/tts';
 import { highlightFirstMatch } from '../utils/highlightMatch';
+import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
+import useNotebookSearch from '../utils/useNotebookSearch';
 
 const HEBREW = /[֐-׿]/;
 
@@ -27,9 +29,14 @@ const HEBREW = /[֐-׿]/;
 // URL (/wordbook/<name>/<type>/<id>) it shows that item, under a back bar
 // that returns to the notebook and steps to the previous/next item. A spinner
 // shows while the list loads.
+//
+// Everything follows the notebook's chosen sort (utils/itemSort.js): the
+// overview, the phone list, stepping between items and Play all. The search
+// box and its filter (useNotebookSearch) live here too, so Play all reads
+// just what the filter shows.
 function WordbookPage({
     dispatch, wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditorOpen,
-    fetchWordbookWords, fetchCardData, fetchWordData, clearCurrentSelection, closeCardEditor,
+    itemSorts, fetchWordbookWords, fetchCardData, fetchWordData, clearCurrentSelection, closeCardEditor,
 }) {
     const { name, type, id } = useParams();
     const navigate = useNavigate();
@@ -43,6 +50,10 @@ function WordbookPage({
         closeCardEditor();
         fetchWordbookWords(name);
     }, [name]);
+
+    useEffect(() => {
+        if (itemSorts == null) dispatch(fetchItemSorts());
+    }, []);
 
     // Load the item named in the URL, or clear the selection on the list.
     useEffect(() => {
@@ -60,7 +71,16 @@ function WordbookPage({
     // `listFresh` (not refreshing) guards decisions a stale list could get
     // wrong, like "the open item is gone".
     const haveList = wordbookWordsFor === name;
-    const items = haveList ? (wordbookWords || []) : [];
+    const sort = (itemSorts && itemSorts[name]) || DEFAULT_ITEM_SORT;
+    const items = useMemo(
+        () => (haveList ? sortItems(wordbookWords || [], sort) : []),
+        [haveList, wordbookWords, sort],
+    );
+    const setSort = (next) => dispatch(saveItemSort(name, next));
+    const search = useNotebookSearch(name, items);
+    // What the search/filter shows (all items when there's none).
+    const shownItems = search.results.map((r) => r.item);
+    useEffect(() => { search.setQuery(''); }, [name]);
     const listReady = haveList;
     const listFresh = haveList && !wordbookWordsInProgress;
     const loadError = !haveList && wordbookWordsError && wordbookWordsError.wordbook === name
@@ -92,9 +112,9 @@ function WordbookPage({
     // Build the read-aloud queue for the whole notebook: each note's body (its
     // first chunk tagged with the title so the lock screen updates per item) and
     // each word read on its own.
-    const notebookChunks = async () => {
+    const notebookChunks = async (list = shownItems) => {
         const out = [];
-        for (const item of items) {
+        for (const item of list) {
             if (item.type === 'card') {
                 const content = await dispatch(getCardContent(item.id));
                 cardChunks({ card_id: item.id, content }).forEach((c, i) => out.push({ ...c, title: i === 0 ? item.title : undefined }));
@@ -161,11 +181,13 @@ function WordbookPage({
                             <i className="plus icon" aria-hidden="true"></i>Add
                         </button>
                         {items.length > 0 && (
-                            <ReadAloud getChunks={notebookChunks} title={name} label="Play all" />
+                            <ReadAloud getChunks={() => notebookChunks(shownItems)} title={name} label="Play all" />
                         )}
                     </div>
                     {listReady ? (
-                        items.length > 0 && <NotebookItemList wordbook={name} items={items} />
+                        items.length > 0 && (
+                            <NotebookItemList wordbook={name} items={items} search={search} sort={sort} onSort={setSort} />
+                        )
                     ) : loadError ? (
                         <LoadError message={loadError} onRetry={() => fetchWordbookWords(name)} />
                     ) : (
@@ -173,8 +195,8 @@ function WordbookPage({
                     )}
                 </div>
                 {emptyMessage || (listReady ? (
-                    <NotebookOverview name={name} items={items} onAdd={() => setAddOpen(true)}
-                        getReadAloudChunks={notebookChunks} />
+                    <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
+                        onAdd={() => setAddOpen(true)} getReadAloudChunks={notebookChunks} />
                 ) : (
                     <div className="nb-overview-loading">
                         {loadError
@@ -194,8 +216,10 @@ function WordbookPage({
     );
 }
 
-function mapStateToProps({ wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditor }) {
-    return { wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditorOpen: cardEditor.open };
+function mapStateToProps({ wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditor, itemSorts }) {
+    return {
+        wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditorOpen: cardEditor.open, itemSorts,
+    };
 }
 
 const mapDispatchToProps = (dispatch) => ({

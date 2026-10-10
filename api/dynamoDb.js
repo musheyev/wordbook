@@ -18,6 +18,7 @@ const {
     DeleteCommand,
     UpdateCommand,
     BatchWriteCommand,
+    BatchGetCommand,
     ScanCommand,
 } = require("@aws-sdk/lib-dynamodb");
 
@@ -28,6 +29,9 @@ const COMMANDS = {
     delete: DeleteCommand,
     update: UpdateCommand,
     batchWrite: BatchWriteCommand,
+    // Up to 100 items by key in one request (e.g. the tags of a notebook's
+    // items, tags.tagsForItems).
+    batchGet: BatchGetCommand,
     // Reads a whole table, page by page. Only for small, admin-only
     // listings (image curation): unlike query, it touches every item.
     scan: ScanCommand,

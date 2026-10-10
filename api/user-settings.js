@@ -2,6 +2,8 @@
 // per user in `dictionary_user_settings` (PK user_name); each setting is an
 // attribute on it:
 //   notebook_sort   how My Notebooks is sorted: "az" | "updated" | "custom"
+//   item_sorts      how each notebook's items are sorted, by notebook name:
+//                   { "Spanish-1": "az", … } (ITEM_SORTS; none = "custom")
 const db = require('./dynamoDb');
 const getCurentUserFromToken = require('./auth').getCurentUserFromToken;
 
@@ -56,4 +58,69 @@ async function setNotebookSort(userIdToken, sort) {
     return sort;
 }
 
-module.exports = { getNotebookSort, setNotebookSort, NOTEBOOK_SORTS, TABLE };
+// A notebook's items: My order (dragged), Newest/Oldest first (added to the
+// notebook), A–Z by title, or By tag (A–Z).
+const ITEM_SORTS = ['custom', 'newest', 'oldest', 'az', 'tag'];
+
+/**
+ * @param {string} userIdToken
+ * @returns {Promise<Object<string, string>>} notebook name -> one of
+ *   ITEM_SORTS, for notebooks with a sort chosen; {} if none or unreadable
+ */
+async function getItemSorts(userIdToken) {
+    if (!userIdToken) return {};
+    try {
+        const userName = await getCurentUserFromToken(userIdToken);
+        const data = await db.dynamoDbClientInstance().get({
+            TableName: TABLE,
+            Key: { user_name: userName },
+            ProjectionExpression: 'item_sorts',
+        }).promise();
+        const sorts = (data.Item && data.Item.item_sorts) || {};
+        return Object.fromEntries(Object.entries(sorts).filter(([, v]) => ITEM_SORTS.includes(v)));
+    } catch (err) {
+        console.log('getItemSorts error:', err.name || err);
+        return {};
+    }
+}
+
+/**
+ * Save how one notebook's items are sorted.
+ *
+ * @param {string} userIdToken
+ * @param {string} wordbook notebook name
+ * @param {string} sort one of ITEM_SORTS
+ * @returns {Promise<string>} the saved sort
+ */
+async function setItemSort(userIdToken, wordbook, sort) {
+    if (!ITEM_SORTS.includes(sort)) throw new Error(`Unknown sort "${sort}"`);
+    if (typeof wordbook !== 'string' || !wordbook) throw new Error('No notebook given');
+    const userName = await getCurentUserFromToken(userIdToken);
+    const client = db.dynamoDbClientInstance();
+    const Key = { user_name: userName };
+    const setOne = () => client.update({
+        TableName: TABLE,
+        Key,
+        UpdateExpression: 'SET item_sorts.#nb = :sort',
+        ExpressionAttributeNames: { '#nb': wordbook },
+        ExpressionAttributeValues: { ':sort': sort },
+    }).promise();
+    try {
+        await setOne();
+    } catch (err) {
+        // The first one: there's no item_sorts map to put it in yet.
+        if (err.code !== 'ValidationException' && err.name !== 'ValidationException') throw err;
+        await client.update({
+            TableName: TABLE,
+            Key,
+            UpdateExpression: 'SET item_sorts = if_not_exists(item_sorts, :empty)',
+            ExpressionAttributeValues: { ':empty': {} },
+        }).promise();
+        await setOne();
+    }
+    return sort;
+}
+
+module.exports = {
+    getNotebookSort, setNotebookSort, NOTEBOOK_SORTS, getItemSorts, setItemSort, ITEM_SORTS, TABLE,
+};

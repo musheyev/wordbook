@@ -220,6 +220,28 @@ wordbookRouter.post("/word/wordbooks", function (req, res) {
         })
 });
 
+// How each notebook's items are sorted, saved on the account (see
+// user-settings.js).
+// GET  -> { sorts: { [notebook]: sort } }
+// POST { wordbook, sort: "custom" | "newest" | "oldest" | "az" | "tag" } -> { sort }
+wordbookRouter.get("/item-sorts", function (req, res) {
+    userSettings.getItemSorts(req.cookies.id_token)
+        .then((sorts) => res.json({ sorts }));
+});
+
+wordbookRouter.post("/item-sort", function (req, res) {
+    userSettings.setItemSort(req.cookies.id_token, req.body.wordbook, req.body.sort)
+        .then((sort) => res.json({ sort }))
+        .catch((err) => {
+            console.log(`item sort save error: ${err.name}`);
+            if (err.name === "TokenExpiredError") {
+                res.status(401).end("Your login session expired.  Please login again.");
+            } else {
+                res.status(400).end(err.message);
+            }
+        });
+});
+
 wordbookRouter.post("/words", function (req, res) {
 
     let wordbookName = req.body.wordbook;

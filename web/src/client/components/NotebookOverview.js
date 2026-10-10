@@ -1,21 +1,31 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { reorderWordbookItems } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
+import { tagGroups } from '../utils/itemSort';
 import ReadAloud from './ReadAloud';
-import NotebookSearchBar, { NotebookSearchStatus, MatchSnippet } from './NotebookSearchBar';
-import useNotebookSearch from '../utils/useNotebookSearch';
+import SortableList from './SortableList';
+import GripIcon from './GripIcon';
+import NotebookSearchBar, {
+    NotebookSearchStatus, MatchSnippet, TagPicker, SortSelect,
+} from './NotebookSearchBar';
 
 // A notebook's overview on desktop, shown when no item is open (the
-// notebook name in the rail leads here). Every note and word as a card, in
-// the notebook's own order:
-//   note  its title and the start of its text
-//   word  the word
+// notebook name in the rail leads here). Every note and word as a card:
+//   note  its title, the start of its text, and its tags
+//   word  the word and its tags
 // with the same icons as the phone list (NotebookItemList).
-// The search box matches titles as you type, or searches everything in the
-// notebook (useNotebookSearch); text matches show the passage that matched.
-// All / Notes / Words narrows by type. Clicking a card opens the item, at
-// the match when it was found in the text. Phones show their own list
-// instead (NotebookItemList), so this is hidden there (styles.css).
+//
+// Sort (one choice per notebook, utils/itemSort.js): `items` comes sorted.
+// In My order the cards can be dragged by their grip (⋮⋮); By tag shows a
+// heading per tag. The search box filters by title or tag, or searches
+// everything in the notebook (`search`, WordbookPage's useNotebookSearch);
+// text matches show the passage that matched. Clicking a tag on a card
+// filters by it. All / Notes / Words narrows by type. Play all reads what's
+// shown, in this order. Clicking a card opens the item, at the match when it
+// was found in the text. Phones show their own list instead
+// (NotebookItemList), so this is hidden there (styles.css).
 const TYPES = [
     { key: 'all', label: 'All' },
     { key: 'card', label: 'Notes' },
@@ -23,17 +33,96 @@ const TYPES = [
 ];
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const keyOf = (item) => `${item.type}:${item.id}`;
 
-export default function NotebookOverview({ name, items, onAdd, getReadAloudChunks }) {
+export default function NotebookOverview({ name, items, search, sort, onSort, onAdd, getReadAloudChunks }) {
+    const dispatch = useDispatch();
     const [type, setType] = useState('all');
-    const search = useNotebookSearch(name, items);
 
     const notes = items.filter((item) => item.type === 'card').length;
     const words = items.length - notes;
     const shown = search.results.filter((r) => type === 'all' || r.item.type === type);
+    const shownItems = shown.map((r) => r.item);
     // Opening a text match goes to the match (WordbookPage reads ?q=).
     const linkTo = (item) => itemPath(name, item)
         + (search.textSearch && !search.tooShort ? `?q=${encodeURIComponent(search.query.trim())}` : '');
+    const filterByTag = (tag) => { search.setMode('tag'); search.setQuery(tag); };
+
+    const card = ({ item, snippet, where }, handleProps) => {
+        const isNote = item.type === 'card';
+        const tags = item.tags || [];
+        return (
+            <div className="nb-card-wrap">
+                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}`} to={linkTo(item)}>
+                    <span className={`nb-card__icon nb-row__icon nb-row__icon--${isNote ? 'card' : 'word'}`}
+                        aria-hidden="true">
+                        <i className={`${isNote ? 'sticky note outline' : 'font'} icon`}></i>
+                    </span>
+                    <span className="nb-card__text">
+                        <span className="nb-card__title">{item.title}</span>
+                        {snippet ? <MatchSnippet snippet={snippet} where={where} /> : (
+                            <>
+                                {isNote && item.preview && <span className="nb-card__preview">{item.preview}</span>}
+                                {!isNote && <span className="nb-card__kind">Word</span>}
+                            </>
+                        )}
+                        {tags.length > 0 && (
+                            <span className="nb-card__tags">
+                                {tags.map((t) => (
+                                    // Inside the card's link, so not a <button>; it
+                                    // filters instead of opening the card.
+                                    <span key={t} role="button" tabIndex={0} className="nb-tag nb-tag--small"
+                                        title={`Show items tagged “${t}”`}
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); filterByTag(t); }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); filterByTag(t); }
+                                        }}>
+                                        {t}
+                                    </span>
+                                ))}
+                            </span>
+                        )}
+                    </span>
+                </Link>
+                {handleProps && (
+                    <button type="button" className="nb-card__grip" aria-label={`Reorder ${item.title}`} {...handleProps}>
+                        <GripIcon size={16} />
+                    </button>
+                )}
+            </div>
+        );
+    };
+
+    let grid = null;
+    if (shown.length > 0 && sort === 'tag') {
+        const byKey = new Map(shown.map((r) => [keyOf(r.item), r]));
+        grid = tagGroups(shownItems).map(({ tag, items: groupItems }) => (
+            <section key={tag || '(none)'} className="nb-overview__group">
+                <h2 className="nb-overview__group-title">
+                    {tag || 'No tag'} <span className="nb-overview__group-count">{groupItems.length}</span>
+                </h2>
+                <ul className="nb-overview__grid">
+                    {groupItems.map((item) => <li key={keyOf(item)}>{card(byKey.get(keyOf(item)))}</li>)}
+                </ul>
+            </section>
+        ));
+    } else if (shown.length > 0) {
+        // Dragging only in My order with everything shown: a filtered or
+        // differently sorted list has no sensible place to drop into.
+        const draggable = sort === 'custom' && !search.searching && type === 'all';
+        const byKey = new Map(shown.map((r) => [keyOf(r.item), r]));
+        grid = (
+            <SortableList
+                grid
+                className="nb-overview__grid"
+                items={shownItems}
+                disabled={!draggable}
+                getKey={keyOf}
+                onReorder={(reordered) => dispatch(reorderWordbookItems(name, reordered))}
+                renderItem={(item, handleProps) => card(byKey.get(keyOf(item)), handleProps)}
+            />
+        );
+    }
 
     return (
         <div className="nb-overview">
@@ -49,12 +138,13 @@ export default function NotebookOverview({ name, items, onAdd, getReadAloudChunk
                     <button type="button" className="cb-btn cb-btn--accent" onClick={onAdd}>
                         <i className="plus icon" aria-hidden="true"></i>Add
                     </button>
-                    <ReadAloud getChunks={getReadAloudChunks} title={name} label="Play all" />
+                    <ReadAloud getChunks={() => getReadAloudChunks(shownItems)} title={name} label="Play all" />
                 </div>
             </div>
 
             <div className="nb-overview__tools">
                 <NotebookSearchBar search={search} />
+                <SortSelect sort={sort} onChange={onSort} />
                 {notes > 0 && words > 0 && (
                     <div className="nb-overview__types" role="group" aria-label="Show">
                         {TYPES.map((t) => (
@@ -65,34 +155,10 @@ export default function NotebookOverview({ name, items, onAdd, getReadAloudChunk
                     </div>
                 )}
             </div>
+            <TagPicker search={search} items={items} />
 
             <NotebookSearchStatus search={search} />
-            {shown.length > 0 && (
-                <ul className="nb-overview__grid">
-                    {shown.map(({ item, snippet, where }) => {
-                        const isNote = item.type === 'card';
-                        return (
-                            <li key={`${item.type}:${item.id}`}>
-                                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}`} to={linkTo(item)}>
-                                    <span className={`nb-card__icon nb-row__icon nb-row__icon--${isNote ? 'card' : 'word'}`}
-                                        aria-hidden="true">
-                                        <i className={`${isNote ? 'sticky note outline' : 'font'} icon`}></i>
-                                    </span>
-                                    <span className="nb-card__text">
-                                        <span className="nb-card__title">{item.title}</span>
-                                        {snippet ? <MatchSnippet snippet={snippet} where={where} /> : (
-                                            <>
-                                                {isNote && item.preview && <span className="nb-card__preview">{item.preview}</span>}
-                                                {!isNote && <span className="nb-card__kind">Word</span>}
-                                            </>
-                                        )}
-                                    </span>
-                                </Link>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
+            {grid}
         </div>
     );
 }

@@ -5,14 +5,18 @@ import { searchNotebook } from '../actions';
 // Searching a notebook's items (the desktop overview and the phone list).
 //
 //   titles  matches titles as you type, on the device (instant)
+//   tag     items with a tag: the one typed or picked (exactly), or while
+//           typing, any tag containing what's typed (on the device)
 //   all     everything: notes' whole text, words, your notes on words —
 //           searched by the server (api/notebook-search.js) once typing pauses
 //   defs    everything + the words' dictionary definitions
 //
 // The mode is remembered per device. Text results come back as the matching
 // items, each with the passage around the match and where it was found.
+// Results are always in the order of `items` (the notebook's chosen sort).
 export const SEARCH_MODES = [
     { key: 'titles', label: 'Titles' },
+    { key: 'tag', label: 'Tag' },
     { key: 'all', label: 'Everything' },
     { key: 'defs', label: 'Everything + definitions' },
 ];
@@ -52,7 +56,7 @@ export default function useNotebookSearch(wordbook, items) {
     };
 
     const q = query.trim();
-    const textSearch = mode !== 'titles' && q.length > 0;
+    const textSearch = (mode === 'all' || mode === 'defs') && q.length > 0;
     const tooShort = textSearch && q.length < 2;
     const searchKey = `${wordbook}\n${mode}\n${q}`;
 
@@ -81,12 +85,21 @@ export default function useNotebookSearch(wordbook, items) {
     } else if (mode === 'titles') {
         const lower = q.toLowerCase();
         results = items.filter((item) => (item.title || '').toLowerCase().includes(lower)).map((item) => ({ item }));
+    } else if (mode === 'tag') {
+        const lower = q.toLowerCase();
+        const tagsOf = (item) => (item.tags || []).map((t) => t.toLowerCase());
+        const exact = items.some((item) => tagsOf(item).includes(lower));
+        results = items
+            .filter((item) => tagsOf(item).some((t) => (exact ? t === lower : t.includes(lower))))
+            .map((item) => ({ item }));
     } else {
         // Server matches, shown with the notebook's own item data (e.g. a
-        // note's preview), in notebook order.
-        const byKey = new Map(items.map((item) => [keyOf(item), item]));
+        // note's preview), in the notebook's order.
+        const order = new Map(items.map((item, i) => [keyOf(item), i]));
         results = found.for === searchKey
-            ? found.results.map((r) => ({ item: byKey.get(keyOf(r)) || r, where: r.where, snippet: r.snippet }))
+            ? found.results
+                .map((r) => ({ item: items[order.get(keyOf(r))] || r, where: r.where, snippet: r.snippet, at: order.get(keyOf(r)) }))
+                .sort((a, b) => (a.at ?? Infinity) - (b.at ?? Infinity))
             : [];
     }
 

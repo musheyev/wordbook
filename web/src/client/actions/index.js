@@ -535,6 +535,25 @@ export const saveNotebookSort = (sort) => async (dispatch, getState, api) => {
   } catch (err) { /* the list is already re-sorted; it just won't be remembered */ }
 };
 
+// How each notebook's items are sorted (utils/itemSort.js), saved on the
+// account: { [notebook]: sort }. Loaded once; null until then.
+export const SET_ITEM_SORTS = 'set_item_sorts';
+export const fetchItemSorts = () => async (dispatch, getState, api) => {
+  let sorts = {};
+  try {
+    const res = await api.get('/wordbook/item-sorts');
+    if (res.data && res.data.sorts) sorts = res.data.sorts;
+  } catch (err) { /* My order everywhere; a preference never breaks the page */ }
+  dispatch({ type: SET_ITEM_SORTS, payload: sorts });
+};
+
+export const saveItemSort = (wordbook, sort) => async (dispatch, getState, api) => {
+  dispatch({ type: SET_ITEM_SORTS, payload: { ...(getState().itemSorts || {}), [wordbook]: sort } });
+  try {
+    await api.post('/wordbook/item-sort', { wordbook, sort }, JSON_HEADERS);
+  } catch (err) { /* re-sorted on screen; it just won't be remembered */ }
+};
+
 // Save "My order" after a drag. The list moves at once; if saving fails, the
 // saved order is fetched back so the screen doesn't show an order that wasn't
 // kept.
@@ -1035,7 +1054,7 @@ export const fetchItemTags = (type, id) => async (dispatch, getState, api) => {
   dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: [] } });
   try {
     const res = await api.get(`/tags?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`);
-    dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: (res.data && res.data.tags) || [] } });
+    dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: (res.data && res.data.tags) || [] }, saved: true });
   } catch (err) {
     // leave empty
   }
@@ -1044,7 +1063,7 @@ export const fetchItemTags = (type, id) => async (dispatch, getState, api) => {
 // Replace an item's tags (title is stored so the tag browser can label it).
 export const setItemTags = (type, id, tags, title) => async (dispatch, getState, api) => {
   const res = await api.post('/tags', { type, id, tags, title }, JSON_HEADERS);
-  dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: (res.data && res.data.tags) || [] } });
+  dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: (res.data && res.data.tags) || [] }, saved: true });
 };
 
 // Every tagged item (for the tag browser page).

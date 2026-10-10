@@ -86,4 +86,39 @@ async function listTagged(userIdToken) {
     return items;
 }
 
-module.exports = { getTags, setTags, listTagged };
+/**
+ * Tags of many items at once (a notebook's list, for sorting and filtering
+ * by tag). Never rejects: tags only add to the list, so a failure gives none.
+ *
+ * @param {string} userName
+ * @param {Array<{type: string, id: string}>} items
+ * @returns {Promise<Map<string, string[]>>} "<type>#<id>" -> tags (tagged items only)
+ */
+async function tagsForItems(userName, items) {
+    const out = new Map();
+    const keys = [...new Set(items.map((i) => itemKey(i.type, i.id)))];
+    try {
+        for (let i = 0; i < keys.length; i += 100) {
+            let request = {
+                [TABLE]: {
+                    Keys: keys.slice(i, i + 100).map((k) => ({ user_name: userName, item_key: k })),
+                    ProjectionExpression: "item_key, tags",
+                },
+            };
+            // DynamoDB may hand back some keys unread when busy; ask again a
+            // few times.
+            for (let attempt = 0; attempt < 3 && request && Object.keys(request).length; attempt++) {
+                const data = await database.dynamoDbClientInstance().batchGet({ RequestItems: request }).promise();
+                ((data.Responses && data.Responses[TABLE]) || []).forEach((row) => {
+                    if (Array.isArray(row.tags) && row.tags.length) out.set(row.item_key, row.tags);
+                });
+                request = data.UnprocessedKeys;
+            }
+        }
+    } catch (err) {
+        console.log("tagsForItems error:", err.name || err);
+    }
+    return out;
+}
+
+module.exports = { getTags, setTags, listTagged, tagsForItems, itemKey };

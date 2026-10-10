@@ -39,8 +39,11 @@ import { CSS } from '@dnd-kit/utilities';
 //   grid        true when the list is laid out as a grid (several columns,
 //               e.g. My Notebooks on desktop): rows may then move sideways
 //               as well as up and down
+//   disabled    a plain list, nothing to drag (e.g. a notebook sorted A–Z:
+//               only My order can be rearranged); renderItem gets no
+//               handleProps, so no grip is drawn
 
-export default function SortableList({ items, getKey, onReorder, renderItem, className, grid = false }) {
+export default function SortableList({ items, getKey, onReorder, renderItem, className, grid = false, disabled = false }) {
     // Sensors decide what input starts a drag.
     //   PointerSensor: mouse, pen and touch. The 4px distance means a tap on
     //     the grip is still a tap; the drag starts only once it moves.
@@ -53,6 +56,16 @@ export default function SortableList({ items, getKey, onReorder, renderItem, cla
     );
 
     const ids = items.map(getKey);
+
+    if (disabled) {
+        return (
+            <ul className={className}>
+                {items.map((item) => (
+                    <li key={getKey(item)} className="sortable-row">{renderItem(item, null, false)}</li>
+                ))}
+            </ul>
+        );
+    }
 
     const onDragEnd = ({ active, over }) => {
         if (!over || active.id === over.id) return; // dropped in place or outside

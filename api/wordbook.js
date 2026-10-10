@@ -1,6 +1,7 @@
 const getCurentUserFromToken = require('./auth').getCurentUserFromToken;
 const database = require('./dynamoDb');
 const cards = require('./cards');
+const tags = require('./tags');
 
 // NOTE: https://docs.amazonaws.cn/en_us/sdk-for-javascript/v2/developer-guide/dynamodb-example-document-client.html
 /*
@@ -602,9 +603,18 @@ function _listOfWords(userName, wordbookName, limit = 0) {
                 .filter(item => item.item_type === "card")
                 .map(item => item.card_id);
 
-            cards._getCardSummaries(userName, cardIds)
-                .then(summaries => {
-                    const data = items.map(item => {
+            // Each item also carries when it was added to the notebook
+            // (`added`, for Newest/Oldest first) and its tags (for By tag
+            // and the tag filter); see NotebookOverview.
+            const keys = items.map(item => (item.item_type === "card"
+                ? { type: "card", id: item.card_id } : { type: "word", id: item.word }));
+            Promise.all([cards._getCardSummaries(userName, cardIds), tags.tagsForItems(userName, keys)])
+                .then(([summaries, tagMap]) => {
+                    const data = items.map((item, i) => {
+                        const extra = {
+                            added: item.added_datetime || null,
+                            tags: tagMap.get(tags.itemKey(keys[i].type, keys[i].id)) || [],
+                        };
                         if (item.item_type === "card") {
                             const summary = summaries[item.card_id] || {};
                             return {
@@ -612,10 +622,11 @@ function _listOfWords(userName, wordbookName, limit = 0) {
                                 id: item.card_id,
                                 title: summary.title ? summary.title : "(untitled card)",
                                 preview: summary.preview || "",
+                                ...extra,
                             };
                         }
 
-                        return { type: "word", id: item.word, title: item.word };
+                        return { type: "word", id: item.word, title: item.word, ...extra };
                     });
 
                     resolve(data);
