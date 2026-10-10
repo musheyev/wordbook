@@ -13,11 +13,15 @@ import { MarkdownPaste } from './editor/markdownPaste';
 import { TtsSkip } from './editor/ttsSkip';
 import { TtsLang } from './editor/ttsLang';
 import { TtsPause } from './editor/ttsPause';
-import { MARKABLE_LANGUAGES, TTS_PAUSES, languageLabel, voiceLabel } from '../utils/tts';
+import { MARKABLE_LANGUAGES, TTS_PAUSES, TTS_SPEEDS, htmlToChunks, languageLabel, voiceLabel } from '../utils/tts';
 import VoicePickerDialog from './VoicePickerDialog';
 
 import { Indent } from './editor/indent';
 import { FindReplace, findReplaceKey } from './editor/findReplace';
+import { AudioSelect, sentenceAt, wordAt } from './editor/audioSelect';
+import { TextSelection, NodeSelection } from '@tiptap/pm/state';
+import { DOMSerializer } from '@tiptap/pm/model';
+import ttsPlayer from '../utils/ttsPlayer';
 import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
 import katex from 'katex';
@@ -139,6 +143,18 @@ const RichTextEditor = ({ value, onChange }) => {
     // Find and replace bar (🔍 / Cmd+F): { seed: the selected words it opens
     // with, n: bumped on every open so the bar refocuses }.
     const [find, setFind] = React.useState(null); // null = closed, else { seed, n }
+    // 🎧 Audio mode (editor/audioSelect.js, AudioBar below): the note can't
+    // be typed in, so a phone shows no keyboard or Copy/Paste menu; taps
+    // select a sentence, or a word / from one word to another.
+    const [audio, setAudio] = React.useState(false);
+    const [audioUnit, setAudioUnitState] = React.useState(readAudioUnit);
+    const audioRef = React.useRef({ unit: audioUnit, anchor: null, fresh: false });
+    audioRef.current.unit = audioUnit;
+    const setAudioUnit = (u) => {
+        setAudioUnitState(u);
+        audioRef.current.anchor = null;
+        try { localStorage.setItem(AUDIO_UNIT_KEY, u); } catch (e) { /* not remembered */ }
+    };
 
     // Upload an image file to the backend (S3) and return its URL. Notes store
     // only this URL, never the image bytes (DynamoDB items cap at 400 KB).
@@ -215,6 +231,7 @@ const RichTextEditor = ({ value, onChange }) => {
             // Images are uploaded to S3; the note stores only the URL (no base64).
             Image.configure({ inline: false, allowBase64: false }),
             FindReplace,
+            AudioSelect,
         ],
         // Saved notes are HTML. Say so explicitly, since with the Markdown
         // extension loaded a string could otherwise be read as Markdown.
@@ -226,9 +243,12 @@ const RichTextEditor = ({ value, onChange }) => {
             // Clicking a pause chip selects it and opens the ⏸ menu to
             // change or remove it.
             handleClickOn: (view, pos, node) => {
+                if (audioOn(editorRef.current)) return true;
                 if (node.type.name === 'ttsPause') setShowPause(true);
                 return false;
             },
+            // In Audio mode taps are ours (the click listener below).
+            handleClick: () => audioOn(editorRef.current),
             handlePaste: (view, event) => {
                 const cd = event.clipboardData;
                 let files = imageFilesFrom(cd && cd.files);
@@ -280,6 +300,68 @@ const RichTextEditor = ({ value, onChange }) => {
         setFind((f) => ({ seed, n: (f ? f.n : 0) + 1 }));
     };
     if (editor) editor.storage.findReplace.onOpen = openFind;
+
+    // Audio mode on/off: not typeable (no keyboard), our own selection drawn.
+    React.useEffect(() => {
+        if (!editor || !editor.storage.audioSelect) return;
+        editor.storage.audioSelect.on = audio;
+        editor.setEditable(!audio, false);
+        audioRef.current.anchor = null;
+        const { state } = editor.view;
+        editor.view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, state.selection.from)));
+        if (audio) { setFind(null); editor.commands.closeFind(); setShowPause(false); setShowLang(false); }
+        else if (ttsPlayer.snapshot().sourceId === 'voice-preview') ttsPlayer.stop();
+    }, [editor, audio]);
+
+    // Audio mode taps: a sentence (tap more to add them), or a word (tap a
+    // second word for everything in between). A tap on the selection clears
+    // it; after a setting is applied, the next tap starts a new selection.
+    React.useEffect(() => {
+        if (!editor || !audio) return undefined;
+        const dom = editor.view.dom;
+        const onClick = (e) => {
+            const { view } = editor;
+            const { state } = view;
+            const sel = state.selection;
+            const a = audioRef.current;
+            const select = (from, to) => view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, from, to)));
+            const chip = e.target.closest && e.target.closest('.tts-pause');
+            if (chip) {
+                const at = view.posAtDOM(chip, 0);
+                const pos = [at, at - 1].find((p) => p >= 0 && state.doc.nodeAt(p) && state.doc.nodeAt(p).type.name === 'ttsPause');
+                if (pos !== undefined) {
+                    a.anchor = null; a.fresh = true;
+                    view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)));
+                }
+                return;
+            }
+            const hit = view.posAtCoords({ left: e.clientX, top: e.clientY });
+            if (!hit) return;
+            const pos = hit.pos;
+            const textSelected = !sel.empty && !sel.node;
+            if (textSelected && pos >= sel.from && pos <= sel.to) {
+                a.anchor = null;
+                select(sel.from, sel.from);
+                return;
+            }
+            const extend = textSelected && !a.fresh;
+            a.fresh = false;
+            if (a.unit === 'sentence') {
+                const s = sentenceAt(state.doc, pos);
+                if (!s) return;
+                if (extend) select(Math.min(sel.from, s.from), Math.max(sel.to, s.to));
+                else select(s.from, s.to);
+                return;
+            }
+            const anchor = extend ? a.anchor : null;
+            const w = wordAt(state.doc, pos, !!anchor);
+            if (!w) return;
+            if (anchor) { a.anchor = null; select(Math.min(anchor.from, w.from), Math.max(anchor.to, w.to)); }
+            else { a.anchor = w; select(w.from, w.to); }
+        };
+        dom.addEventListener('click', onClick);
+        return () => dom.removeEventListener('click', onClick);
+    }, [editor, audio]);
 
     if (!editor) {
         return null;
@@ -391,8 +473,16 @@ const RichTextEditor = ({ value, onChange }) => {
     );
 
     return (
-        <div className="rte">
-            <div className="rte-toolbar">
+        <div className={`rte${audio ? ' rte--audio' : ''}`}>
+            {audio && (
+                <div className="rte-audio-banner">
+                    <span>🎧 <strong>Audio mode</strong> · tap text to select it</span>
+                    <button type="button" className="rte-audio-banner__done" onClick={() => setAudio(false)}>Done</button>
+                </div>
+            )}
+            <div className="rte-toolbar" style={audio ? { display: 'none' } : undefined}>
+                <Btn label="🎧 Audio" title="Audio mode: mark how the note is read aloud (no keyboard)"
+                    onClick={() => setAudio(true)} />
                 <Btn label="B" title="Bold" active={editor.isActive('bold')}
                     onClick={() => editor.chain().focus().toggleBold().run()} />
                 <Btn label={<em>I</em>} title="Italic" active={editor.isActive('italic')}
@@ -457,17 +547,6 @@ const RichTextEditor = ({ value, onChange }) => {
                             </div>
                         </>
                     )}
-                    <VoicePickerDialog
-                        open={voicePick}
-                        initialLang={editor.getAttributes('ttsLang').lang || null}
-                        initialVoice={editor.getAttributes('ttsLang').voice || null}
-                        initialSpeed={editor.getAttributes('ttsLang').speed || null}
-                        sampleText={selectedText()}
-                        onClose={() => setVoicePick(false)}
-                        onApply={(reading) => {
-                            editor.chain().focus().setTtsReading(reading).run();
-                            setVoicePick(false);
-                        }} />
                 </span>
                 {/* ⏸: a read-aloud pause at the cursor (editor/ttsPause.js);
                     with a pause selected, change its length or remove it. */}
@@ -595,6 +674,24 @@ const RichTextEditor = ({ value, onChange }) => {
                 onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) insertImageFile(f); e.target.value = ''; }} />
             {find && <FindBar editor={editor} open={find} onClose={closeFind} />}
             <EditorContent editor={editor} className="rte-content" />
+            <VoicePickerDialog
+                open={voicePick}
+                initialLang={editor.getAttributes('ttsLang').lang || null}
+                initialVoice={editor.getAttributes('ttsLang').voice || null}
+                initialSpeed={editor.getAttributes('ttsLang').speed || null}
+                sampleText={selectedText()}
+                onClose={() => setVoicePick(false)}
+                onApply={(reading) => {
+                    (audio ? editor.chain() : editor.chain().focus()).setTtsReading(reading).run();
+                    audioRef.current.fresh = true;
+                    setVoicePick(false);
+                }} />
+            {audio && (
+                <AudioBar editor={editor} unit={audioUnit} setUnit={setAudioUnit}
+                    anchorPending={!!audioRef.current.anchor}
+                    onApplied={() => { audioRef.current.fresh = true; audioRef.current.anchor = null; }}
+                    onVoice={() => setVoicePick(true)} />
+            )}
 
             {(mathType || showHelp) && (
                 <div className="rte-mathhelp">
@@ -698,6 +795,135 @@ function FindBar({ editor, open, onClose }) {
                 <button type="button" className="rte-find-bar__btn rte-find-bar__wide" disabled={none}
                     onMouseDown={keep} onClick={() => editor.commands.replaceAllMatches(replacement)}>Replace all</button>
             </div>
+        </div>
+    );
+}
+
+// Whether the editor is in Audio mode (AudioSelect's storage).
+const audioOn = (ed) => !!(ed && ed.storage.audioSelect && ed.storage.audioSelect.on);
+
+// Audio mode's choice of selecting by sentence or by word, remembered here.
+const AUDIO_UNIT_KEY = 'rte-audio-unit';
+function readAudioUnit() {
+    try { return localStorage.getItem(AUDIO_UNIT_KEY) === 'words' ? 'words' : 'sentence'; } catch (e) { return 'sentence'; }
+}
+
+// Audio mode's action bar, under the note (on phones, fixed at the bottom of
+// the screen): how to select, ▶ to hear the selection, and its read-aloud
+// settings: speed, language, voice, a pause after it, don't read. With a
+// pause chip selected: its length, or remove it. Nothing here focuses the
+// editor (that would bring a phone's keyboard back).
+function AudioBar({ editor, unit, setUnit, anchorPending, onApplied, onVoice }) {
+    const [player, setPlayer] = React.useState(ttsPlayer.snapshot());
+    React.useEffect(() => ttsPlayer.subscribe(setPlayer), []);
+
+    const sel = editor.state.selection;
+    const pauseNode = sel.node && sel.node.type.name === 'ttsPause' ? sel.node : null;
+    const has = !sel.empty && !pauseNode;
+    const { lang, voice, speed } = editor.getAttributes('ttsLang');
+    const skipped = editor.isActive('ttsSkip');
+    const text = has ? editor.state.doc.textBetween(sel.from, sel.to, ' ') : '';
+    const done = (ok) => { if (ok !== false) onApplied(); };
+    const keep = (e) => e.preventDefault();
+
+    const hearing = player.sourceId === 'voice-preview' && player.status !== 'idle';
+    const hear = () => {
+        if (hearing) { ttsPlayer.stop(); return; }
+        const box = document.createElement('div');
+        box.appendChild(DOMSerializer.fromSchema(editor.schema).serializeFragment(editor.state.doc.slice(sel.from, sel.to).content));
+        const chunks = htmlToChunks(box.innerHTML);
+        if (!chunks.length) return;
+        ttsPlayer.prime();
+        ttsPlayer.play(chunks, { title: 'Preview', sourceId: 'voice-preview' });
+    };
+    // After the selection and any punctuation right after it ("útil." gets
+    // its pause after the period).
+    const pauseAfter = (seconds) => {
+        const { from } = sel;
+        let { to } = sel;
+        const end = editor.state.doc.resolve(to).end();
+        while (to < end && /[.!?׃…,;:"'”’)\]]/.test(editor.state.doc.textBetween(to, to + 1))) to += 1;
+        editor.chain().insertContentAt(to, { type: 'ttsPause', attrs: { seconds } })
+            .setTextSelection({ from, to: sel.to }).run();
+        done();
+    };
+
+    let hint;
+    if (pauseNode) hint = 'Pause selected';
+    else if (has) hint = `“${text.length > 60 ? `${text.slice(0, 60)}…` : text}”`;
+    else hint = unit === 'sentence' ? 'Tap a sentence to select it' : 'Tap a word';
+    if (has && anchorPending) hint += ' · tap another word to select a phrase';
+    else if (has && unit === 'sentence') hint += ' · tap another sentence to add it';
+
+    return (
+        <div className="rte-audio-bar" role="toolbar" aria-label="Read-aloud settings for the selection">
+            <div className="rte-audio-bar__row">
+                <div className="rte-audio-bar__seg" role="group" aria-label="Select by">
+                    {[['sentence', 'Sentence'], ['words', 'Words']].map(([k, label]) => (
+                        <button type="button" key={k} aria-pressed={unit === k} onMouseDown={keep}
+                            className={`rte-audio-bar__opt${unit === k ? ' on' : ''}`} onClick={() => setUnit(k)}>{label}</button>
+                    ))}
+                </div>
+                <button type="button" className="rte-audio-bar__hear" disabled={!has} onMouseDown={keep} onClick={hear}>
+                    <i className={`${hearing ? 'stop' : 'play'} icon`} aria-hidden="true"></i>{hearing ? 'Stop' : 'Hear it'}
+                </button>
+            </div>
+            <div className="rte-audio-bar__hint">{hint}</div>
+
+            {pauseNode ? (
+                <div className="rte-audio-bar__row">
+                    <span className="rte-audio-bar__label">Pause</span>
+                    {TTS_PAUSES.map((sec) => (
+                        <button type="button" key={sec} onMouseDown={keep}
+                            className={`rte-audio-bar__opt${pauseNode.attrs.seconds === sec ? ' on' : ''}`}
+                            onClick={() => editor.chain().setTtsPauseSeconds(sec).run()}>{sec}s</button>
+                    ))}
+                    <button type="button" className="rte-audio-bar__plain rte-audio-bar__danger" onMouseDown={keep}
+                        onClick={() => { editor.chain().deleteSelection().run(); done(); }}>Remove pause</button>
+                </div>
+            ) : (
+                <>
+                    <div className="rte-audio-bar__row">
+                        <span className="rte-audio-bar__label">Speed</span>
+                        <div className="rte-audio-bar__opts">
+                            {[null, ...TTS_SPEEDS].map((sp) => (
+                                <button type="button" key={sp || 'default'} disabled={!has} onMouseDown={keep}
+                                    className={`rte-audio-bar__opt${has && (speed || null) === sp ? ' on' : ''}`}
+                                    onClick={() => done(editor.chain().setTtsReading({ lang, voice, speed: sp }).run())}>
+                                    {sp ? `${sp}×` : 'Default'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="rte-audio-bar__row rte-audio-bar__row--wrap">
+                        <select className="rte-audio-bar__lang" aria-label="Language" disabled={!has}
+                            value={(has && lang) || ''}
+                            onChange={(e) => done(editor.chain().setTtsLang(e.target.value || null).run())}>
+                            <option value="">Automatic (English / Hebrew)</option>
+                            {MARKABLE_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+                        </select>
+                        <button type="button" className="rte-audio-bar__plain" disabled={!has} onMouseDown={keep} onClick={onVoice}>
+                            Voice…{has && voice ? ` ${voiceLabel(voice)}` : ''}
+                        </button>
+                        <span className="rte-audio-bar__group">
+                            <span className="rte-audio-bar__label">⏸ after</span>
+                            {TTS_PAUSES.map((sec) => (
+                                <button type="button" key={sec} disabled={!has} onMouseDown={keep}
+                                    className="rte-audio-bar__opt" onClick={() => pauseAfter(sec)}>{sec}s</button>
+                            ))}
+                        </span>
+                    </div>
+                    <div className="rte-audio-bar__row">
+                        <button type="button" disabled={!has} onMouseDown={keep}
+                            className={`rte-audio-bar__plain${has && skipped ? ' on' : ''}`}
+                            onClick={() => done(editor.chain().toggleTtsSkip().run())}>
+                            🔇 {has && skipped ? 'Read it again' : 'Don’t read'}
+                        </button>
+                        <button type="button" className="rte-audio-bar__plain" disabled={sel.empty} onMouseDown={keep}
+                            onClick={() => { editor.chain().setTextSelection(sel.from).run(); onApplied(); }}>Clear</button>
+                    </div>
+                </>
+            )}
         </div>
     );
 }
