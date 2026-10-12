@@ -17,6 +17,7 @@ import { htmlToChunks, htmlToPlainText, textToChunks, cardChunks, tagItem } from
 import TranslateMenu from './TranslateMenu';
 import ShareDialog from './ShareDialog';
 import WordImages from './WordImages';
+import SpanishMarkupButton from './SpanishMarkupButton';
 
 // True when a note's HTML has no visible text (empty editor, whitespace only).
 function isEmptyHtml(html) {
@@ -244,6 +245,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title} />
                         {addToWordbookControl}
                         {shareControl}
+                        <SpanishMarkupButton card={currentCard} />
                     </div>
                 </div>
 
