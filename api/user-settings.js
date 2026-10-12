@@ -4,6 +4,9 @@
 //   notebook_sort   how My Notebooks is sorted: "az" | "updated" | "custom"
 //   item_sorts      how each notebook's items are sorted, by notebook name:
 //                   { "Spanish-1": "az", … } (ITEM_SORTS; none = "custom")
+//   item_colors     the colour given to a note or word, wherever it appears:
+//                   { "card#<id>": "yellow", "word#hola": "blue", … }
+//                   (ITEM_COLORS; none = no colour)
 const db = require('./dynamoDb');
 const getCurentUserFromToken = require('./auth').getCurentUserFromToken;
 
@@ -60,7 +63,7 @@ async function setNotebookSort(userIdToken, sort) {
 
 // A notebook's items: My order (dragged), Newest/Oldest first (added to the
 // notebook), A–Z by title, or By tag (A–Z).
-const ITEM_SORTS = ['custom', 'newest', 'oldest', 'az', 'tag'];
+const ITEM_SORTS = ['custom', 'newest', 'oldest', 'az', 'tag', 'color'];
 
 /**
  * @param {string} userIdToken
@@ -121,6 +124,81 @@ async function setItemSort(userIdToken, wordbook, sort) {
     return sort;
 }
 
+// The pale colours a note or word can be given (the app shows them in this
+// order, and sorts By colour in it).
+const ITEM_COLORS = ['yellow', 'green', 'blue', 'pink', 'purple'];
+const itemKey = (type, id) => `${type}#${id}`;
+
+/**
+ * @param {string} userIdToken
+ * @returns {Promise<Object<string, string>>} "<type>#<id>" -> colour; {} if
+ *   none or unreadable (colours never break a page)
+ */
+async function getItemColors(userIdToken) {
+    if (!userIdToken) return {};
+    try {
+        const userName = await getCurentUserFromToken(userIdToken);
+        const data = await db.dynamoDbClientInstance().get({
+            TableName: TABLE,
+            Key: { user_name: userName },
+            ProjectionExpression: 'item_colors',
+        }).promise();
+        const colors = (data.Item && data.Item.item_colors) || {};
+        return Object.fromEntries(Object.entries(colors).filter(([, v]) => ITEM_COLORS.includes(v)));
+    } catch (err) {
+        console.log('getItemColors error:', err.name || err);
+        return {};
+    }
+}
+
+/**
+ * Give notes/words a colour, or take it off (color null).
+ *
+ * @param {string} userIdToken
+ * @param {Array<{type: string, id: string}>} items
+ * @param {string|null} color one of ITEM_COLORS, or null for none
+ * @returns {Promise<number>} how many items were changed
+ */
+async function setItemColors(userIdToken, items, color) {
+    if (color !== null && !ITEM_COLORS.includes(color)) throw new Error(`Unknown colour "${color}"`);
+    const list = (Array.isArray(items) ? items : [])
+        .filter((i) => i && (i.type === 'card' || i.type === 'word') && typeof i.id === 'string' && i.id);
+    if (!list.length) throw new Error('No items given');
+    const userName = await getCurentUserFromToken(userIdToken);
+    const client = db.dynamoDbClientInstance();
+    const Key = { user_name: userName };
+    // A batch of up to 100 per request keeps the update expression small.
+    for (let start = 0; start < list.length; start += 100) {
+        const batch = list.slice(start, start + 100);
+        const names = { '#m': 'item_colors' };
+        batch.forEach((item, i) => { names[`#k${i}`] = itemKey(item.type, item.id); });
+        const paths = batch.map((_, i) => `#m.#k${i}`);
+        const params = color === null
+            ? { TableName: TABLE, Key, UpdateExpression: `REMOVE ${paths.join(', ')}`, ExpressionAttributeNames: names }
+            : {
+                TableName: TABLE, Key,
+                UpdateExpression: `SET ${paths.map((p) => `${p} = :c`).join(', ')}`,
+                ExpressionAttributeNames: names,
+                ExpressionAttributeValues: { ':c': color },
+            };
+        try {
+            await client.update(params).promise();
+        } catch (err) {
+            if (err.code !== 'ValidationException' && err.name !== 'ValidationException') throw err;
+            // No colours yet: nothing to remove, or no map to set into.
+            if (color === null) continue;
+            await client.update({
+                TableName: TABLE, Key,
+                UpdateExpression: 'SET item_colors = if_not_exists(item_colors, :empty)',
+                ExpressionAttributeValues: { ':empty': {} },
+            }).promise();
+            await client.update(params).promise();
+        }
+    }
+    return list.length;
+}
+
 module.exports = {
-    getNotebookSort, setNotebookSort, NOTEBOOK_SORTS, getItemSorts, setItemSort, ITEM_SORTS, TABLE,
+    getNotebookSort, setNotebookSort, NOTEBOOK_SORTS, getItemSorts, setItemSort, ITEM_SORTS,
+    getItemColors, setItemColors, ITEM_COLORS, TABLE,
 };

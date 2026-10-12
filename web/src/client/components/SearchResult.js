@@ -18,13 +18,15 @@ import TranslateMenu from './TranslateMenu';
 import ShareDialog from './ShareDialog';
 import WordImages from './WordImages';
 import SpanishMarkupButton from './SpanishMarkupButton';
+import ItemColorButton from './ItemColorButton';
+import { colorOf } from '../utils/itemColors';
 
 // True when a note's HTML has no visible text (empty editor, whitespace only).
 function isEmptyHtml(html) {
     return (html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() === '';
 }
 
-function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, wordNote, auth, wordbooks,
+function SearchResult({ currentWord, currentWordType, currentCard, wordSearchResult, wordNote, auth, wordbooks, itemColors,
     fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchWordData, fetchCardData,
     fetchSourceVotes, setSourceVote }) {
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
@@ -212,6 +214,9 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
         </>
     );
 
+    // The note's colour, if it has one (ItemColorButton): its stripe and tint.
+    const noteColor = currentCard && currentCard.card_id ? colorOf(itemColors, { type: 'card', id: currentCard.card_id }) : null;
+
     // ---- Card view ---------------------------------------------------------
     if (isCard) {
         // Card selected but its content hasn't loaded yet: blank pane, no GUID.
@@ -245,6 +250,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title} />
                         {addToWordbookControl}
                         {shareControl}
+                        <ItemColorButton items={[{ type: 'card', id: currentCard.card_id }]} label={null} className="card-tool" />
                         <SpanishMarkupButton card={currentCard} />
                     </div>
                 </div>
@@ -267,6 +273,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
 
                 {/* Scrollbar lives on the card content so the header/toolbar stays put. */}
                 <div className="card-content card-content--scroll" ref={cardRef}
+                    style={noteColor ? { borderLeftColor: noteColor.ink, '--note-tint': noteColor.tint } : undefined}
+                    data-color={noteColor ? noteColor.key : undefined}
                     dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(currentCard.content) }} />
             </div>
         );
@@ -303,6 +311,9 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                                 )}
                                 {addToWordbookControl}
                                 {shareControl}
+                                {auth != "" && (
+                                    <ItemColorButton items={[{ type: 'word', id: currentWord }]} label={null} className="card-tool" />
+                                )}
                                 {/* Google's own definition box can't be fetched or
                                     embedded, so open its "define" search instead. */}
                                 <a className="card-tool card-tool--google" title="Define on Google"
@@ -415,8 +426,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     );
 }
 
-function mapStatetoProps({ auth, currentWord, currentWordType, currentCard, word, wordbooks, wordNote }, ownProps) {
-    return { auth, currentWord, currentWordType, currentCard, wordSearchResult: word, wordbooks, wordNote };
+function mapStatetoProps({ auth, currentWord, currentWordType, currentCard, word, wordbooks, wordNote, itemColors }, ownProps) {
+    return { auth, currentWord, currentWordType, currentCard, wordSearchResult: word, wordbooks, wordNote, itemColors };
 }
 
 export default connect(mapStatetoProps, { fetchWordWordbooks, fetchWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote, fetchWordData, fetchCardData })(SearchResult);

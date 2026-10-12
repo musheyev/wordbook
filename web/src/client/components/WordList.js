@@ -11,8 +11,8 @@ import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
 // notebook and, in My order, a grip (⋮⋮) to drag it to a new position.
 // A spinner only while there's no list for this notebook yet: a refresh of
 // the list on screen (e.g. after saving a note) keeps showing it.
-const WordList = ({ wordbook, wordbookWords, haveList, failed, sort, reorderWordbookItems }) => {
-    const words = haveList ? sortItems(wordbookWords || [], sort) : [];
+const WordList = ({ wordbook, wordbookWords, haveList, failed, sort, colors, reorderWordbookItems }) => {
+    const words = haveList ? sortItems(wordbookWords || [], sort, colors) : [];
 
     if (!haveList) {
         return failed ? <div className="nav-ctx__failed">Couldn't load.</div> : <Spinner inline label="Loading…" />;
@@ -35,9 +35,10 @@ const WordList = ({ wordbook, wordbookWords, haveList, failed, sort, reorderWord
     );
 };
 
-function mapStatetoProps({ wordbookWords, wordbookWordsFor, wordbookWordsError, itemSorts }, ownProps) {
+function mapStatetoProps({ wordbookWords, wordbookWordsFor, wordbookWordsError, itemSorts, itemColors }, ownProps) {
     return {
         wordbookWords,
+        colors: itemColors,
         sort: (itemSorts && itemSorts[ownProps.wordbook]) || DEFAULT_ITEM_SORT,
         haveList: wordbookWordsFor === ownProps.wordbook,
         failed: Boolean(wordbookWordsError && wordbookWordsError.wordbook === ownProps.wordbook),

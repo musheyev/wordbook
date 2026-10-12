@@ -242,6 +242,28 @@ wordbookRouter.post("/item-sort", function (req, res) {
         });
 });
 
+// Colours given to notes and words (see user-settings.js item_colors).
+// GET  -> { colors: { "<type>#<id>": colour } }
+// POST { items: [{ type, id }], color: "yellow" | … | null } -> { changed }
+wordbookRouter.get("/item-colors", function (req, res) {
+    userSettings.getItemColors(req.cookies.id_token)
+        .then((colors) => res.json({ colors }));
+});
+
+wordbookRouter.post("/item-colors", function (req, res) {
+    const color = req.body.color === undefined ? null : req.body.color;
+    userSettings.setItemColors(req.cookies.id_token, req.body.items, color)
+        .then((changed) => res.json({ changed }))
+        .catch((err) => {
+            console.log(`item colour save error: ${err.name}`);
+            if (err.name === "TokenExpiredError") {
+                res.status(401).end("Your login session expired.  Please login again.");
+            } else {
+                res.status(400).end(err.message);
+            }
+        });
+});
+
 wordbookRouter.post("/words", function (req, res) {
 
     let wordbookName = req.body.wordbook;

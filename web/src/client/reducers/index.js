@@ -23,7 +23,7 @@ import wordNoteReducer from './wordNoteReducer';
 import itemTagsReducer from './itemTagsReducer';
 import allTagsReducer from './allTagsReducer';
 import noteWindowsReducer from './noteWindowsReducer';
-import { notebookSortReducer, wordbookUpdatedReducer, itemSortsReducer } from './notebookSortReducers';
+import { notebookSortReducer, wordbookUpdatedReducer, itemSortsReducer, itemColorsReducer } from './notebookSortReducers';
 import { myWordImagesReducer, imageSearchEnabledReducer } from './wordImageReducers';
 
 export default combineReducers({
@@ -53,6 +53,7 @@ export default combineReducers({
     noteWindows: noteWindowsReducer,
     notebookSort: notebookSortReducer,
     itemSorts: itemSortsReducer,
+    itemColors: itemColorsReducer,
     wordbookUpdated: wordbookUpdatedReducer,
     myWordImages: myWordImagesReducer,
     imageSearchEnabled: imageSearchEnabledReducer,

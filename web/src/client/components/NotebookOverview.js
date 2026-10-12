@@ -4,7 +4,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { reorderWordbookItems } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
 import { inPlainView } from '../utils/lastVisited';
-import { tagGroups } from '../utils/itemSort';
+import { tagGroups, colorGroups } from '../utils/itemSort';
+import { colorOf } from '../utils/itemColors';
+import ItemColorButton from './ItemColorButton';
 import ReadAloud from './ReadAloud';
 import SortableList from './SortableList';
 import GripIcon from './GripIcon';
@@ -28,6 +30,7 @@ import CopyNotesButton from './CopyNotesButton';
 // filters by it. All / Notes / Words narrows by type. Play all reads what's
 // shown, in this order. The note last opened in this notebook (this session,
 // `lastKey`) is highlighted and scrolled into view when you come back.
+// A note's or word's colour tints its card; By color groups them by colour.
 // Select ticks cards (clicking a card ticks it instead
 // of opening it) for Play selected (`selection`, NotebookSelect.js). Admins
 // also get Copy (what's shown) and Copy selected (CopyNotesButton). Clicking a card opens the item, at the match when it
@@ -43,7 +46,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const keyOf = (item) => `${item.type}:${item.id}`;
 
 export default function NotebookOverview({
-    name, items, search, sort, onSort, selection, playSelected, onAdd, getReadAloudChunks, lastKey,
+    name, items, search, sort, onSort, selection, playSelected, onAdd, getReadAloudChunks, lastKey, colors,
 }) {
     const dispatch = useDispatch();
     const rootRef = useRef(null);
@@ -74,9 +77,11 @@ export default function NotebookOverview({
         const tags = item.tags || [];
         const ticking = selection.selecting;
         const picked = ticking && selection.isPicked(item);
+        const color = colorOf(colors, item);
         return (
             <div className="nb-card-wrap">
-                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}${picked ? ' is-picked' : ''}${keyOf(item) === lastKey ? ' is-last' : ''}`} to={linkTo(item)}
+                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}${picked ? ' is-picked' : ''}${keyOf(item) === lastKey ? ' is-last' : ''}${color ? ' has-color' : ''}`} to={linkTo(item)}
+                    style={color ? { '--item-tint': color.tint, '--item-ink': color.ink } : undefined}
                     aria-pressed={ticking ? picked : undefined}
                     onClick={ticking ? (e) => { e.preventDefault(); selection.toggle(item); } : undefined}>
                     {ticking && <SelectCheck on={picked} />}
@@ -120,7 +125,21 @@ export default function NotebookOverview({
     };
 
     let grid = null;
-    if (shown.length > 0 && sort === 'tag') {
+    if (shown.length > 0 && sort === 'color') {
+        const byKey = new Map(shown.map((r) => [keyOf(r.item), r]));
+        grid = colorGroups(shownItems, colors).map(({ color, items: groupItems }) => (
+            <section key={color ? color.key : '(none)'} className="nb-overview__group">
+                <h2 className="nb-overview__group-title">
+                    <span className={`item-color__dot${color ? '' : ' item-color__dot--none'}`} aria-hidden="true"
+                        style={color ? { background: color.ink } : undefined} />
+                    {color ? color.label : 'No color'} <span className="nb-overview__group-count">{groupItems.length}</span>
+                </h2>
+                <ul className="nb-overview__grid">
+                    {groupItems.map((item) => <li key={keyOf(item)}>{card(byKey.get(keyOf(item)))}</li>)}
+                </ul>
+            </section>
+        ));
+    } else if (shown.length > 0 && sort === 'tag') {
         const byKey = new Map(shown.map((r) => [keyOf(r.item), r]));
         grid = tagGroups(shownItems).map(({ tag, items: groupItems }) => (
             <section key={tag || '(none)'} className="nb-overview__group">
@@ -193,9 +212,14 @@ export default function NotebookOverview({
             <TagPicker search={search} items={items} />
             {selection.selecting && (
                 <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={name}
-                    extra={isAdmin && selection.picked.size > 0 && (
-                        <CopyNotesButton title={name} label="Copy selected"
-                            getItems={() => items.filter((item) => selection.isPicked(item))} />
+                    extra={selection.picked.size > 0 && (
+                        <>
+                            <ItemColorButton items={items.filter((item) => selection.isPicked(item))} />
+                            {isAdmin && (
+                                <CopyNotesButton title={name} label="Copy selected"
+                                    getItems={() => items.filter((item) => selection.isPicked(item))} />
+                            )}
+                        </>
                     )} />
             )}
 

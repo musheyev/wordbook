@@ -631,6 +631,29 @@ nav-button-as-link {
   font-size: 0.9rem; font-weight: 600; cursor: pointer;
 }
 .nb-selectbar .cb-btn i.icon, .nb-overview__select i.icon, .copy-notes i.icon { margin: 0 6px 0 0; }
+/* Colours on notes and words (ItemColorButton, utils/itemColors.js). */
+.item-color { position: relative; display: inline-flex; }
+.item-color__btn { gap: 6px; }
+.item-color__dot {
+  display: inline-block; flex: none; width: 12px; height: 12px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(15, 20, 35, 0.15);
+}
+.item-color__dot--none { background: none; box-shadow: inset 0 0 0 1.5px var(--cb-ink-3); }
+.card-tool.item-color__btn .item-color__dot { width: 14px; height: 14px; }
+.item-color__menu { min-width: 170px; }
+.item-color__swatch {
+  flex: none; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid;
+}
+.item-color__swatch--none { border-color: var(--cb-border-strong); background: repeating-linear-gradient(135deg, transparent 0 4px, var(--cb-border) 4px 5px); }
+.item-color__check { margin-left: auto; color: var(--cb-accent); font-weight: 700; }
+.nb-card.has-color { background: var(--item-tint); border-color: color-mix(in srgb, var(--item-ink) 35%, var(--cb-border)); }
+.nb-card.has-color .nb-card__icon { background: rgba(255, 255, 255, 0.7); }
+.nb-row.has-color { box-shadow: inset 5px 0 0 var(--item-ink); }
+/* Last opened and coloured: keep the colour strip; the highlight shows in the background. */
+.nb-row.is-last.has-color { box-shadow: inset 5px 0 0 var(--item-ink); }
+.card-content[data-color] { background: color-mix(in srgb, var(--note-tint) 45%, #fff); }
+.nb-overview__group-title .item-color__dot { margin-right: 6px; vertical-align: 0; }
+
 /* Markup Spanish on a note's toolbar (SpanishMarkupButton, admins). */
 .es-markup { position: relative; display: inline-flex; }
 .es-markup__btn { height: 34px; padding: 0 10px; font-size: 0.85rem; gap: 4px; }

@@ -9,12 +9,18 @@
 //   az      by title, A–Z (capitals and accents ignored, 2 before 10)
 //   tag     by tag, A–Z; the overview shows a heading per tag, where a note
 //           with two tags appears under both, and untagged ones last
+//   color   by colour, in the palette's order (utils/itemColors.js), then
+//           those without one; within a colour, My order. The overview
+//           shows a heading per colour
+import { ITEM_COLORS, colorKey } from './itemColors';
+
 export const ITEM_SORTS = [
     { key: 'custom', label: 'My order' },
     { key: 'newest', label: 'Newest first' },
     { key: 'oldest', label: 'Oldest first' },
     { key: 'az', label: 'A–Z' },
     { key: 'tag', label: 'By tag' },
+    { key: 'color', label: 'By color' },
 ];
 export const DEFAULT_ITEM_SORT = 'custom';
 
@@ -24,16 +30,24 @@ const byTitle = (a, b) => collator.compare(a.title || '', b.title || '');
 // An item's tags, A–Z.
 export const sortedTags = (item) => [...(item.tags || [])].sort(collator.compare);
 
+const colorRank = (colors, item) => {
+    const i = ITEM_COLORS.findIndex((c) => c.key === (colors || {})[colorKey(item)]);
+    return i === -1 ? ITEM_COLORS.length : i;
+};
+
 /**
  * The items in `sort` order (a new array; `items` is in My order). Ties keep
  * My order.
  *
  * @param {Array<{title: string, added?: string, tags?: string[]}>} items
  * @param {string} sort one of ITEM_SORTS' keys
+ * @param {Object} [colors] item colours (for By color)
  */
-export function sortItems(items, sort) {
+export function sortItems(items, sort, colors) {
     const list = [...(items || [])];
     switch (sort) {
+        case 'color':
+            return list.sort((a, b) => colorRank(colors, a) - colorRank(colors, b));
         case 'newest':
             // Items from before dates were kept have none: they go last.
             return list.sort((a, b) => (b.added || '').localeCompare(a.added || ''));
@@ -95,4 +109,22 @@ export function tagCounts(items) {
         counts.get(k).count += 1;
     }));
     return [...counts.values()].sort((a, b) => collator.compare(a.tag, b.tag));
+}
+
+/**
+ * The By color view: one group per colour used, in palette order, then the
+ * items without a colour. Items keep their order (My order).
+ *
+ * @returns {Array<{color: object|null, items: Array}>} color null = "No color"
+ */
+export function colorGroups(items, colors) {
+    const groups = ITEM_COLORS.map((color) => ({ color, items: [] }));
+    const none = [];
+    items.forEach((item) => {
+        const i = colorRank(colors, item);
+        if (i < ITEM_COLORS.length) groups[i].items.push(item); else none.push(item);
+    });
+    const out = groups.filter((g) => g.items.length);
+    if (none.length) out.push({ color: null, items: none });
+    return out;
 }

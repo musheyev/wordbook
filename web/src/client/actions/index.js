@@ -554,6 +554,36 @@ export const saveItemSort = (wordbook, sort) => async (dispatch, getState, api) 
   } catch (err) { /* re-sorted on screen; it just won't be remembered */ }
 };
 
+// Colours given to notes and words (utils/itemColors.js), saved on the
+// account: { "<type>#<id>": colour }. Loaded once; null until then.
+export const SET_ITEM_COLORS = 'set_item_colors';
+export const fetchItemColors = () => async (dispatch, getState, api) => {
+  let colors = {};
+  try {
+    const res = await api.get('/wordbook/item-colors');
+    if (res.data && res.data.colors) colors = res.data.colors;
+  } catch (err) { /* no colours shown; never breaks the page */ }
+  dispatch({ type: SET_ITEM_COLORS, payload: colors });
+};
+
+// Colour items (color null = none). Shown at once; if saving fails, the
+// saved colours are loaded back so the screen matches what's kept.
+export const saveItemColors = (items, color) => async (dispatch, getState, api) => {
+  const next = { ...(getState().itemColors || {}) };
+  items.forEach((item) => {
+    const k = `${item.type}#${item.id}`;
+    if (color) next[k] = color; else delete next[k];
+  });
+  dispatch({ type: SET_ITEM_COLORS, payload: next });
+  try {
+    await api.post('/wordbook/item-colors',
+      { items: items.map(({ type, id }) => ({ type, id })), color: color || null }, JSON_HEADERS);
+  } catch (err) {
+    dispatch(fetchItemColors());
+    throw err;
+  }
+};
+
 // Save "My order" after a drag. The list moves at once; if saving fails, the
 // saved order is fetched back so the screen doesn't show an order that wasn't
 // kept.

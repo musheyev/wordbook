@@ -10,6 +10,8 @@ import NotebookSearchBar, {
     NotebookSearchStatus, MatchSnippet, TagPicker, SortSelect,
 } from './NotebookSearchBar';
 import { SelectBar, SelectCheck } from './NotebookSelect';
+import ItemColorButton from './ItemColorButton';
+import { colorOf } from '../utils/itemColors';
 
 // A notebook's items as tappable rows (the page a notebook opens on, on
 // phones), in the notebook's sort (`items` comes sorted; Sort changes it).
@@ -21,7 +23,7 @@ import { SelectBar, SelectCheck } from './NotebookSelect';
 // row ticks it) for Play selected (`selection`, NotebookSelect.js). The item
 // last opened in this notebook (this session, `lastKey`) is highlighted and
 // scrolled into view when you come back.
-function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, lastKey, reorderWordbookItems }) {
+function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, lastKey, colors, reorderWordbookItems }) {
     const rootRef = useRef(null);
     useEffect(() => {
         // A moment later: going Back, the browser first puts the page back
@@ -42,8 +44,10 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
     const row = (item, after) => {
         const isCard = item.type === 'card';
         const picked = ticking && selection.isPicked(item);
+        const color = colorOf(colors, item);
         return (
-            <Link className={`nb-row${picked ? ' is-picked' : ''}${`${item.type}:${item.id}` === lastKey ? ' is-last' : ''}`} to={linkTo(item)}
+            <Link className={`nb-row${picked ? ' is-picked' : ''}${`${item.type}:${item.id}` === lastKey ? ' is-last' : ''}${color ? ' has-color' : ''}`} to={linkTo(item)}
+                style={color ? { '--item-tint': color.tint, '--item-ink': color.ink } : undefined}
                 aria-pressed={ticking ? picked : undefined}
                 onClick={ticking ? (e) => { e.preventDefault(); selection.toggle(item); } : undefined}>
                 {ticking ? <SelectCheck on={picked} /> : (
@@ -68,7 +72,10 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
             <NotebookSearchBar search={search} className="nb-search--list" />
             <TagPicker search={search} items={items} />
             {ticking && (
-                <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={wordbook} />
+                <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={wordbook}
+                    extra={selection.picked.size > 0 && (
+                        <ItemColorButton items={items.filter((item) => selection.isPicked(item))} />
+                    )} />
             )}
         </>
     );

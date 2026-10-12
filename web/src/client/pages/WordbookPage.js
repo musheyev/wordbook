@@ -4,7 +4,7 @@ import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
 import {
     SET_CURRENT_WORDBOOK, fetchWordbookWords, fetchCardData, fetchWordData,
-    clearCurrentSelection, closeCardEditor, getCardContent, fetchItemSorts, saveItemSort,
+    clearCurrentSelection, closeCardEditor, getCardContent, fetchItemSorts, saveItemSort, fetchItemColors,
 } from '../actions';
 import SearchResult from '../components/SearchResult';
 import CardEditorInline from '../components/CardEditorInline';
@@ -39,7 +39,7 @@ const HEBREW = /[֐-׿]/;
 // (NotebookSelect.js), shared by the overview and the phone list.
 function WordbookPage({
     dispatch, wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditorOpen,
-    itemSorts, fetchWordbookWords, fetchCardData, fetchWordData, clearCurrentSelection, closeCardEditor,
+    itemSorts, itemColors, fetchWordbookWords, fetchCardData, fetchWordData, clearCurrentSelection, closeCardEditor,
 }) {
     const { name, type, id } = useParams();
     const navigate = useNavigate();
@@ -56,6 +56,7 @@ function WordbookPage({
 
     useEffect(() => {
         if (itemSorts == null) dispatch(fetchItemSorts());
+        if (itemColors == null) dispatch(fetchItemColors());
     }, []);
 
     // Remember it as this notebook's last-opened item (this session), so the
@@ -80,8 +81,8 @@ function WordbookPage({
     const haveList = wordbookWordsFor === name;
     const sort = (itemSorts && itemSorts[name]) || DEFAULT_ITEM_SORT;
     const items = useMemo(
-        () => (haveList ? sortItems(wordbookWords || [], sort) : []),
-        [haveList, wordbookWords, sort],
+        () => (haveList ? sortItems(wordbookWords || [], sort, itemColors) : []),
+        [haveList, wordbookWords, sort, sort === 'color' ? itemColors : null],
     );
     const setSort = (next) => dispatch(saveItemSort(name, next));
     const search = useNotebookSearch(name, items);
@@ -215,7 +216,7 @@ function WordbookPage({
                         items.length > 0 && (
                             <NotebookItemList wordbook={name} items={items} search={search} sort={sort} onSort={setSort}
                                 selection={selection} playSelected={() => notebookChunks(pickedItems)}
-                                lastKey={getLastVisited(name)} />
+                                lastKey={getLastVisited(name)} colors={itemColors} />
                         )
                     ) : loadError ? (
                         <LoadError message={loadError} onRetry={() => fetchWordbookWords(name)} />
@@ -226,7 +227,7 @@ function WordbookPage({
                 {emptyMessage || (listReady ? (
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
                         selection={selection} playSelected={() => notebookChunks(pickedItems)}
-                        lastKey={getLastVisited(name)}
+                        lastKey={getLastVisited(name)} colors={itemColors}
                         onAdd={() => setAddOpen(true)} getReadAloudChunks={notebookChunks} />
                 ) : (
                     <div className="nb-overview-loading">
@@ -247,9 +248,9 @@ function WordbookPage({
     );
 }
 
-function mapStateToProps({ wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditor, itemSorts }) {
+function mapStateToProps({ wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditor, itemSorts, itemColors }) {
     return {
-        wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditorOpen: cardEditor.open, itemSorts,
+        wordbookWords, wordbookWordsInProgress, wordbookWordsFor, wordbookWordsError, cardEditorOpen: cardEditor.open, itemSorts, itemColors,
     };
 }
 
