@@ -59,7 +59,7 @@ const WordWithDelete = ({ item, wordbook, selected, handleProps, noteWindowMode,
                 // stopPropagation: a click, or the Space/Enter that picks the
                 // row up for a keyboard drag, must not also reach the row
                 // (which opens the item on click and on Space/Enter).
-                <span className="word-chip__grip" aria-label={`Reorder ${item.title}`}
+                <span className="word-chip__grip" aria-label={`Reorder ${item.title}`} title="Drag to reorder"
                     {...handleProps}
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => { handleProps.onKeyDown && handleProps.onKeyDown(e); e.stopPropagation(); }}>

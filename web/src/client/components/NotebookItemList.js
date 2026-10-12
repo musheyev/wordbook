@@ -126,7 +126,7 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
                             so dragging never also counts as opening the item. */}
                         {handleProps && (
                             <button type="button" className="nb-row__grip"
-                                aria-label={`Reorder ${item.title}`} {...handleProps}>
+                                aria-label={`Reorder ${item.title}`} title="Drag to reorder" {...handleProps}>
                                 <GripIcon size={18} />
                             </button>
                         )}

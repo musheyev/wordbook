@@ -116,7 +116,8 @@ export default function NotebookOverview({
                     </span>
                 </Link>
                 {handleProps && (
-                    <button type="button" className="nb-card__grip" aria-label={`Reorder ${item.title}`} {...handleProps}>
+                    <button type="button" className="nb-card__grip" aria-label={`Reorder ${item.title}`}
+                        title="Drag to reorder" {...handleProps}>
                         <GripIcon size={16} />
                     </button>
                 )}
