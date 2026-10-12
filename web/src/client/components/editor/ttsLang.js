@@ -82,7 +82,7 @@ export const TtsLang = Mark.create({
         };
         return {
             // From the menu: a language with its default voice, keeping any
-            // speed; null (Automatic) removes the mark.
+            // speed; null (Default) removes the mark.
             setTtsLang: (lang) => ({ editor, ...rest }) => apply(lang
                 ? reading({ lang, voice: null, speed: editor.getAttributes(this.name).speed })
                 : null)({ editor, ...rest }),

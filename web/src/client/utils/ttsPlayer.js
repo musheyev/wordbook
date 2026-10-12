@@ -8,7 +8,7 @@
 // listening, across sentences: back from
 // the start of a sentence continues into the end of the one before. The
 // last few sentences' audio stays in memory (KEEP_BEHIND) so that's instant.
-import { getChosenVoices, getChosenSpeeds, htmlToChunks } from './tts';
+import { getChosenVoices, getChosenSpeeds, htmlToChunks, DEFAULT_VOICES } from './tts';
 
 let audioEl = null;
 function getAudio() {
@@ -38,9 +38,6 @@ function silentUrl(seconds = 0.05) {
     return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
 }
 
-// The voice a chunk is read in: a voice chosen for that text in the note
-// (chunk.voice), else this device's choice for its language, else Google's
-// default for the language (undefined).
 // Sentences behind the current one whose audio is kept for going back.
 const KEEP_BEHIND = 8;
 
@@ -60,7 +57,11 @@ const whenLoaded = (a) => new Promise((resolve) => {
     a.addEventListener('error', done);
 });
 
-const voiceFor = (chunk) => chunk.voice || getChosenVoices()[chunk.lang] || undefined;
+// The voice a chunk is read in: a voice chosen for that text in the note
+// (chunk.voice), else this device's choice for its language, else the app's
+// default (DEFAULT_VOICES: Achernar for English), else Google's default for
+// the language (undefined).
+const voiceFor = (chunk) => chunk.voice || getChosenVoices()[chunk.lang] || DEFAULT_VOICES[chunk.lang] || undefined;
 
 const asRequest = (chunk) => ({ text: chunk.text, languageCode: chunk.lang, voiceName: voiceFor(chunk) });
 

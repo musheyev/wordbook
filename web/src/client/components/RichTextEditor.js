@@ -497,7 +497,7 @@ const RichTextEditor = ({ value, onChange }) => {
                     onClick={() => editor.chain().focus().toggleCode().run()} />
                 <Btn label="🔇" title="Don't read aloud (mute for text-to-speech)" active={editor.isActive('ttsSkip')}
                     onClick={() => editor.chain().focus().toggleTtsSkip().run()} />
-                {/* How the selection is read aloud: Automatic (English, or Hebrew
+                {/* How the selection is read aloud: Default (English, or Hebrew
                     by its letters), a marked language, or a chosen voice
                     (editor/ttsLang.js, VoicePickerDialog). */}
                 <span className="rte-hl">
@@ -521,7 +521,7 @@ const RichTextEditor = ({ value, onChange }) => {
                         <>
                             <div className="rte-hl__backdrop" onMouseDown={() => setShowLang(false)} />
                             <div className="rte-hl__pop rte-lang__pop" role="menu">
-                                {[{ code: null, label: 'Automatic' }, ...MARKABLE_LANGUAGES].map((l) => {
+                                {[{ code: null, label: 'Default' }, ...MARKABLE_LANGUAGES].map((l) => {
                                     const on = (editor.getAttributes('ttsLang').lang || null) === l.code;
                                     return (
                                         <button type="button" key={l.code || 'auto'} role="menuitemradio" aria-checked={on}
@@ -530,7 +530,6 @@ const RichTextEditor = ({ value, onChange }) => {
                                             onClick={() => { editor.chain().focus().setTtsLang(l.code).run(); setShowLang(false); }}>
                                             <span className={`rte-lang__dot${l.code ? ` rte-lang__dot--${l.code}` : ''}`} aria-hidden="true" />
                                             {l.label}
-                                            {!l.code && <span className="rte-lang__hint">English / Hebrew</span>}
                                             {on && <span className="rte-lang__check" aria-hidden="true">✓</span>}
                                         </button>
                                     );
@@ -912,7 +911,7 @@ function AudioBar({ editor, unit, setUnit, anchorPending, onApplied, onVoice }) 
                         <select className="rte-audio-bar__lang" aria-label="Language" disabled={!has}
                             value={(has && lang) || ''}
                             onChange={(e) => done(editor.chain().setTtsLang(e.target.value || null).run())}>
-                            <option value="">Automatic (English / Hebrew)</option>
+                            <option value="">Default</option>
                             {MARKABLE_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
                         </select>
                         <button type="button" className="rte-audio-bar__plain" disabled={!has} onMouseDown={keep} onClick={onVoice}>

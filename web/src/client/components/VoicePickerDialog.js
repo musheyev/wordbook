@@ -6,14 +6,14 @@ import { loadVoices, SAMPLE_TEXT } from '../utils/ttsVoices';
 // "Read selected text as" (the editor's 🗣 menu → "Voice and speed…"). A
 // dialog on desktop, a bottom sheet on phones (the shared .cb-sheet styles).
 //
-//   Language   Automatic (English, or Hebrew by its letters) or a language
+//   Language   Default (English, or Hebrew by its letters) or a language
 //   Speed      Default (the language's speed from read-aloud's ⌄ menu) or
 //              a speed for just this text
-//   voices     Language default, or a voice with its male/female tag
+//   voices     Default, or a voice with its male/female tag
 //   ▶          hear the selected text (or a short sample) as it would be
 //              read, before applying
 //
-// onApply({ lang, voice, speed }): lang null = Automatic, voice null = the
+// onApply({ lang, voice, speed }): lang null = Default, voice null = the
 // language's default voice, speed null = Default.
 export default function VoicePickerDialog({ open, initialLang, initialVoice, initialSpeed, sampleText, onApply, onClose }) {
     const [lang, setLang] = useState(initialLang || null);
@@ -99,7 +99,7 @@ export default function VoicePickerDialog({ open, initialLang, initialVoice, ini
                 <label className="voice-pick__lang">
                     Language
                     <select value={lang || ''} onChange={(e) => { setLang(e.target.value || null); setVoice(null); }}>
-                        <option value="">Automatic (English / Hebrew)</option>
+                        <option value="">Default</option>
                         {TTS_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
                     </select>
                 </label>
@@ -119,12 +119,12 @@ export default function VoicePickerDialog({ open, initialLang, initialVoice, ini
                 <div className="voice-pick__list">
                     {!lang ? (
                         <>
-                            {row(null, 'Automatic voices', '', false)}
+                            {row(null, 'Default voices', '', false)}
                             <div className="voice-pick__note">Choose a language to pick a specific voice.</div>
                         </>
                     ) : (
                         <>
-                            {row(null, 'Language default', '')}
+                            {row(null, 'Default', '')}
                             {voices === null && <div className="voice-pick__note">Loading voices…</div>}
                             {voices && voices.length === 0 && <div className="voice-pick__note">No voices found.</div>}
                             {voices && voices.map((v) => row(v.name, v.label, v.gender))}

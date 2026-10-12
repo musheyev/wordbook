@@ -17,7 +17,8 @@ function ReadAloud({ getChunks, title, label, voices: withVoices = true }) {
     const [error, setError] = useState('');
     const [menuOpen, setMenuOpen] = useState(false);
     // The voice picker shows one language at a time (there are six, each with
-    // many voices). "Auto" lets Google pick that language's default voice.
+    // many voices). "Default" is the app's voice for that language
+    // (DEFAULT_VOICES; otherwise Google's).
     const [pickerLang, setPickerLang] = useState('en-US');
     const [voices, setVoices] = useState({});
     const [chosen, setChosen] = useState(getChosenVoices());
@@ -113,7 +114,7 @@ function ReadAloud({ getChunks, title, label, voices: withVoices = true }) {
                             </div>
                             <div className="read-aloud__lang">
                                 <button type="button" className={`read-aloud__voice${!chosen[pickerLang] ? ' on' : ''}`}
-                                    onClick={() => pick(pickerLang, '')}>Auto</button>
+                                    onClick={() => pick(pickerLang, '')}>Default</button>
                                 {(voices[pickerLang] || []).map((v) => (
                                     <button type="button" key={v.name}
                                         className={`read-aloud__voice${chosen[pickerLang] === v.name ? ' on' : ''}`}

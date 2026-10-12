@@ -182,6 +182,11 @@ function chunksOfStretch(s) {
     }));
 }
 
+// The voice a language is read in when nothing else chooses one (a voice
+// marked on the text, or this device's choice): the app's "Default". Other
+// languages use Google's default voice for the language.
+export const DEFAULT_VOICES = { 'en-US': 'en-US-Chirp3-HD-Achernar' };
+
 // Chosen voices per language, persisted per viewer. { 'en-US': name, 'he-IL': name }
 const VOICE_KEY = 'tts-voices';
 export function getChosenVoices() {
