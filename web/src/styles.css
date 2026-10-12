@@ -609,11 +609,22 @@ nav-button-as-link {
    grip (top right, on hover). */
 .nb-card-wrap { position: relative; height: 100%; }
 .nb-card__tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+/* The drag grip sits in the card's left padding, centred, on hover. */
 .nb-card__grip {
-  position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; padding: 0; border: none; border-radius: 6px; background: var(--cb-surface-2);
+  position: absolute; top: 50%; left: 1px; transform: translateY(-50%); display: flex; align-items: center; justify-content: center;
+  width: 13px; height: 30px; padding: 0; border: none; border-radius: 4px; background: transparent;
   color: var(--cb-ink-3); cursor: grab; opacity: 0; transition: opacity .12s ease; touch-action: none;
 }
+/* The colour dot at the top right, on hover (and while its menu is open). */
+.nb-card-wrap > .item-color { position: absolute; top: 8px; right: 8px; opacity: 0; transition: opacity .12s ease; }
+.nb-card-wrap:hover > .item-color, .nb-card-wrap > .item-color:focus-within, .nb-card-wrap > .item-color:has(.item-color__menu) { opacity: 1; }
+.nb-card__color {
+  display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--cb-border); border-radius: 50%; background: var(--cb-surface-2); cursor: pointer;
+}
+.nb-card__color:hover { border-color: var(--cb-accent); }
+.nb-card-wrap > .item-color .item-color__menu { z-index: 40; }
+.nb-card { padding-right: 34px; }
 .nb-card-wrap:hover .nb-card__grip, .nb-card__grip:focus-visible, .sortable-row--dragging .nb-card__grip { opacity: 1; }
 .nb-card__grip:hover { background: var(--cb-surface); color: var(--cb-ink-2); }
 .sortable-row--dragging .nb-card { box-shadow: 0 10px 28px rgba(15, 20, 35, 0.18); border-color: var(--cb-accent); }

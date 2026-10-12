@@ -30,7 +30,8 @@ import CopyNotesButton from './CopyNotesButton';
 // filters by it. All / Notes / Words narrows by type. Play all reads what's
 // shown, in this order. The note last opened in this notebook (this session,
 // `lastKey`) is highlighted and scrolled into view when you come back.
-// A note's or word's colour tints its card; By color groups them by colour.
+// A note's or word's colour tints its card; the dot at a card's top right
+// (on hover) sets it without opening the card. By color groups by colour.
 // Select ticks cards (clicking a card ticks it instead
 // of opening it) for Play selected (`selection`, NotebookSelect.js). Admins
 // also get Copy (what's shown) and Copy selected (CopyNotesButton). Clicking a card opens the item, at the match when it
@@ -118,8 +119,11 @@ export default function NotebookOverview({
                 {handleProps && (
                     <button type="button" className="nb-card__grip" aria-label={`Reorder ${item.title}`}
                         title="Drag to reorder" {...handleProps}>
-                        <GripIcon size={16} />
+                        <GripIcon size={14} />
                     </button>
+                )}
+                {!ticking && (
+                    <ItemColorButton items={[{ type: item.type, id: item.id }]} label={null} className="nb-card__color" />
                 )}
             </div>
         );
