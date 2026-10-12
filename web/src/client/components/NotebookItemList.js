@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { reorderWordbookItems } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
+import { inPlainView } from '../utils/lastVisited';
 import SortableList from './SortableList';
 import GripIcon from './GripIcon';
 import NotebookSearchBar, {
@@ -17,8 +18,20 @@ import { SelectBar, SelectCheck } from './NotebookSelect';
 // above filters by title or tag, or searches everything (`search`, from
 // WordbookPage's useNotebookSearch); while searching, the matches show
 // without grips, with the passage that matched. Select ticks rows (tapping a
-// row ticks it) for Play selected (`selection`, NotebookSelect.js).
-function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, reorderWordbookItems }) {
+// row ticks it) for Play selected (`selection`, NotebookSelect.js). The item
+// last opened in this notebook (this session, `lastKey`) is highlighted and
+// scrolled into view when you come back.
+function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, lastKey, reorderWordbookItems }) {
+    const rootRef = useRef(null);
+    useEffect(() => {
+        // A moment later: going Back, the browser first puts the page back
+        // where it was, which would undo this.
+        const timer = setTimeout(() => {
+            const el = rootRef.current && rootRef.current.querySelector('.nb-row.is-last');
+            if (el && !inPlainView(el)) el.scrollIntoView({ block: 'center' });
+        }, 120);
+        return () => clearTimeout(timer);
+    }, [wordbook, lastKey]);
     const notes = items.filter((item) => item.type === 'card').length;
     const words = items.length - notes;
     const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -30,7 +43,7 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
         const isCard = item.type === 'card';
         const picked = ticking && selection.isPicked(item);
         return (
-            <Link className={`nb-row${picked ? ' is-picked' : ''}`} to={linkTo(item)}
+            <Link className={`nb-row${picked ? ' is-picked' : ''}${`${item.type}:${item.id}` === lastKey ? ' is-last' : ''}`} to={linkTo(item)}
                 aria-pressed={ticking ? picked : undefined}
                 onClick={ticking ? (e) => { e.preventDefault(); selection.toggle(item); } : undefined}>
                 {ticking ? <SelectCheck on={picked} /> : (
@@ -62,7 +75,7 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
 
     if (search.searching) {
         return (
-            <div className="nb-list">
+            <div className="nb-list" ref={rootRef}>
                 {tools}
                 <NotebookSearchStatus search={search} />
                 <ul className="nb-list__rows">
@@ -77,7 +90,7 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
     }
 
     return (
-        <div className="nb-list">
+        <div className="nb-list" ref={rootRef}>
             {tools}
             <div className="nb-list__count">
                 <span>

@@ -644,6 +644,21 @@ nav-button-as-link {
 .nb-check.is-on { background: var(--cb-accent); border-color: var(--cb-accent); color: #fff; }
 .nb-check .icon { margin: 0; font-size: 0.8rem; height: auto; }
 .nb-card.is-picked { border-color: var(--cb-accent); background: var(--cb-accent-weak); }
+/* The note last opened in this notebook (this session, utils/lastVisited.js):
+   an accent outline that pulses briefly on the way back. */
+.nb-card.is-last { border-color: var(--cb-accent); box-shadow: 0 0 0 2px var(--cb-accent); animation: nb-last-pulse 1.4s ease-out 1; }
+.nb-row.is-last { background: var(--cb-accent-weak); box-shadow: inset 4px 0 0 var(--cb-accent); animation: nb-last-pulse 1.4s ease-out 1; }
+@keyframes nb-last-pulse {
+  0% { box-shadow: 0 0 0 2px var(--cb-accent), 0 0 0 0 rgba(37, 99, 235, 0.45); }
+  60% { box-shadow: 0 0 0 2px var(--cb-accent), 0 0 0 12px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 0 0 2px var(--cb-accent), 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+.nb-row.is-last { animation-name: nb-last-row-pulse; }
+@keyframes nb-last-row-pulse {
+  0% { background: rgba(37, 99, 235, 0.28); }
+  100% { background: var(--cb-accent-weak); }
+}
+@media (prefers-reduced-motion: reduce) { .nb-card.is-last, .nb-row.is-last { animation: none; } }
 .nb-row.is-picked { background: var(--cb-accent-weak); }
 .nb-list__count-tools { display: inline-flex; align-items: center; gap: 8px; }
 .nb-list__select {

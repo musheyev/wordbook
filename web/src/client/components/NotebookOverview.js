@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { reorderWordbookItems } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
+import { inPlainView } from '../utils/lastVisited';
 import { tagGroups } from '../utils/itemSort';
 import ReadAloud from './ReadAloud';
 import SortableList from './SortableList';
@@ -25,7 +26,9 @@ import CopyNotesButton from './CopyNotesButton';
 // everything in the notebook (`search`, WordbookPage's useNotebookSearch);
 // text matches show the passage that matched. Clicking a tag on a card
 // filters by it. All / Notes / Words narrows by type. Play all reads what's
-// shown, in this order. Select ticks cards (clicking a card ticks it instead
+// shown, in this order. The note last opened in this notebook (this session,
+// `lastKey`) is highlighted and scrolled into view when you come back.
+// Select ticks cards (clicking a card ticks it instead
 // of opening it) for Play selected (`selection`, NotebookSelect.js). Admins
 // also get Copy (what's shown) and Copy selected (CopyNotesButton). Clicking a card opens the item, at the match when it
 // was found in the text. Phones show their own list instead
@@ -40,9 +43,20 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const keyOf = (item) => `${item.type}:${item.id}`;
 
 export default function NotebookOverview({
-    name, items, search, sort, onSort, selection, playSelected, onAdd, getReadAloudChunks,
+    name, items, search, sort, onSort, selection, playSelected, onAdd, getReadAloudChunks, lastKey,
 }) {
     const dispatch = useDispatch();
+    const rootRef = useRef(null);
+    // Coming back: bring the last-opened card into view.
+    useEffect(() => {
+        // A moment later: going Back, the browser first puts the page back
+        // where it was, which would undo this.
+        const timer = setTimeout(() => {
+            const el = rootRef.current && rootRef.current.querySelector('.nb-card.is-last');
+            if (el && !inPlainView(el)) el.scrollIntoView({ block: 'center' });
+        }, 120);
+        return () => clearTimeout(timer);
+    }, [name, lastKey]);
     const isAdmin = useSelector((state) => state.isAdmin);
     const [type, setType] = useState('all');
 
@@ -62,7 +76,7 @@ export default function NotebookOverview({
         const picked = ticking && selection.isPicked(item);
         return (
             <div className="nb-card-wrap">
-                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}${picked ? ' is-picked' : ''}`} to={linkTo(item)}
+                <Link className={`nb-card${isNote ? ' nb-card--note' : ''}${picked ? ' is-picked' : ''}${keyOf(item) === lastKey ? ' is-last' : ''}`} to={linkTo(item)}
                     aria-pressed={ticking ? picked : undefined}
                     onClick={ticking ? (e) => { e.preventDefault(); selection.toggle(item); } : undefined}>
                     {ticking && <SelectCheck on={picked} />}
@@ -137,7 +151,7 @@ export default function NotebookOverview({
     }
 
     return (
-        <div className="nb-overview">
+        <div className="nb-overview" ref={rootRef}>
             <div className="nb-overview__head">
                 <div className="nb-overview__heading">
                     <h1 className="nb-overview__title">{name}</h1>

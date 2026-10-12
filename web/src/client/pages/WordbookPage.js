@@ -21,6 +21,7 @@ import { highlightFirstMatch } from '../utils/highlightMatch';
 import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
 import useNotebookSearch from '../utils/useNotebookSearch';
 import { keyOf } from '../components/NotebookSelect';
+import { getLastVisited, setLastVisited } from '../utils/lastVisited';
 
 const HEBREW = /[֐-׿]/;
 
@@ -56,6 +57,10 @@ function WordbookPage({
     useEffect(() => {
         if (itemSorts == null) dispatch(fetchItemSorts());
     }, []);
+
+    // Remember it as this notebook's last-opened item (this session), so the
+    // notebook highlights it when you come back (utils/lastVisited.js).
+    useEffect(() => { if (id) setLastVisited(name, type, id); }, [name, type, id]);
 
     // Load the item named in the URL, or clear the selection on the list.
     useEffect(() => {
@@ -209,7 +214,8 @@ function WordbookPage({
                     {listReady ? (
                         items.length > 0 && (
                             <NotebookItemList wordbook={name} items={items} search={search} sort={sort} onSort={setSort}
-                                selection={selection} playSelected={() => notebookChunks(pickedItems)} />
+                                selection={selection} playSelected={() => notebookChunks(pickedItems)}
+                                lastKey={getLastVisited(name)} />
                         )
                     ) : loadError ? (
                         <LoadError message={loadError} onRetry={() => fetchWordbookWords(name)} />
@@ -220,6 +226,7 @@ function WordbookPage({
                 {emptyMessage || (listReady ? (
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
                         selection={selection} playSelected={() => notebookChunks(pickedItems)}
+                        lastKey={getLastVisited(name)}
                         onAdd={() => setAddOpen(true)} getReadAloudChunks={notebookChunks} />
                 ) : (
                     <div className="nb-overview-loading">
