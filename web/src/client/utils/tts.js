@@ -130,8 +130,9 @@ export const validPause = (s) => (TTS_PAUSES.includes(Number(s)) ? Number(s) : n
 // ttsPlayer plays as that many seconds of silence.
 //
 // Bookmarks (the player's 🔖 ⏭ / ⏮ 🔖 buttons jump between them): a 🔖 in
-// the note (<span class="tts-bookmark">) and the start of every heading.
-// The first chunk after one gets `bookmark: true`.
+// the note (<span class="tts-bookmark">) and the start of a heading —
+// except a heading straight after another heading (a title and its
+// subtitle are one stop). The first chunk after one gets `bookmark: true`.
 export function htmlToChunks(html) {
     if (!html) return [];
     const doc = readableDoc(html);
@@ -142,6 +143,7 @@ export function htmlToChunks(html) {
     });
     const stretches = []; // { text, reading }, { pause } or { bookmark }
     let heading = null;
+    let lastTextInHeading = false; // the last words read were in a heading
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
         if (node.nodeType !== Node.TEXT_NODE) {
             if (node.classList.contains('tts-bookmark')) { stretches.push({ bookmark: true }); continue; }
@@ -150,8 +152,9 @@ export function htmlToChunks(html) {
             continue;
         }
         const h = node.parentElement && node.parentElement.closest('h1, h2, h3, h4');
-        if (h && h !== heading) stretches.push({ bookmark: true });
+        if (h && h !== heading && !lastTextInHeading) stretches.push({ bookmark: true });
         heading = h;
+        if (node.textContent.trim()) lastTextInHeading = !!h;
         const reading = markedReading(node);
         const last = stretches[stretches.length - 1];
         if (last && last.text !== undefined && sameReading(last.reading, reading)) last.text += node.textContent;

@@ -107,12 +107,12 @@ const HIGHLIGHTS = [
 // Font family and size choices for the desktop-only dropdowns.
 // "Basic" are generic system stacks (no download); "Fonts" are self-hosted
 // web fonts (see src/client/fonts.js) so they render the same on every device.
+// Default is the app's own font, Lato (so Lato isn't listed again).
 const FONTS = [
     { group: 'Basic', name: 'Default', value: '' },
     { group: 'Basic', name: 'Serif', value: 'Georgia, "Times New Roman", serif' },
     { group: 'Basic', name: 'Mono', value: 'ui-monospace, Menlo, Consolas, monospace' },
     { group: 'Fonts', name: 'Inter', value: "'Inter', sans-serif" },
-    { group: 'Fonts', name: 'Lato', value: "'Lato', sans-serif" },
     { group: 'Fonts', name: 'Montserrat', value: "'Montserrat', sans-serif" },
     { group: 'Fonts', name: 'Merriweather', value: "'Merriweather', serif" },
     { group: 'Fonts', name: 'Lora', value: "'Lora', serif" },
@@ -124,6 +124,35 @@ const FONTS = [
 ];
 const FONT_GROUPS = ['Basic', 'Fonts'];
 const SIZES = [11, 13, 15, 17, 19, 22, 26, 32];
+
+// The H ▾ menu: normal text or a heading level (Ctrl/⌘+Alt+1/2/3 too).
+const HEADINGS = [
+    { level: 0, label: 'Normal text' },
+    { level: 1, label: 'Heading 1' },
+    { level: 2, label: 'Heading 2' },
+    { level: 3, label: 'Heading 3' },
+];
+
+// Pasted text arrives in the editor's own look: a paste keeps its structure
+// and emphasis (bold, italic, underline, lists, links, headings, tables) but
+// not the source's font, size, colours or line spacing — so text copied from
+// a web page or another app on the phone isn't oversized or in another
+// typeface. <font> tags (old-style formatting) are unwrapped.
+const PASTE_DROP = /^(font-family|font-size|font|color|background|background-color|line-height|letter-spacing|font-variant|text-indent)$/i;
+function cleanPastedHtml(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('font').forEach((el) => el.replaceWith(...el.childNodes));
+    doc.querySelectorAll('[style]').forEach((el) => {
+        const keep = [];
+        for (let i = 0; i < el.style.length; i++) {
+            const prop = el.style[i];
+            if (!PASTE_DROP.test(prop)) keep.push(`${prop}: ${el.style.getPropertyValue(prop)}`);
+        }
+        if (keep.length) el.setAttribute('style', keep.join('; '));
+        else el.removeAttribute('style');
+    });
+    return doc.body.innerHTML;
+}
 
 const RichTextEditor = ({ value, onChange }) => {
     // Toggles the formula help/examples reference without inserting anything.
@@ -137,6 +166,8 @@ const RichTextEditor = ({ value, onChange }) => {
     const [voicePick, setVoicePick] = React.useState(false);
     // ⏸ menu: insert a read-aloud pause, or change/remove the selected one.
     const [showPause, setShowPause] = React.useState(false);
+    // H ▾ menu: normal text / heading levels.
+    const [showHeading, setShowHeading] = React.useState(false);
     // Kept current so the paste/drop handlers (defined at editor-config time) can
     // reach the editor instance, which only exists after useEditor returns.
     const editorRef = React.useRef(null);
@@ -201,6 +232,8 @@ const RichTextEditor = ({ value, onChange }) => {
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
+                // Three heading levels (the H ▾ menu); pasted h4–h6 become text.
+                heading: { levels: [1, 2, 3] },
                 // No spell-check squiggles under code (commands, paths, names).
                 code: { HTMLAttributes: { spellcheck: 'false' } },
                 codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
@@ -242,6 +275,7 @@ const RichTextEditor = ({ value, onChange }) => {
         onUpdate: ({ editor }) => onChange(editor.getHTML()),
         // Pasting or dropping an image file uploads it and inserts the URL.
         editorProps: {
+            transformPastedHTML: cleanPastedHtml,
             // Clicking a pause chip selects it and opens the ⏸ menu to
             // change or remove it.
             handleClickOn: (view, pos, node) => {
@@ -625,8 +659,40 @@ const RichTextEditor = ({ value, onChange }) => {
                         </>
                     )}
                 </span>
-                <Btn label="H" title="Heading" active={editor.isActive('heading', { level: 2 })}
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
+                <span className="rte-hl">
+                    {(() => {
+                        const level = [1, 2, 3].find((l) => editor.isActive('heading', { level: l })) || 0;
+                        return (
+                            <>
+                                <button type="button" className={`rte-btn${level ? ' active' : ''}`}
+                                    title="Heading" aria-haspopup="true" aria-expanded={showHeading}
+                                    onMouseDown={(e) => e.preventDefault()} onClick={() => setShowHeading((v) => !v)}>
+                                    {level ? `H${level}` : 'H'}<span className="rte-hl__caret">▾</span>
+                                </button>
+                                {showHeading && (
+                                    <>
+                                        <div className="rte-hl__backdrop" onMouseDown={() => setShowHeading(false)} />
+                                        <div className="rte-hl__pop rte-lang__pop rte-heading__pop" role="menu">
+                                            {HEADINGS.map((h) => (
+                                                <button type="button" key={h.level} role="menuitemradio" aria-checked={level === h.level}
+                                                    className={`rte-lang__item rte-heading__item rte-heading__item--${h.level}${level === h.level ? ' on' : ''}`}
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => {
+                                                        const chain = editor.chain().focus();
+                                                        (h.level ? chain.setHeading({ level: h.level }) : chain.setParagraph()).run();
+                                                        setShowHeading(false);
+                                                    }}>
+                                                    {h.label}
+                                                    {level === h.level && <span className="rte-lang__check" aria-hidden="true">✓</span>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </>
+                        );
+                    })()}
+                </span>
                 <Btn label="• List" title="Bullet list" active={editor.isActive('bulletList')}
                     onClick={() => editor.chain().focus().toggleBulletList().run()} />
                 <Btn label="1. List" title="Numbered list" active={editor.isActive('orderedList')}

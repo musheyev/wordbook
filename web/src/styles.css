@@ -1387,6 +1387,21 @@ nav-button-as-link {
 }
 
 .card-content p { margin: 0 0 8px; }
+/* Note headings (the editor's H ▾ menu): the same three sizes in the editor
+   and when the note is read. */
+:is(.rte-content .ProseMirror, .card-content, .word-note__content) :is(h1, h2, h3) {
+  font-family: inherit; font-weight: 700; line-height: 1.3; margin: 0.9em 0 0.35em; color: var(--cb-ink);
+}
+:is(.rte-content .ProseMirror, .card-content, .word-note__content) h1 { font-size: 1.6em; }
+:is(.rte-content .ProseMirror, .card-content, .word-note__content) h2 { font-size: 1.3em; }
+:is(.rte-content .ProseMirror, .card-content, .word-note__content) h3 { font-size: 1.1em; }
+:is(.rte-content .ProseMirror, .card-content, .word-note__content) > :is(h1, h2, h3):first-child { margin-top: 0; }
+/* The H ▾ menu shows each level at a hint of its size. */
+.rte-heading__pop { min-width: 180px; }
+.rte-heading__item--1 { font-size: 1.15rem; font-weight: 700; }
+.rte-heading__item--2 { font-size: 1.02rem; font-weight: 700; }
+.rte-heading__item--3 { font-size: 0.92rem; font-weight: 700; }
+
 /* A blank line in the editor is an empty paragraph: keep its height when the
    note is read, so the spacing matches. */
 .card-content p:empty, .word-note__content p:empty { min-height: 1.5em; }
