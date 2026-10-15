@@ -591,6 +591,12 @@ nav-button-as-link {
    buttons; without it the menu dropped below all the cards. */
 .nb-overview__actions { position: relative; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .nb-overview__actions .cb-btn i.icon { margin: 0 6px 0 0; }
+/* The open-in-windows toggle (an icon only) and the title as the notebook's menu. */
+.nb-overview__actions .nb-overview__windows { padding-left: 10px; padding-right: 10px; }
+.nb-overview__actions .nb-overview__windows i.icon { margin: 0; }
+.nb-overview__windows.on { background: var(--cb-accent-weak); border-color: var(--cb-accent); color: var(--cb-accent); }
+.nb-menu--overview { margin-left: -6px; }
+.nb-menu--overview .nb-menu__title { font-size: 1.6rem; font-weight: 600; padding: 2px 6px; }
 .nb-overview__tools { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; max-width: 860px; }
 .nb-overview__types { display: flex; gap: 2px; padding: 3px; flex-shrink: 0; background: var(--cb-surface); border-radius: var(--cb-radius-sm); }
 .nb-overview__type {

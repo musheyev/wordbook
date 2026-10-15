@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { reorderWordbookItems, openNoteWindow } from '../actions';
+import { reorderWordbookItems, openNoteWindow, toggleNoteWindowMode } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
 import { inPlainView } from '../utils/lastVisited';
 import { tagGroups, colorGroups } from '../utils/itemSort';
@@ -15,6 +15,7 @@ import NotebookSearchBar, {
 } from './NotebookSearchBar';
 import { SelectBar, SelectCheck } from './NotebookSelect';
 import CopyNotesButton from './CopyNotesButton';
+import NotebookMenu from './NotebookMenu';
 
 // A notebook's overview on desktop, shown when no item is open (the
 // notebook name in the rail leads here). Every note and word as a card:
@@ -181,7 +182,8 @@ export default function NotebookOverview({
         <div className="nb-overview" ref={rootRef}>
             <div className="nb-overview__head">
                 <div className="nb-overview__heading">
-                    <h1 className="nb-overview__title">{name}</h1>
+                    {/* The title is the notebook's menu: rename, all notebooks, delete. */}
+                    <h1 className="nb-overview__title"><NotebookMenu name={name} className="nb-menu--overview" /></h1>
                     <div className="nb-overview__counts">
                         {[words ? plural(words, 'word') : null, notes ? plural(notes, 'note') : null]
                             .filter(Boolean).join(' · ')}
@@ -192,6 +194,12 @@ export default function NotebookOverview({
                         <i className="plus icon" aria-hidden="true"></i>Add
                     </button>
                     <ReadAloud getChunks={() => getReadAloudChunks(shownItems)} title={name} label="Play all" />
+                    <button type="button" className={`cb-btn cb-btn--ghost nb-overview__windows${noteWindowMode ? ' on' : ''}`}
+                        aria-pressed={noteWindowMode} aria-label="Open notes in windows"
+                        title={noteWindowMode ? 'Notes open in windows (click to turn off)' : 'Open notes in windows'}
+                        onClick={() => dispatch(toggleNoteWindowMode())}>
+                        <i className="window maximize outline icon" aria-hidden="true"></i>
+                    </button>
                     {isAdmin && !selection.selecting && (
                         <CopyNotesButton title={name} getItems={() => shownItems} />
                     )}
