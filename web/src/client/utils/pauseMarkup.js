@@ -3,66 +3,95 @@
 // editor/ttsPause.js) all at once, working on the note's saved HTML:
 //
 //   setAllPauses        every pause gets one length
-//   addSpanishPauses    a pause at the end of each line with Spanish in it
-//                       that's followed by another line with Spanish — time
-//                       to repeat before the next phrase:
-//                         • Yo tengo — I have ⏸
-//                         • Tú tienes — You have ⏸
-//                         • Usted tiene — You have, formal   (next: English)
+//   addSpanishPauses    a pause at the end of each Spanish line that's
+//                       followed by another Spanish line — time to repeat
+//                       before the next phrase:
+//                         • Yo estoy — I am ⏸
+//                         • Tú estás — You are ⏸
+//                         • Ustedes están — You all are     (next: English)
 //   removeSpanishPauses the pauses between such lines (at a line's end, or
 //                       on a line of their own between them)
 //   removeAllPauses     every pause
 //
-// "Line" = a paragraph, heading or list item's text; blank lines between
-// don't count. "Spanish" = text marked to be read in Spanish (Markup
-// Spanish or the editor's 🗣), Spain or Latin America.
+// A "line" is a paragraph, heading or list item — or each part of one split
+// with line breaks (Shift+Enter, or pasted text). Blank lines between don't
+// count. A "Spanish line" is one that's largely Spanish: at least a third of
+// its letters are marked to be read in Spanish (Markup Spanish or the
+// editor's 🗣), so "• Yo estoy — I am" is one, but an English sentence that
+// mentions "estar" isn't.
 import { DEFAULT_PAUSE, validPause } from './tts';
 
 const parse = (html) => new DOMParser().parseFromString(html || '', 'text/html');
 const PAUSE = 'span.tts-pause';
+const SPANISH_SHARE = 0.34;
+const letters = (s) => (s.match(/\p{L}/gu) || []).length;
 
-// The note's lines in order (TipTap puts a list item's text in a <p>).
-const linesOf = (doc) => [...doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')]
-    .filter((el) => !el.closest('pre, code'));
+const isSpanishText = (node) => {
+    const el = node.parentElement && node.parentElement.closest('.tts-lang');
+    return !!el && /^es-/.test(el.getAttribute('lang') || '');
+};
 
-const hasSpanish = (el) => [...el.querySelectorAll('.tts-lang[lang^="es-"]')].some((s) => s.textContent.trim());
-const isBlank = (el) => !el.textContent.trim() && !el.querySelector(PAUSE);
-const isPauseOnly = (el) => !el.textContent.trim() && !!el.querySelector(PAUSE);
-
-// The pause chips at the very end of a line (ignoring trailing spaces).
-function trailingPauses(el) {
+// The note's lines, in order: { block, br, text, spanish, pauses, trailing }
+//   block     the paragraph/heading the line is in
+//   br        the <br> that ends it (null: the end of the block)
+//   text      its text; spanish = letters of it marked Spanish
+//   pauses    pause chips in it; trailing = those at its very end
+function linesOf(doc) {
     const out = [];
-    for (let n = el.lastChild; n; n = n.previousSibling) {
-        if (n.nodeType === 3 && !n.nodeValue.trim()) continue;
-        if (n.nodeType === 1 && n.matches(PAUSE)) { out.push(n); continue; }
-        if (n.nodeType === 1 && n.tagName === 'BR') continue;
-        break;
-    }
+    [...doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')]
+        .filter((el) => !el.closest('pre, code'))
+        .forEach((block) => {
+            let line = { block, br: null, text: '', spanish: 0, pauses: [], trailing: [] };
+            const walker = doc.createTreeWalker(block, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+            for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+                if (n.nodeType === Node.TEXT_NODE) {
+                    line.text += n.nodeValue;
+                    if (isSpanishText(n)) line.spanish += letters(n.nodeValue);
+                    if (n.nodeValue.trim()) line.trailing = [];
+                } else if (n.tagName === 'BR') {
+                    line.br = n;
+                    out.push(line);
+                    line = { block, br: null, text: '', spanish: 0, pauses: [], trailing: [] };
+                } else if (n.matches(PAUSE)) {
+                    line.pauses.push(n);
+                    line.trailing.push(n);
+                }
+            }
+            out.push(line);
+        });
     return out;
 }
 
+const isBlank = (line) => !line.text.trim() && !line.pauses.length;
+const isPauseOnly = (line) => !line.text.trim() && line.pauses.length > 0;
+const isSpanishLine = (line) => line.spanish > 0 && line.spanish >= SPANISH_SHARE * letters(line.text);
+
 // Pairs of Spanish lines that follow each other: { line, next, between }
 // where `between` are the pause-only lines in between (blank lines skipped).
-function spanishNeighbours(doc) {
-    const lines = linesOf(doc);
+function spanishNeighbours(lines) {
     const pairs = [];
     lines.forEach((line, i) => {
-        if (!hasSpanish(line)) return;
+        if (!isSpanishLine(line)) return;
         const between = [];
         for (let j = i + 1; j < lines.length; j++) {
             if (isBlank(lines[j])) continue;
             if (isPauseOnly(lines[j])) { between.push(lines[j]); continue; }
-            if (hasSpanish(lines[j])) pairs.push({ line, next: lines[j], between });
+            if (isSpanishLine(lines[j])) pairs.push({ line, next: lines[j], between });
             return;
         }
     });
     return pairs;
 }
 
-// Remove a line element; a list item left with nothing in it goes too.
-function removeLine(el) {
-    const li = el.parentElement && el.parentElement.closest('li');
-    el.remove();
+// Take a pause-only line out: its chips, and the line itself (its <br>, or
+// the paragraph — and a list item left empty by that).
+function removeLine(line) {
+    line.pauses.forEach((p) => p.remove());
+    if (line.br) { line.br.remove(); return; }
+    const { block } = line;
+    if (block.textContent.trim() || block.querySelector(PAUSE)) return; // other lines remain
+    const li = block.parentElement && block.parentElement.closest('li');
+    block.remove();
     if (li && !li.textContent.trim() && !li.querySelector('p, ul, ol')) li.remove();
 }
 
@@ -85,13 +114,13 @@ export function addSpanishPauses(html, seconds) {
     const doc = parse(html);
     const s = String(validPause(seconds) || DEFAULT_PAUSE);
     let count = 0;
-    spanishNeighbours(doc).forEach(({ line, between }) => {
-        if (between.length || trailingPauses(line).length) return; // already has one
+    spanishNeighbours(linesOf(doc)).forEach(({ line, between }) => {
+        if (between.length || line.trailing.length) return; // already has one
         const pause = doc.createElement('span');
         pause.className = 'tts-pause';
         pause.setAttribute('data-seconds', s);
-        const trailing = line.lastChild && line.lastChild.nodeType === 1 && line.lastChild.tagName === 'BR' ? line.lastChild : null;
-        line.insertBefore(pause, trailing);
+        if (line.br) line.br.parentNode.insertBefore(pause, line.br);
+        else line.block.appendChild(pause);
         count += 1;
     });
     return result(doc, count);
@@ -101,9 +130,9 @@ export function addSpanishPauses(html, seconds) {
 export function removeSpanishPauses(html) {
     const doc = parse(html);
     let count = 0;
-    spanishNeighbours(doc).forEach(({ line, between }) => {
-        trailingPauses(line).forEach((p) => { p.remove(); count += 1; });
-        between.forEach((el) => { count += el.querySelectorAll(PAUSE).length; removeLine(el); });
+    spanishNeighbours(linesOf(doc)).forEach(({ line, between }) => {
+        line.trailing.forEach((p) => { p.remove(); count += 1; });
+        between.forEach((l) => { count += l.pauses.length; removeLine(l); });
     });
     return result(doc, count);
 }
@@ -112,7 +141,7 @@ export function removeSpanishPauses(html) {
 export function removeAllPauses(html) {
     const doc = parse(html);
     let count = 0;
-    linesOf(doc).filter(isPauseOnly).forEach((el) => { count += el.querySelectorAll(PAUSE).length; removeLine(el); });
+    linesOf(doc).filter(isPauseOnly).forEach((l) => { count += l.pauses.length; removeLine(l); });
     doc.querySelectorAll(PAUSE).forEach((p) => { p.remove(); count += 1; });
     return result(doc, count);
 }
