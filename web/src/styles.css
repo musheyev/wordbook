@@ -1561,6 +1561,23 @@ nav-button-as-link {
 @media (max-width: 768px) {
   .card-editor .rte-content { max-height: calc(100vh - 320px); }
 }
+/* The editor's title and buttons (CardEditorInline .card-editor__top):
+   stacked on wide screens; on phones one slim row — ✕ cancel, title,
+   ⋯ (notebooks, delete), ✓ save — so Cancel and Save are always on screen. */
+.card-editor__top { display: flex; flex-direction: column; gap: 10px; }
+.card-editor__more { display: none; position: relative; }
+@media (max-width: 768px) {
+  .card-editor__top { flex-direction: row; align-items: center; gap: 6px; }
+  .card-editor__top .card-editor__actions { display: contents; }
+  .card-editor__top .card-editor__wide-only, .card-editor__top .card-editor__status { display: none; }
+  .card-editor__top button[aria-label="Cancel"] { order: 0; flex: none; }
+  .card-editor__top .card-editor__title { order: 1; flex: 1; min-width: 0; height: 40px; padding: 6px 10px; font-size: 16px; }
+  .card-editor__more { display: inline-flex; order: 2; flex: none; }
+  .card-editor__more .cb-menu__list { right: 0; left: auto; z-index: 60; }
+  .card-editor__top .card-tool--save { order: 3; flex: none; }
+  .card-editor__top .a2c-anchor { order: 4; }
+}
+
 /* Phones, while editing a note (CardEditorInline): the editor covers the
    screen above the keyboard (--vvh / --vvtop come from visualViewport) and
    only the text area scrolls, so typing never scrolls the whole page. */
@@ -1579,6 +1596,24 @@ nav-button-as-link {
     flex: 1; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain;
   }
   .cb-detail--editing .card-editor .rte-content .ProseMirror { min-height: 100%; }
+  /* The toolbar is one row along the bottom — just above the keyboard —
+     that scrolls sideways; its menus open upward from it (position: fixed
+     so the scrolling row doesn't clip them). */
+  .cb-detail--editing .card-editor > .rte > .rte-content { order: 10; }
+  .cb-detail--editing .card-editor > .rte > .rte-mathhelp { order: 15; max-height: 35%; overflow-y: auto; }
+  .cb-detail--editing .card-editor > .rte > .rte-toolbar {
+    order: 20; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; gap: 2px;
+    padding: 6px 8px; border-top: 1px solid var(--cb-border); border-bottom: none;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .cb-detail--editing .rte-toolbar::-webkit-scrollbar { display: none; }
+  .cb-detail--editing .rte-toolbar > * { flex: none; }
+  .cb-detail--editing .rte-toolbar__spacer { display: none; }
+  .cb-detail--editing .rte-toolbar .rte-hl__pop {
+    position: fixed; left: 8px; right: 8px; top: calc(var(--vvtop, 0px) + var(--vvh, 100dvh) - 58px);
+    transform: translateY(-100%); max-height: 55vh; overflow-y: auto;
+  }
+  .cb-detail--editing .card-editor > .rte > .rte-audio-bar { order: 30; }
   /* Audio mode: its bar sits under the text in the same column. */
   .cb-detail--editing .rte--audio { margin-bottom: 0; }
   .cb-detail--editing .rte-audio-bar { position: static; box-shadow: none; }

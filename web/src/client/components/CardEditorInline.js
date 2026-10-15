@@ -54,6 +54,8 @@ function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, 
     // Bumped to remount the rich text editor with restored content.
     const [editorKey, setEditorKey] = useState(0);
     const [showWbPopup, setShowWbPopup] = useState(false);
+    // Phones: the ⋯ menu in the slim header (Notebooks…, Delete note).
+    const [showMore, setShowMore] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     // A new card is always added to the cardbook being viewed. `extras` holds any
@@ -110,45 +112,74 @@ function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, 
 
     return (
         <div className="card-editor">
-            <input
-                className="card-editor__title"
-                type="text"
-                placeholder="Note title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                autoFocus
-            />
+            {/* Title and buttons. Phones put them in one slim row that stays
+                at the top — ✕ cancel, the title, ⋯ (delete, notebooks),
+                ✓ save — so Cancel and Save are always on screen (styles.css,
+                .card-editor__top). */}
+            <div className="card-editor__top">
+                <input
+                    className="card-editor__title"
+                    type="text"
+                    placeholder="Note title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    autoFocus
+                />
 
-            <div className="card-editor__actions">
-                {isEdit && (
-                    <button className="card-tool card-tool--danger" title="Delete note"
-                        aria-label="Delete note" onClick={() => setConfirmingDelete(true)}>
-                        <i className="trash alternate outline icon"></i>
-                    </button>
-                )}
-                <span className="a2c-anchor">
-                    <button className="card-tool" title="Add to notebook" aria-label="Add to notebook"
-                        onClick={() => setShowWbPopup((v) => !v)}>
-                        <i className="bookmark outline icon"></i>
-                    </button>
-                    {showWbPopup && (
-                        <AddToCardbook align="left"
-                            staged={!isEdit}
-                            selected={extras}
-                            onToggle={toggleExtra}
-                            lockedName={!isEdit ? currentWordbook : ''}
-                            onClose={() => setShowWbPopup(false)} />
+                <div className="card-editor__actions">
+                    {isEdit && (
+                        <button className="card-tool card-tool--danger card-editor__wide-only" title="Delete note"
+                            aria-label="Delete note" onClick={() => setConfirmingDelete(true)}>
+                            <i className="trash alternate outline icon"></i>
+                        </button>
                     )}
-                </span>
-                <button className="card-tool" title="Cancel" aria-label="Cancel"
-                    onClick={onCancel} disabled={saving}>
-                    <i className="times icon"></i>
-                </button>
-                <button className="card-tool card-tool--save" title={saving ? 'Saving…' : 'Save'}
-                    aria-label={saving ? 'Saving' : 'Save'} onClick={onSave} disabled={title.trim() === '' || saving}>
-                    <i className={saving ? 'spinner loading icon' : 'check icon'}></i>
-                </button>
-                {saving && <span className="card-editor__status">Saving…</span>}
+                    <span className="card-editor__more">
+                        <button type="button" className="card-tool" title="More" aria-label="More"
+                            aria-haspopup="menu" aria-expanded={showMore} onClick={() => setShowMore((v) => !v)}>
+                            <i className="ellipsis horizontal icon"></i>
+                        </button>
+                        {showMore && (
+                            <>
+                                <div className="cb-menu__backdrop" onMouseDown={() => setShowMore(false)} />
+                                <div className="cb-menu__list" role="menu">
+                                    <button type="button" role="menuitem"
+                                        onClick={() => { setShowMore(false); setShowWbPopup(true); }}>
+                                        <i className="bookmark outline icon"></i>Notebooks…
+                                    </button>
+                                    {isEdit && (
+                                        <button type="button" role="menuitem" className="cb-menu__danger"
+                                            onClick={() => { setShowMore(false); setConfirmingDelete(true); }}>
+                                            <i className="trash alternate outline icon"></i>Delete note
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </span>
+                    <span className="a2c-anchor">
+                        <button className="card-tool card-editor__wide-only" title="Add to notebook" aria-label="Add to notebook"
+                            onClick={() => setShowWbPopup((v) => !v)}>
+                            <i className="bookmark outline icon"></i>
+                        </button>
+                        {showWbPopup && (
+                            <AddToCardbook align="left"
+                                staged={!isEdit}
+                                selected={extras}
+                                onToggle={toggleExtra}
+                                lockedName={!isEdit ? currentWordbook : ''}
+                                onClose={() => setShowWbPopup(false)} />
+                        )}
+                    </span>
+                    <button className="card-tool" title="Cancel" aria-label="Cancel"
+                        onClick={onCancel} disabled={saving}>
+                        <i className="times icon"></i>
+                    </button>
+                    <button className="card-tool card-tool--save" title={saving ? 'Saving…' : 'Save'}
+                        aria-label={saving ? 'Saving' : 'Save'} onClick={onSave} disabled={title.trim() === '' || saving}>
+                        <i className={saving ? 'spinner loading icon' : 'check icon'}></i>
+                    </button>
+                    {saving && <span className="card-editor__status">Saving…</span>}
+                </div>
             </div>
 
             {saveError && (
