@@ -45,6 +45,11 @@ const KEEP_BEHIND = 8;
 // screen), remembered on this device.
 export const SKIP_CHOICES = [5, 10];
 const SKIP_KEY = 'player-skip-seconds';
+// Repeat (the big controls' 🔁): when the reading ends, start it again from
+// the beginning, until Stop. Remembered on this device.
+const REPEAT_KEY = 'player-repeat';
+const readRepeat = () => { try { return localStorage.getItem(REPEAT_KEY) === '1'; } catch (e) { return false; } };
+
 const readSkip = () => {
     try { const v = Number(localStorage.getItem(SKIP_KEY)); return SKIP_CHOICES.includes(v) ? v : 5; } catch (e) { return 5; }
 };
@@ -119,7 +124,9 @@ class TtsPlayer {
     constructor() {
         this.queue = [];
         this.idx = -1;
-        this.status = 'idle'; // idle | loading | playing | paused
+        // idle | loading | playing | paused | ended (finished; the queue is
+        // kept so it can be replayed — PlayerPanel's Replay)
+        this.status = 'idle';
         this.sourceId = null; // which UI element owns the current playback
         this.title = '';
         this.error = '';
@@ -128,6 +135,7 @@ class TtsPlayer {
         this._urls = new Map(); // chunk index -> audio (blob URL) kept in memory
         this._durations = new Map(); // chunk index -> seconds of audio
         this.skip = readSkip(); // seconds back/forward jumps
+        this.repeat = readRepeat(); // start over when it ends
         this._pendingSeek = 0; // jumps tapped while a sentence was loading
         // Whether the listener wants it playing (Play) or not (Pause).
         // `status` can say "loading" or briefly "paused" while moving to
@@ -147,6 +155,7 @@ class TtsPlayer {
         const note = noteStarts.filter((i) => i <= this.idx).length;
         return {
             status: this.status, sourceId: this.sourceId, title: this.title, error: this.error, skip: this.skip,
+            repeat: this.repeat,
             index: Math.max(0, spoken(this.queue.slice(0, this.idx + 1)) - 1), total: spoken(this.queue),
             notes: noteStarts.length, note: Math.max(1, note),
             bookmarks: this.queue.some((c) => c.bookmark),
@@ -271,7 +280,34 @@ class TtsPlayer {
         this._prefetch = { idx: n, promise: fetchChunkUrl(this.queue[n]).catch(() => null) };
     }
 
-    _advance() { if (this.idx + 1 < this.queue.length) this._playIdx(this.idx + 1); else this.stop(); }
+    // The current chunk ended: the next one, or the reading is done — start
+    // over (Repeat), or keep it, finished, ready to replay. A voice preview
+    // simply stops.
+    _advance() {
+        if (this.idx + 1 < this.queue.length) { this._playIdx(this.idx + 1); return; }
+        if (this.sourceId === 'voice-preview') { this.stop(); return; }
+        if (this.repeat) { this._playIdx(0); return; }
+        this._wantPlay = false;
+        this._pendingSeek = 0;
+        this.status = 'ended';
+        this._updateSession();
+        this._emit();
+    }
+
+    // Play the whole reading again from the beginning (after it ended, or any time).
+    replay() {
+        if (!this.queue.length) return;
+        this.error = '';
+        this._wantPlay = true;
+        this._pendingSeek = 0;
+        this._playIdx(0);
+    }
+
+    setRepeat(on) {
+        this.repeat = !!on;
+        try { localStorage.setItem(REPEAT_KEY, on ? '1' : '0'); } catch (e) { /* this visit only */ }
+        this._emit();
+    }
     next() { if (this.idx + 1 < this.queue.length) this._playIdx(this.idx + 1); }
     prev() { if (this.idx > 0) this._playIdx(this.idx - 1); }
 
@@ -282,7 +318,7 @@ class TtsPlayer {
      * reading. Paused stays paused.
      */
     async seekBy(seconds) {
-        if (this.idx < 0 || this.status === 'idle') return;
+        if (this.idx < 0 || this.status === 'idle' || this.status === 'ended') return;
         if (this.status === 'loading') { this._pendingSeek += seconds; return; }
         const a = getAudio();
         const play = this._wantPlay;
@@ -386,6 +422,7 @@ class TtsPlayer {
     toggle() {
         if (this.status === 'playing') this.pause();
         else if (this.status === 'paused') this.resume();
+        else if (this.status === 'ended') this.replay();
     }
 
     stop(emit = true) {
@@ -412,7 +449,7 @@ class TtsPlayer {
         if (!('mediaSession' in navigator)) return;
         const ms = navigator.mediaSession;
         const set = (name, fn) => { try { ms.setActionHandler(name, fn); } catch (e) {} };
-        set('play', () => this.resume());
+        set('play', () => (this.status === 'ended' ? this.replay() : this.resume()));
         set('pause', () => this.pause());
         set('stop', () => this.stop());
         // Back/forward on the lock screen and headphones, by the chosen Skip
@@ -428,7 +465,9 @@ class TtsPlayer {
         if (!('mediaSession' in navigator)) return;
         try {
             navigator.mediaSession.playbackState =
-                this.status === 'playing' ? 'playing' : this.status === 'paused' ? 'paused' : 'none';
+                // Finished counts as paused, so the lock screen's ▶ replays it.
+                this.status === 'playing' ? 'playing'
+                    : (this.status === 'paused' || this.status === 'ended') ? 'paused' : 'none';
             if (window.MediaMetadata) {
                 navigator.mediaSession.metadata = new window.MediaMetadata({
                     title: this.title || 'Reading', artist: 'Remembrancer',

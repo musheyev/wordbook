@@ -7,7 +7,11 @@ import ttsPlayer, { SKIP_CHOICES } from '../utils/ttsPlayer';
 //   Valuation Dashboard Meeting                 note 3 of 12
 //      [ ↺ 5 ]     [ ⏸ ]     [ 5 ↻ ]
 //   [⏮ Note] [⏮ 🔖]          [🔖 ⏭] [Note ⏭]
-//      [■ Stop]     Skip [5s] 10s    [⌄ Hide]
+//      [■ Stop]   Skip [5s] 10s   🔁 Repeat   [⌄ Hide]
+//
+// When the reading ends the panel stays, "Finished", with one big ↻ Replay
+// button (from the beginning). 🔁 Repeat (remembered on this device) starts
+// it over by itself each time it ends, until Stop.
 //
 // Note buttons show when several notes are being read (Play all); bookmark
 // buttons when what's read has bookmarks (🔖 in a note, or headings). ⏮
@@ -48,18 +52,30 @@ export default function PlayerPanel() {
 
     const loading = state.status === 'loading';
     const playing = state.status === 'playing';
+    const ended = state.status === 'ended';
     const step = state.skip;
 
     return (
         <div className="player-panel" role="region" aria-label="Playback controls">
             <div className="player-panel__head">
                 <span className="player-panel__title">{state.title || 'Reading'}</span>
-                {state.notes > 1 ? (
+                {ended ? (
+                    <span className="player-panel__where">Finished</span>
+                ) : state.notes > 1 ? (
                     <span className="player-panel__where">note {state.note} of {state.notes}</span>
                 ) : state.total > 1 && (
                     <span className="player-panel__where">{state.index + 1} of {state.total}</span>
                 )}
             </div>
+            {ended ? (
+                <div className="player-panel__main">
+                    <button type="button" className="player-panel__big player-panel__play player-panel__replay"
+                        aria-label="Replay from the beginning" onClick={() => ttsPlayer.replay()}>
+                        <i className="redo alternate icon" aria-hidden="true"></i>
+                        <span className="player-panel__replay-label">Replay</span>
+                    </button>
+                </div>
+            ) : (
             <div className="player-panel__main">
                 <button type="button" className="player-panel__big" aria-label={`Back ${step} seconds`}
                     onClick={() => ttsPlayer.seekBy(-step)}>
@@ -77,7 +93,8 @@ export default function PlayerPanel() {
                     <span className="player-panel__step">{step}</span>
                 </button>
             </div>
-            {(state.notes > 1 || state.bookmarks) && (
+            )}
+            {!ended && (state.notes > 1 || state.bookmarks) && (
                 <div className="player-panel__nav">
                     {state.notes > 1 && (
                         <button type="button" className="player-panel__jump" aria-label="Previous note"
@@ -100,6 +117,12 @@ export default function PlayerPanel() {
             <div className="player-panel__foot">
                 <button type="button" className="player-panel__small" onClick={() => ttsPlayer.stop()}>
                     <i className="stop icon" aria-hidden="true"></i>Stop
+                </button>
+                <button type="button" aria-pressed={state.repeat}
+                    className={`player-panel__repeat${state.repeat ? ' on' : ''}`}
+                    title={state.repeat ? 'Repeat is on: starts over when it ends' : 'Repeat: start over when it ends'}
+                    onClick={() => ttsPlayer.setRepeat(!state.repeat)}>
+                    🔁<span className="player-panel__repeat-label">Repeat</span>
                 </button>
                 <div className="player-panel__skip" role="group" aria-label="Skip by">
                     <span className="player-panel__skip-label">Skip</span>

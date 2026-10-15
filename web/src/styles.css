@@ -3288,6 +3288,16 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .player-panel__play { background: #2563eb; }
 .player-panel__play:active:not(:disabled) { background: #1d4ed8; }
 .player-panel__play .icon { font-size: 1.9rem; margin: 0; height: auto; }
+/* Finished: one big Replay button; and the Repeat toggle (PlayerPanel). */
+.player-panel__replay { flex: 1 1 100%; gap: 10px; }
+.player-panel__replay .icon { font-size: 1.7rem; margin: 0; height: auto; }
+.player-panel__replay-label { font-size: 1.25rem; font-weight: 700; }
+.player-panel__repeat {
+  display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 8px;
+  border: 1px solid #3d4558; border-radius: 8px; background: none; color: #c9d1e1;
+  font-family: inherit; font-size: 0.85rem; cursor: pointer; touch-action: manipulation;
+}
+.player-panel__repeat.on { background: #c9d1e1; border-color: #c9d1e1; color: #1f2430; font-weight: 700; }
 /* Note / bookmark jumps (PlayerPanel). */
 .player-panel__nav { display: flex; gap: 8px; margin-top: 10px; }
 .player-panel__jump {
