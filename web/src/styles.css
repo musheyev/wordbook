@@ -3360,3 +3360,12 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   .player-panel__play .icon { font-size: 2.2rem; }
   .player-pill { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* "▶ Play" under text selected in a note (SelectionPlayButton). */
+.sel-play {
+  position: fixed; z-index: 270; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 96px; height: 40px; border: none; border-radius: 999px; background: #1f2430; color: #fff;
+  font-family: inherit; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(15, 20, 35, 0.3); touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.sel-play .icon { margin: 0; height: auto; }

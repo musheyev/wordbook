@@ -19,6 +19,7 @@ import ShareDialog from './ShareDialog';
 import WordImages from './WordImages';
 import SpanishMarkupButton from './SpanishMarkupButton';
 import AudioPausesButton from './AudioPausesButton';
+import SelectionPlayButton from './SelectionPlayButton';
 import ItemColorButton from './ItemColorButton';
 import { colorOf } from '../utils/itemColors';
 
@@ -278,6 +279,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     style={noteColor ? { borderLeftColor: noteColor.ink, '--note-tint': noteColor.tint } : undefined}
                     data-color={noteColor ? noteColor.key : undefined}
                     dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(currentCard.content) }} />
+                <SelectionPlayButton rootRef={cardRef} title={currentCard.title} />
             </div>
         );
     }
