@@ -119,7 +119,9 @@ const sameReading = (a, b) => (a && b
 
 // Pauses a note can have (the editor's ⏸ button, editor/ttsPause.js), in
 // seconds. validPause: the number if it's one of these, else null.
-export const TTS_PAUSES = [2, 3, 5];
+export const TTS_PAUSES = [1, 2, 3, 5];
+// The length a new pause gets when none is chosen.
+export const DEFAULT_PAUSE = 2;
 export const validPause = (s) => (TTS_PAUSES.includes(Number(s)) ? Number(s) : null);
 
 // Note HTML -> chunks. The text is cut into stretches marked the same way

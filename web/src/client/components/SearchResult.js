@@ -18,6 +18,7 @@ import TranslateMenu from './TranslateMenu';
 import ShareDialog from './ShareDialog';
 import WordImages from './WordImages';
 import SpanishMarkupButton from './SpanishMarkupButton';
+import AudioPausesButton from './AudioPausesButton';
 import ItemColorButton from './ItemColorButton';
 import { colorOf } from '../utils/itemColors';
 
@@ -252,6 +253,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                         {shareControl}
                         <ItemColorButton items={[{ type: 'card', id: currentCard.card_id }]} label={null} className="card-tool" />
                         <SpanishMarkupButton card={currentCard} />
+                        <AudioPausesButton card={currentCard} />
                     </div>
                 </div>
 

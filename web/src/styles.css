@@ -682,6 +682,18 @@ nav-button-as-link {
 .es-markup__btn { height: 34px; padding: 0 10px; font-size: 0.85rem; gap: 4px; }
 .es-markup__btn i.icon { margin: 0; }
 .es-markup__menu { min-width: 210px; }
+/* Audio pauses menu (AudioPausesButton): rows of lengths to pick from. */
+.pause-menu { min-width: 300px; padding: 8px; }
+.pause-menu__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; }
+.pause-menu__label { display: flex; flex-direction: column; gap: 2px; font-size: 0.9rem; color: var(--cb-ink); }
+.pause-menu__hint { font-size: 0.75rem; color: var(--cb-ink-3); }
+.pause-menu__lengths { display: inline-flex; gap: 4px; flex: none; }
+.cb-menu__list .pause-menu__len {
+  justify-content: center; min-width: 36px; height: 30px; padding: 0 6px; border: 1px solid var(--cb-border-strong);
+  border-radius: 6px; background: var(--cb-surface-2); font-size: 0.85rem; color: var(--cb-ink);
+}
+.cb-menu__list .pause-menu__len:hover { border-color: var(--cb-accent); color: var(--cb-accent); background: var(--cb-accent-weak); }
+.pause-menu__sep { height: 1px; margin: 6px 4px; background: var(--cb-border); }
 .copy-notes--failed { color: var(--cb-danger); border-color: var(--cb-danger); }
 .nb-check {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
@@ -2187,6 +2199,9 @@ nav-button-as-link {
   .card-editor .rte--audio .rte-content { max-height: none; }
   .rte--audio { margin-bottom: 300px; }
   .rte-audio-bar__lang { font-size: 16px; }
+  /* Pause lengths on a full-width row of their own, so none falls off-screen. */
+  .rte-audio-bar__group { flex: 1 1 100%; }
+  .rte-audio-bar__group .rte-audio-bar__opt { flex: 1 1 0; min-width: 0; }
 }
 
 /* Find and replace (RichTextEditor FindBar, editor/findReplace.js). */

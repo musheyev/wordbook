@@ -1,5 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import { TTS_PAUSES, validPause } from '../../utils/tts';
+import { DEFAULT_PAUSE, validPause } from '../../utils/tts';
 
 // A read-aloud pause at one spot in a note (the ⏸ toolbar button): when
 // the reading gets here, it waits that many seconds before going on.
@@ -21,8 +21,8 @@ export const TtsPause = Node.create({
     addAttributes() {
         return {
             seconds: {
-                default: TTS_PAUSES[0],
-                parseHTML: (el) => validPause(el.getAttribute('data-seconds')) || TTS_PAUSES[0],
+                default: DEFAULT_PAUSE,
+                parseHTML: (el) => validPause(el.getAttribute('data-seconds')) || DEFAULT_PAUSE,
                 renderHTML: (attrs) => ({ 'data-seconds': String(attrs.seconds) }),
             },
         };
@@ -44,11 +44,11 @@ export const TtsPause = Node.create({
     addCommands() {
         return {
             insertTtsPause: (seconds) => ({ commands }) => commands.insertContent({
-                type: this.name, attrs: { seconds: validPause(seconds) || TTS_PAUSES[0] },
+                type: this.name, attrs: { seconds: validPause(seconds) || DEFAULT_PAUSE },
             }),
             // The selected pause (after clicking its chip).
             setTtsPauseSeconds: (seconds) => ({ commands }) => commands.updateAttributes(this.name, {
-                seconds: validPause(seconds) || TTS_PAUSES[0],
+                seconds: validPause(seconds) || DEFAULT_PAUSE,
             }),
         };
     },
