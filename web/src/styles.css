@@ -490,6 +490,8 @@ nav-button-as-link {
   cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .nav-ctx__add i.icon { margin: 0; }
+.nav-ctx__tools { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.nav-ctx__tools .nav-ctx__winbtn { width: 28px; height: 28px; border-radius: var(--cb-radius-sm); }
 .nav-ctx__add:hover { background: var(--cb-accent-weak); }
 .nav-ctx__labelrow { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 6px; }
 .nav-ctx__label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--cb-ink-3); }
@@ -554,8 +556,18 @@ nav-button-as-link {
   .nav-rail { position: sticky; top: 0; height: 100vh; }
   .nav-items { overflow-y: auto; }
   .nav-rail--ctx .nav-brand { display: none; }
-  .nav-rail--ctx .nav-items { flex: 0 0 auto; border-top: 1px solid var(--cb-border); }
+  /* In a notebook: the main links first, then the notebook, then admin and
+     the account at the bottom. The links' container steps aside
+     (display: contents) so they can be ordered around the notebook. */
+  .nav-rail--ctx .nav-items { display: contents; }
+  .nav-rail--ctx .nav-items > * { margin-left: 10px; margin-right: 10px; }
+  .nav-rail--ctx .nav-main { order: 1; }
+  .nav-rail--ctx .nav-main:first-of-type { margin-top: 16px; }
+  .nav-rail--ctx .nav-ctx { order: 2; margin-top: 8px; border-top: 1px solid var(--cb-border); }
+  .nav-rail--ctx .nav-admin-group { order: 3; }
   .nav-rail--ctx .nav-items .nav-spacer { display: none; }
+  .nav-rail--ctx .nav-user { order: 4; }
+  .nav-rail--ctx .nav-logout { order: 5; margin-bottom: 12px; }
 }
 @media (max-width: 768px) {
   .nav-ctx { display: none; }

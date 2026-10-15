@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { reorderWordbookItems } from '../actions';
+import { reorderWordbookItems, openNoteWindow } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
 import { inPlainView } from '../utils/lastVisited';
 import { tagGroups, colorGroups } from '../utils/itemSort';
@@ -62,6 +62,8 @@ export default function NotebookOverview({
         return () => clearTimeout(timer);
     }, [name, lastKey]);
     const isAdmin = useSelector((state) => state.isAdmin);
+    // "Open notes in windows" (the rail's ▭): a note's card opens a window.
+    const noteWindowMode = useSelector((state) => state.noteWindows.mode);
     const [type, setType] = useState('all');
 
     const notes = items.filter((item) => item.type === 'card').length;
@@ -84,7 +86,8 @@ export default function NotebookOverview({
                 <Link className={`nb-card${isNote ? ' nb-card--note' : ''}${picked ? ' is-picked' : ''}${keyOf(item) === lastKey ? ' is-last' : ''}${color ? ' has-color' : ''}`} to={linkTo(item)}
                     style={color ? { '--item-tint': color.tint, '--item-ink': color.ink } : undefined}
                     aria-pressed={ticking ? picked : undefined}
-                    onClick={ticking ? (e) => { e.preventDefault(); selection.toggle(item); } : undefined}>
+                    onClick={ticking ? (e) => { e.preventDefault(); selection.toggle(item); }
+                        : (isNote && noteWindowMode ? (e) => { e.preventDefault(); dispatch(openNoteWindow(item)); } : undefined)}>
                     {ticking && <SelectCheck on={picked} />}
                     <span className={`nb-card__icon nb-row__icon nb-row__icon--${isNote ? 'card' : 'word'}`}
                         aria-hidden="true">

@@ -9,6 +9,9 @@ export const notebookPath = (name) => `/wordbook/${encodeURIComponent(name)}`;
 export const itemPath = (name, item) =>
     `${notebookPath(name)}/${item.type}/${encodeURIComponent(item.id)}`;
 
+// Whether a pathname is one item inside a notebook (a note or a word).
+export const isItemPathname = (pathname) => /^\/wordbook\/[^/]+\/(card|word)\/[^/]+/.test(pathname);
+
 // The notebook name in a pathname, or '' when not inside a notebook.
 export const notebookFromPathname = (pathname) => {
     const match = /^\/wordbook\/([^/]+)/.exec(pathname);

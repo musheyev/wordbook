@@ -8,14 +8,19 @@ import NotebookMenu from './NotebookMenu';
 import NavRailResizer from './NavRailResizer';
 import AddItemSheet from './AddItemSheet';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
-import { notebookFromPathname, notebookPath } from '../utils/notebookPaths';
+import { notebookFromPathname, notebookPath, isItemPathname } from '../utils/notebookPaths';
 import { ADMIN_PAGES } from '../utils/adminPages';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
+// The main links (Words, My Notebooks, Tags, Inbox): first in the rail.
+const mainClass = (state) => `${navClass(state)} nav-main`;
 
 // Cardbook navigation. A left rail on desktop, a bottom tab bar on mobile.
-// Inside a cardbook the rail becomes contextual (desktop only): notebook
-// menu, add, and the item list — so there is a single left panel.
+// Inside a cardbook the rail (desktop only) shows, under the main links, the
+// notebook: its menu, open-in-windows, add, and — while one of its notes is
+// open — its item list, to jump between notes (on the notebook's own page
+// the cards show them all, so the list would repeat them). Admin links and
+// the account stay at the bottom; styles.css (.nav-rail--ctx) orders them.
 const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, toggleNoteWindowMode }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -24,6 +29,7 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
 
     const cardbookName = notebookFromPathname(location.pathname);
     const inCardbook = cardbookName !== '';
+    const itemOpen = isItemPathname(location.pathname);
     // The phone Admin tab stays highlighted on every admin page.
     const inAdminArea = ADMIN_PAGES.some((page) => location.pathname.startsWith(page.to))
         || location.pathname === '/admin';
@@ -54,51 +60,57 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
                 <div className="nav-ctx">
                     <div className="nav-ctx__head">
                         <NotebookMenu name={cardbookName} className="nb-menu--rail" nameLink={notebookPath(cardbookName)} />
-                        <button type="button" className="nav-ctx__add" title="Add a word or note"
-                            aria-label="Add a word or note" onClick={() => setAddOpen(true)}>
-                            <i className="plus icon"></i>
-                        </button>
+                        <span className="nav-ctx__tools">
+                            <button type="button"
+                                className={`nav-ctx__winbtn${noteWindowMode ? ' on' : ''}`}
+                                aria-pressed={noteWindowMode}
+                                title={noteWindowMode ? 'Notes open in windows (click to turn off)' : 'Open notes in windows'}
+                                aria-label="Open notes in windows"
+                                onClick={toggleNoteWindowMode}>
+                                <i className="window maximize outline icon"></i>
+                            </button>
+                            <button type="button" className="nav-ctx__add" title="Add a word or note"
+                                aria-label="Add a word or note" onClick={() => setAddOpen(true)}>
+                                <i className="plus icon"></i>
+                            </button>
+                        </span>
                     </div>
-                    <div className="nav-ctx__labelrow">
-                        <span className="nav-ctx__label">Notes</span>
-                        <button type="button"
-                            className={`nav-ctx__winbtn${noteWindowMode ? ' on' : ''}`}
-                            aria-pressed={noteWindowMode}
-                            title={noteWindowMode ? 'Notes open in windows (click to turn off)' : 'Open notes in windows'}
-                            aria-label="Open notes in windows"
-                            onClick={toggleNoteWindowMode}>
-                            <i className="window maximize outline icon"></i>
-                        </button>
-                    </div>
-                    <div className="nav-ctx__list">
-                        <WordList wordbook={cardbookName} />
-                    </div>
+                    {itemOpen && (
+                        <>
+                            <div className="nav-ctx__labelrow">
+                                <span className="nav-ctx__label">Notes</span>
+                            </div>
+                            <div className="nav-ctx__list">
+                                <WordList wordbook={cardbookName} />
+                            </div>
+                        </>
+                    )}
                     <AddItemSheet open={addOpen} wordbook={cardbookName} onClose={() => setAddOpen(false)} />
                 </div>
             )}
 
             <div className="nav-items">
-                <NavLink to="/" end className={navClass}>
+                <NavLink to="/" end className={mainClass}>
                     <i className="search icon"></i>
                     <span className="nav-label">Words</span>
                 </NavLink>
 
                 {userExists && (
-                    <NavLink to="/account" className={navClass}>
+                    <NavLink to="/account" className={mainClass}>
                         <i className="clone outline icon"></i>
                         <span className="nav-label">My Notebooks</span>
                     </NavLink>
                 )}
 
                 {userExists && (
-                    <NavLink to="/tags" className={navClass}>
+                    <NavLink to="/tags" className={mainClass}>
                         <i className="tags icon"></i>
                         <span className="nav-label">Tags</span>
                     </NavLink>
                 )}
 
                 {userExists && (
-                    <NavLink to="/inbox" className={navClass}>
+                    <NavLink to="/inbox" className={mainClass}>
                         <span className="nav-icon-wrap">
                             <i className="inbox icon"></i>
                             {inboxCount > 0 && (
