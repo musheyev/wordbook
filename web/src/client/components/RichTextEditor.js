@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, nodeInputRule, getMarkRange } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -553,8 +554,7 @@ const RichTextEditor = ({ value, onChange }) => {
                     })()}
                     {showLang && (
                         <>
-                            <div className="rte-hl__backdrop" onMouseDown={() => setShowLang(false)} />
-                            <div className="rte-hl__pop rte-lang__pop" role="menu">
+                            <ToolbarPop className="rte-hl__pop rte-lang__pop" onClose={() => setShowLang(false)}>
                                 {[{ code: null, label: 'Default' }, ...MARKABLE_LANGUAGES].map((l) => {
                                     const on = (editor.getAttributes('ttsLang').lang || null) === l.code;
                                     return (
@@ -580,7 +580,7 @@ const RichTextEditor = ({ value, onChange }) => {
                                         return hint ? <span className="rte-lang__hint">{hint}</span> : null;
                                     })()}
                                 </button>
-                            </div>
+                            </ToolbarPop>
                         </>
                     )}
                 </span>
@@ -602,8 +602,7 @@ const RichTextEditor = ({ value, onChange }) => {
                                 </button>
                                 {showPause && (
                                     <>
-                                        <div className="rte-hl__backdrop" onMouseDown={() => setShowPause(false)} />
-                                        <div className="rte-hl__pop rte-pause__pop" role="menu">
+                                        <ToolbarPop className="rte-hl__pop rte-pause__pop" onClose={() => setShowPause(false)}>
                                             <div className="rte-pause__label">
                                                 {selected ? 'Change pause' : 'Pause reading for'}
                                             </div>
@@ -629,7 +628,7 @@ const RichTextEditor = ({ value, onChange }) => {
                                                     Remove pause
                                                 </button>
                                             )}
-                                        </div>
+                                        </ToolbarPop>
                                     </>
                                 )}
                             </>
@@ -645,8 +644,7 @@ const RichTextEditor = ({ value, onChange }) => {
                     </button>
                     {showHl && (
                         <>
-                            <div className="rte-hl__backdrop" onMouseDown={() => setShowHl(false)} />
-                            <div className="rte-hl__pop" role="menu">
+                            <ToolbarPop className="rte-hl__pop" onClose={() => setShowHl(false)}>
                                 {HIGHLIGHTS.map((h) => (
                                     <button type="button" key={h.color} className="rte-hl__color"
                                         title={h.name} style={{ background: h.color }}
@@ -655,7 +653,7 @@ const RichTextEditor = ({ value, onChange }) => {
                                 ))}
                                 <button type="button" className="rte-hl__clear"
                                     onMouseDown={(e) => e.preventDefault()} onClick={clearHighlight}>Clear</button>
-                            </div>
+                            </ToolbarPop>
                         </>
                     )}
                 </span>
@@ -671,8 +669,7 @@ const RichTextEditor = ({ value, onChange }) => {
                                 </button>
                                 {showHeading && (
                                     <>
-                                        <div className="rte-hl__backdrop" onMouseDown={() => setShowHeading(false)} />
-                                        <div className="rte-hl__pop rte-lang__pop rte-heading__pop" role="menu">
+                                        <ToolbarPop className="rte-hl__pop rte-lang__pop rte-heading__pop" onClose={() => setShowHeading(false)}>
                                             {HEADINGS.map((h) => (
                                                 <button type="button" key={h.level} role="menuitemradio" aria-checked={level === h.level}
                                                     className={`rte-lang__item rte-heading__item rte-heading__item--${h.level}${level === h.level ? ' on' : ''}`}
@@ -686,7 +683,7 @@ const RichTextEditor = ({ value, onChange }) => {
                                                     {level === h.level && <span className="rte-lang__check" aria-hidden="true">✓</span>}
                                                 </button>
                                             ))}
-                                        </div>
+                                        </ToolbarPop>
                                     </>
                                 )}
                             </>
@@ -871,6 +868,33 @@ function FindBar({ editor, open, onClose }) {
 
 // Whether the editor is in Audio mode (AudioSelect's storage).
 const audioOn = (ed) => !!(ed && ed.storage.audioSelect && ed.storage.audioSelect.on);
+
+// A toolbar menu (language, pause, highlight, headings) and the backdrop
+// that closes it. On wide screens it drops down under its button. On phones,
+// while editing (the toolbar is then one sideways-scrolling row above the
+// keyboard), it's drawn on the page itself — outside the toolbar, because
+// iPhone Safari cuts off anything inside a scrolling row — as a sheet just
+// above the toolbar (.rte-sheet in styles.css).
+const phoneEditing = () => typeof window !== 'undefined'
+    && window.matchMedia('(max-width: 768px)').matches
+    && document.documentElement.classList.contains('editing-note');
+function ToolbarPop({ className, onClose, children }) {
+    if (!phoneEditing()) {
+        return (
+            <>
+                <div className="rte-hl__backdrop" onMouseDown={onClose} />
+                <div className={className} role="menu">{children}</div>
+            </>
+        );
+    }
+    return createPortal(
+        <>
+            <div className="rte-sheet__backdrop" onMouseDown={onClose} />
+            <div className={`${className} rte-sheet`} role="menu">{children}</div>
+        </>,
+        document.body,
+    );
+}
 
 // Audio mode's choice of selecting by sentence or by word, remembered here.
 const AUDIO_UNIT_KEY = 'rte-audio-unit';

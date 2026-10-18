@@ -1615,8 +1615,9 @@ nav-button-as-link {
   }
   .cb-detail--editing .card-editor .rte-content .ProseMirror { min-height: 100%; }
   /* The toolbar is one row along the bottom — just above the keyboard —
-     that scrolls sideways; its menus open upward from it (position: fixed
-     so the scrolling row doesn't clip them). */
+     that scrolls sideways. Its menus are drawn on the page above it
+     (.rte-sheet), not inside it: iPhone Safari cuts off anything inside a
+     scrolling row. */
   .cb-detail--editing .card-editor > .rte > .rte-content { order: 10; }
   .cb-detail--editing .card-editor > .rte > .rte-mathhelp { order: 15; max-height: 35%; overflow-y: auto; }
   .cb-detail--editing .card-editor > .rte > .rte-toolbar {
@@ -1627,10 +1628,6 @@ nav-button-as-link {
   .cb-detail--editing .rte-toolbar::-webkit-scrollbar { display: none; }
   .cb-detail--editing .rte-toolbar > * { flex: none; }
   .cb-detail--editing .rte-toolbar__spacer { display: none; }
-  .cb-detail--editing .rte-toolbar .rte-hl__pop {
-    position: fixed; left: 8px; right: 8px; top: calc(var(--vvtop, 0px) + var(--vvh, 100dvh) - 58px);
-    transform: translateY(-100%); max-height: 55vh; overflow-y: auto;
-  }
   .cb-detail--editing .card-editor > .rte > .rte-audio-bar { order: 30; }
   /* Audio mode: its bar sits under the text in the same column. */
   .cb-detail--editing .rte--audio { margin-bottom: 0; }
@@ -3369,3 +3366,13 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   box-shadow: 0 6px 18px rgba(15, 20, 35, 0.3); touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .sel-play .icon { margin: 0; height: auto; }
+
+/* A toolbar menu on a phone while editing (RichTextEditor ToolbarPop): drawn
+   on the page, outside the sideways-scrolling toolbar, as a sheet just above
+   it (the toolbar's top = the visible area's bottom − its height). */
+.rte-sheet__backdrop { position: fixed; inset: 0; z-index: 400; }
+.rte-hl__pop.rte-sheet {
+  position: fixed; left: 8px; right: 8px; top: calc(var(--vvtop, 0px) + var(--vvh, 100dvh) - 58px);
+  transform: translateY(-100%); z-index: 401; max-height: 55vh; overflow-y: auto;
+  box-shadow: 0 -6px 24px rgba(15, 20, 35, 0.18);
+}
