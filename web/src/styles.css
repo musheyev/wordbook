@@ -473,6 +473,12 @@ nav-button-as-link {
 /* ---- Cardbook detail (page 4) ---- */
 .cb-detail { display: flex; flex-direction: column; }
 #worddefinition { padding: 20px 26px; min-width: 0; }
+/* The phone list's "empty" message; on desktop the overview shows its own. */
+@media (min-width: 769px) { .cb-detail__empty--phone { display: none; } }
+.nb-overview__empty {
+  margin-top: 28px; padding: 28px; border: 1px dashed var(--cb-border-strong); border-radius: var(--cb-radius);
+  color: var(--cb-ink-2); text-align: center; font-size: 0.95rem;
+}
 .cb-detail__empty {
   padding: 56px 24px;
   text-align: center;

@@ -68,6 +68,9 @@ export default function NotebookOverview({
     const [type, setType] = useState('all');
 
     const notes = items.filter((item) => item.type === 'card').length;
+    // An empty notebook: the title menu and Add (and ▭) still show; the rest
+    // waits until there's something to play, copy, select, filter or sort.
+    const empty = items.length === 0;
     const words = items.length - notes;
     const shown = search.results.filter((r) => type === 'all' || r.item.type === type);
     const shownItems = shown.map((r) => r.item);
@@ -193,17 +196,19 @@ export default function NotebookOverview({
                     <button type="button" className="cb-btn cb-btn--accent" onClick={onAdd}>
                         <i className="plus icon" aria-hidden="true"></i>Add
                     </button>
-                    <ReadAloud getChunks={() => getReadAloudChunks(shownItems)} title={name} label="Play all" />
+                    {!empty && (
+                        <ReadAloud getChunks={() => getReadAloudChunks(shownItems)} title={name} label="Play all" />
+                    )}
                     <button type="button" className={`cb-btn cb-btn--ghost nb-overview__windows${noteWindowMode ? ' on' : ''}`}
                         aria-pressed={noteWindowMode} aria-label="Open notes in windows"
                         title={noteWindowMode ? 'Notes open in windows (click to turn off)' : 'Open notes in windows'}
                         onClick={() => dispatch(toggleNoteWindowMode())}>
                         <i className="window maximize outline icon" aria-hidden="true"></i>
                     </button>
-                    {isAdmin && !selection.selecting && (
+                    {!empty && isAdmin && !selection.selecting && (
                         <CopyNotesButton title={name} getItems={() => shownItems} />
                     )}
-                    {!selection.selecting && (
+                    {!empty && !selection.selecting && (
                         <button type="button" className="cb-btn cb-btn--ghost nb-overview__select" onClick={selection.start}
                             title="Tick notes to play just those">
                             <i className="check square outline icon" aria-hidden="true"></i>Select
@@ -212,6 +217,12 @@ export default function NotebookOverview({
                 </div>
             </div>
 
+            {empty && (
+                <div className="nb-overview__empty">
+                    This notebook is empty. Click <strong>Add</strong> to look up a word or write a note.
+                </div>
+            )}
+            {!empty && (
             <div className="nb-overview__tools">
                 <NotebookSearchBar search={search} />
                 <SortSelect sort={sort} onChange={onSort} />
@@ -225,6 +236,7 @@ export default function NotebookOverview({
                     </div>
                 )}
             </div>
+            )}
             <TagPicker search={search} items={items} />
             {selection.selecting && (
                 <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={name}

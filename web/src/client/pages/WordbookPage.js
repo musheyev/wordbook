@@ -156,8 +156,9 @@ function WordbookPage({
         return out;
     };
 
+    // Phones (the desktop overview shows its own, under its toolbar).
     const emptyMessage = listReady && items.length === 0 ? (
-        <div className="cb-detail__empty">
+        <div className="cb-detail__empty cb-detail__empty--phone">
             This notebook is empty. Tap Add to look up a word or write a note.
         </div>
     ) : null;
@@ -224,7 +225,8 @@ function WordbookPage({
                         <Spinner label="Loading notebook…" />
                     )}
                 </div>
-                {emptyMessage || (listReady ? (
+                {emptyMessage}
+                {listReady ? (
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
                         selection={selection} playSelected={() => notebookChunks(pickedItems)}
                         lastKey={getLastVisited(name)} colors={itemColors}
@@ -235,7 +237,7 @@ function WordbookPage({
                             ? <LoadError message={loadError} onRetry={() => fetchWordbookWords(name)} />
                             : <Spinner label="Loading notebook…" />}
                     </div>
-                ))}
+                )}
             </>
         );
     }
