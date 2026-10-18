@@ -866,6 +866,23 @@ nav-button-as-link {
 }
 @media (max-width: 768px) {
   .cb-detail--item #worddefinition { padding: 16px; }
+  /* An open note or word fills exactly the visible screen above the tab bar
+     (100dvh follows Safari's own bars), so the page itself doesn't scroll:
+     the back bar (which notebook), the title and the toolbar stay put and
+     only the text scrolls — the note's text, or a word's whole page. */
+  .cb-detail--item:not(.cb-detail--editing) {
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    overflow: hidden;
+  }
+  .cb-detail--item:not(.cb-detail--editing) .nb-back { flex-shrink: 0; }
+  .cb-detail--item:not(.cb-detail--editing) #worddefinition {
+    flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain;
+  }
+  .cb-detail--item:not(.cb-detail--editing) .search-result--card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .cb-detail--item:not(.cb-detail--editing) .search-result--card .card-content--scroll {
+    flex: 1; min-height: 0; max-height: none; overscroll-behavior: contain;
+  }
 }
 
 /* Dialog that becomes a bottom sheet on phones (rename, add) */
