@@ -3323,6 +3323,12 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .player-panel__play { background: #2563eb; }
 .player-panel__play:active:not(:disabled) { background: #1d4ed8; }
 .player-panel__play .icon { font-size: 1.9rem; margin: 0; height: auto; }
+/* Dragging the big controls by their title row (PlayerPanel). */
+.player-panel__head { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.player-panel__head:active { cursor: grabbing; }
+.player-panel__grip { flex: none; color: #8b93a7; font-size: 1rem; line-height: 1; margin-right: -2px; }
+.player-panel.player-panel--moved { right: auto; bottom: auto; }
+
 /* Finished: one big Replay button; and the Repeat toggle (PlayerPanel). */
 .player-panel__replay { flex: 1 1 100%; gap: 10px; }
 .player-panel__replay .icon { font-size: 1.7rem; margin: 0; height: auto; }

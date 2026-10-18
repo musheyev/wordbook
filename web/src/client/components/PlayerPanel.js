@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ttsPlayer, { SKIP_CHOICES } from '../utils/ttsPlayer';
 
 // Big read-aloud controls, over the bottom of the screen whenever something
@@ -20,6 +20,8 @@ import ttsPlayer, { SKIP_CHOICES } from '../utils/ttsPlayer';
 // Skip sets how far ↺/↻ (and the lock screen) jump; this device remembers
 // it. Taps while the next sentence is still loading aren't lost: they're
 // applied as soon as it starts (ttsPlayer.seekBy).
+// Drag it by its title row (⠿) to anywhere on screen; it stays fully on
+// screen. Not remembered: each new reading opens it in its usual place.
 // Hide shrinks it to a small "Controls" button; this device remembers that,
 // so the next reading starts hidden too. It goes away when the reading ends.
 // The small read-aloud buttons (ReadAloud) still work as before. Voice
@@ -32,8 +34,14 @@ const saveHidden = (v) => { try { localStorage.setItem(HIDDEN_KEY, v ? '1' : '0'
 export default function PlayerPanel() {
     const [state, setState] = useState(ttsPlayer.snapshot());
     const [hidden, setHidden] = useState(readHidden);
+    // Where it's been dragged to ({ left, top } on screen), or null: its
+    // usual place. Forgotten when the reading stops.
+    const [pos, setPos] = useState(null);
+    const panelRef = useRef(null);
+    const drag = useRef(null);
 
     useEffect(() => ttsPlayer.subscribe(setState), []);
+    useEffect(() => { if (state.status === 'idle') setPos(null); }, [state.status]);
 
     const active = state.status !== 'idle' && state.sourceId !== 'voice-preview';
     if (!active) return null;
@@ -50,14 +58,34 @@ export default function PlayerPanel() {
         );
     }
 
+    // Dragging by the title row: the panel follows the pointer, kept on screen.
+    const onDragStart = (e) => {
+        if (e.button !== undefined && e.button !== 0) return;
+        const r = panelRef.current.getBoundingClientRect();
+        drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        e.preventDefault();
+    };
+    const onDragMove = (e) => {
+        const d = drag.current;
+        if (!d) return;
+        const left = Math.max(4, Math.min(e.clientX - d.dx, window.innerWidth - d.w - 4));
+        const top = Math.max(4, Math.min(e.clientY - d.dy, window.innerHeight - d.h - 4));
+        setPos({ left, top, width: d.w });
+    };
+    const onDragEnd = () => { drag.current = null; };
+
     const loading = state.status === 'loading';
     const playing = state.status === 'playing';
     const ended = state.status === 'ended';
     const step = state.skip;
 
     return (
-        <div className="player-panel" role="region" aria-label="Playback controls">
-            <div className="player-panel__head">
+        <div className={`player-panel${pos ? ' player-panel--moved' : ''}`} role="region" aria-label="Playback controls"
+            ref={panelRef} style={pos ? { left: pos.left, top: pos.top, width: pos.width } : undefined}>
+            <div className="player-panel__head" title="Drag to move"
+                onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd} onPointerCancel={onDragEnd}>
+                <span className="player-panel__grip" aria-hidden="true">⠿</span>
                 <span className="player-panel__title">{state.title || 'Reading'}</span>
                 {ended ? (
                     <span className="player-panel__where">Finished</span>
