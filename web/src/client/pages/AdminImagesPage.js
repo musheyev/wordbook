@@ -5,6 +5,7 @@ import requireAdmin from '../components/hocs/requireAdmin';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ImageSearchSwitch from '../components/ImageSearchSwitch';
 import { fetchAdminImages, deleteAdminImages } from '../actions';
+import { siteUrl } from '../native/platform';
 
 // Admin › Images (/admin/images): every image in the system, for cleaning up
 // inappropriate ones. Words aren't shown — the page is about the pictures.
@@ -145,7 +146,7 @@ function AdminImagesPage({ fetchAdminImages, deleteAdminImages }) {
                                     // Not lazy-loaded: the "Can't load" filter relies on
                                     // every loaded image being tried, and a lazy image
                                     // below the fold would never fail (or be counted).
-                                    <img src={item.url} alt=""
+                                    <img src={siteUrl(item.url)} alt=""
                                         onError={() => setBroken((prev) => new Set(prev).add(key))} />
                                 )}
                                 <span className="admin-images__check" aria-hidden="true">
@@ -180,7 +181,7 @@ function AdminImagesPage({ fetchAdminImages, deleteAdminImages }) {
                         {broken.has(keyOf(viewing)) ? (
                             <span className="image-broken image-broken--large"><i className="image outline icon" aria-hidden="true"></i>Can't load</span>
                         ) : (
-                            <img src={viewing.url} alt="" />
+                            <img src={siteUrl(viewing.url)} alt="" />
                         )}
                         <a className="admin-images__source" href={viewing.url} target="_blank" rel="noopener noreferrer">
                             {viewing.url}

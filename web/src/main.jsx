@@ -8,11 +8,14 @@ import { withExtraArgument } from 'redux-thunk';
 import { Provider } from 'react-redux';
 import axios from 'axios';
 import { AppRoutes } from './client/routes.jsx';
+import { siteUrl } from './client/native/platform';
 import reducers from './client/reducers';
 import './client/fonts.js';
 import './styles.css';
 
-// All API calls go through /api, which Vite proxies to the backend on :4000.
+// All API calls go through /api, which Vite proxies to the backend on :4000
+// (and CloudFront to the Lambda on the website). Inside the iPhone app it's
+// https://makeyourwordbook.com/api (client/native/platform.js).
 //
 // Slow or dropped connections: every request gives up after 20 seconds
 // (rather than waiting forever), so the screen can say so and offer "Try
@@ -22,7 +25,7 @@ import './styles.css';
 // saves (POST) are not retried automatically, since repeating one could do
 // it twice.
 const axiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: siteUrl('/api'),
   timeout: 20000,
 });
 axiosInstance.interceptors.response.use(null, async (error) => {

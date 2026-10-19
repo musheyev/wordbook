@@ -24,6 +24,7 @@ import { AudioSelect, sentenceAt, wordAt } from './editor/audioSelect';
 import { TextSelection, NodeSelection } from '@tiptap/pm/state';
 import { DOMSerializer } from '@tiptap/pm/model';
 import ttsPlayer from '../utils/ttsPlayer';
+import { siteUrl, isNativeApp } from '../native/platform';
 import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
 import katex from 'katex';
@@ -199,7 +200,7 @@ const RichTextEditor = ({ value, onChange }) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 120000);
         try {
-            const res = await fetch('/api/images', {
+            const res = await fetch(siteUrl('/api/images'), {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': file.type || 'application/octet-stream' },
@@ -265,7 +266,20 @@ const RichTextEditor = ({ value, onChange }) => {
             Highlight.configure({ multicolor: true }),
             Indent,
             // Images are uploaded to S3; the note stores only the URL (no base64).
-            Image.configure({ inline: false, allowBase64: false }),
+            // Inside the iPhone app the picture is shown from the full address
+            // (client/native/platform.js), while the note keeps "/api/…".
+            Image.extend({
+                addNodeView() {
+                    if (!isNativeApp()) return null;
+                    return ({ node }) => {
+                        const img = document.createElement('img');
+                        img.src = siteUrl(node.attrs.src);
+                        if (node.attrs.alt) img.alt = node.attrs.alt;
+                        if (node.attrs.title) img.title = node.attrs.title;
+                        return { dom: img };
+                    };
+                },
+            }).configure({ inline: false, allowBase64: false }),
             FindReplace,
             AudioSelect,
         ],
