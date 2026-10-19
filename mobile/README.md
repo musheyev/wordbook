@@ -57,7 +57,9 @@ Next:
 10. Icon and launch screen, keyboard (hide the ^ ˅ ✓ bar), TestFlight.
 
 Later:
-- Managing space on the phone: **Remove this notebook from this device**,
-  and **Remove all downloads from this device**.
+- Managing space on the phone: **Remove download** for a notebook, and
+  **Remove all downloads from this device**. These delete only the copies
+  kept on the phone (notes, images, audio); the notebooks themselves stay in
+  the account, untouched, and can be downloaded again.
 - Share → Remembrancer (add text from other apps as a note), notifications,
   App Store, Android.
