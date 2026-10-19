@@ -6,6 +6,7 @@ import {
 } from '../actions';
 import RefreshImagesDialog from './RefreshImagesDialog';
 import AddWordImageDialog from './AddWordImageDialog';
+import { siteUrl } from '../native/platform';
 
 // The images under a word's definitions. Two kinds, shown together:
 //
@@ -132,7 +133,7 @@ function WordImages({
                     Can't load
                 </div>
             ) : (
-                <img src={url} alt="" loading="lazy" onError={() => markBroken(url)} />
+                <img src={siteUrl(url)} alt="" loading="lazy" onError={() => markBroken(url)} />
             )}
             {kind === 'mine' && <span className="word-images__yours">Yours</span>}
             {kind === 'mine' && isAdmin && (

@@ -9,12 +9,16 @@ import TagsPage from './pages/TagsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import Spinner from './components/Spinner';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from './utils/cognito';
+import { isNativeApp } from './native/platform';
+import { nativeSignIn } from './native/auth';
 
 // The original /login and /signup "routes" ran window.location during render,
 // which is a render-time side effect. Do the redirect in an effect instead.
 const ExternalRedirect = ({ to }) => {
   useEffect(() => {
-    window.location.href = to;
+    // The iPhone app signs in in its login sheet instead (native/auth.js).
+    if (isNativeApp()) nativeSignIn(to.includes('/signup') ? 'signup' : 'login');
+    else window.location.href = to;
   }, [to]);
   return <div>Redirecting…</div>;
 };

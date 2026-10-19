@@ -9,6 +9,7 @@
 // the start of a sentence continues into the end of the one before. The
 // last few sentences' audio stays in memory (KEEP_BEHIND) so that's instant.
 import { getChosenVoices, getChosenSpeeds, htmlToChunks, DEFAULT_VOICES } from './tts';
+import { apiFetch } from '../native/auth';
 
 let audioEl = null;
 function getAudio() {
@@ -81,7 +82,7 @@ const asRequest = (chunk) => ({ text: chunk.text, languageCode: chunk.lang, voic
  */
 export function reportItemAudio(item, chunks) {
     if (!item) return;
-    fetch('/api/tts/item', {
+    apiFetch('/api/tts/item', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'same-origin',
@@ -105,7 +106,7 @@ function reportItems(chunks) {
 
 async function fetchChunkUrl(chunk) {
     if (chunk.pause) return silentUrl(chunk.pause);
-    const res = await fetch('/api/tts', {
+    const res = await apiFetch('/api/tts', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'same-origin',

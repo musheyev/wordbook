@@ -8,9 +8,9 @@
 //                                             stripping /api, so it hits /auth)
 // The backend derives its own matching redirect from BACKEND_URL, so only the
 // frontend needs this branch.
-const COGNITO_DOMAIN = 'https://auth.musheye.com';
-const CLIENT_ID = '31i8vt5m567ch5ciedmeskpk67';
-const SCOPE = 'aws.cognito.signin.user.admin+email+openid+profile';
+export const COGNITO_DOMAIN = 'https://auth.musheye.com';
+export const CLIENT_ID = '31i8vt5m567ch5ciedmeskpk67';
+export const SCOPE = 'aws.cognito.signin.user.admin+email+openid+profile';
 
 function redirectUri() {
     const origin =

@@ -1,5 +1,7 @@
 import shrinkImage from '../utils/shrinkImage';
 import axios from 'axios';
+import { isNativeApp } from '../native/platform';
+import { nativeSignOut } from '../native/auth';
 
 export const FETCH_USERS = 'fetch_users';
 export const fetchUsers = () => async (dispatch, getState, api) => {
@@ -351,7 +353,10 @@ export const logoutCurrentUser = () => async (dispatch, getState, api) => {
     payload: ""
   });
 
-  const res = await api.get('auth/logout');
+  // The iPhone app keeps its own tokens (native/auth.js); the website's
+  // are cookies the server clears.
+  if (isNativeApp()) await nativeSignOut();
+  else await api.get('auth/logout');
 
   dispatch({
     type: LOGOUT_CURRENT_USER,

@@ -303,9 +303,41 @@ async function revokeRefreshToken(refreshToken) {
     }
 }
 
+/**
+ * The iPhone app's sign-in. The app isn't on makeyourwordbook.com (its pages
+ * come from inside the app), so it can't use the cookies: it keeps its own
+ * tokens (authRouter's /auth/app/* routes hand them out) and sends the ID
+ * token with every request in this header.
+ *
+ * Not the usual `Authorization: Bearer …`: CloudFront drops Authorization on
+ * GET requests unless it's part of the cache key, and /api/* isn't cached.
+ */
+const APP_TOKEN_HEADER = "x-id-token";
+
+/**
+ * Express middleware: an ID token sent in APP_TOKEN_HEADER counts as the
+ * `id_token` cookie, so every route works for the app unchanged (they verify
+ * it the same way). A real cookie wins. Installed after cookieParser.
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ * @param {import("express").NextFunction} next
+ */
+function appTokenHeader(req, res, next) {
+    const token = req.get(APP_TOKEN_HEADER);
+    if (token) {
+        req.cookies = req.cookies || {};
+        if (!req.cookies[ID_COOKIE]) req.cookies[ID_COOKIE] = token;
+    }
+    next();
+}
+
 module.exports = {
     ID_COOKIE,
     REFRESH_COOKIE,
+    APP_TOKEN_HEADER,
+    appTokenHeader,
+    exchangeRefreshToken,
     refreshSession,
     revokeRefreshToken,
     setIdTokenCookie,

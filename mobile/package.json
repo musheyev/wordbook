@@ -1,0 +1,21 @@
+{
+  "name": "wordbook-mobile",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Remembrancer as an iPhone app: the web app (../web) in a Capacitor shell. See README.md.",
+  "scripts": {
+    "build:web": "npm --prefix ../web run build",
+    "sync": "npm run build:web && cap sync ios",
+    "open": "cap open ios"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "8.0.1",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}
