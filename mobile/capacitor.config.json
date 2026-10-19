@@ -1,0 +1,8 @@
+{
+  "appId": "com.makeyourwordbook.remembrancer",
+  "appName": "Remembrancer",
+  "webDir": "../web/dist",
+  "ios": {
+    "contentInset": "never"
+  }
+}
