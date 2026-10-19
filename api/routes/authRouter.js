@@ -43,6 +43,11 @@ const LOGIN_URL =
     "&response_type=code&scope=aws.cognito.signin.user.admin+email+openid+profile" +
     `&redirect_uri=${REDIRECT_URI}`;
 
+// The iPhone app's sign-in comes back to the app itself, through its own
+// address scheme (registered in the app's Info.plist). Also a callback URL on
+// the Cognito app client.
+const APP_REDIRECT_URI = process.env.APP_REDIRECT_URI || "remembrancer://auth";
+
 let authRouter = express.Router();
 
 /**
@@ -210,5 +215,76 @@ authRouter.get("/logout", async function (req, res) {
 
 });
 
+
+/*
+ * The iPhone app's sign-in (/auth/app/*).
+ *
+ * Same Cognito login page, same code-for-tokens exchange with our client
+ * secret, but the app keeps the tokens itself (in the iPhone's Keychain)
+ * instead of in cookies, and sends the ID token with each request
+ * (session.js appTokenHeader):
+ *
+ *   1. The app opens Cognito's login page with redirect_uri APP_REDIRECT_URI
+ *      and a PKCE code_challenge: a hash of a random secret (the
+ *      code_verifier) that only the app knows.
+ *   2. After sign-in Cognito opens remembrancer://auth?code=… — the app.
+ *   3. The app POSTs the code and its code_verifier to /auth/app/token. Cognito
+ *      only accepts the code with the verifier matching the challenge, so
+ *      another app that grabbed the remembrancer:// address can't use it.
+ *   4. The app renews the ID token with /auth/app/refresh, and /auth/app/logout
+ *      revokes the refresh token on sign-out.
+ *
+ * Errors answer 401 with { error }, so the app can tell "signed out" apart from
+ * "no connection".
+ */
+const tokenError = (res, err, what) => {
+    const detail = err.response && err.response.data ? JSON.stringify(err.response.data) : err.message;
+    log(`${what} failed: ${detail}`);
+    res.status(401).json({ error: `${what} failed` });
+};
+
+/** POST /auth/app/token { code, code_verifier } -> { id_token, refresh_token } */
+authRouter.post("/app/token", async function (req, res) {
+    const { code, code_verifier: codeVerifier } = req.body || {};
+    if (!code) return res.status(400).json({ error: "Missing code" });
+
+    const data = new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: COGNITO_CLIENT_ID,
+        client_secret: COGNITO_CLIENT_SECRET,
+        redirect_uri: APP_REDIRECT_URI,
+        code,
+        ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
+    }).toString();
+
+    try {
+        const result = await axios.post(`${COGNITO_DOMAIN}/oauth2/token`, data,
+            { headers: { 'content-type': 'application/x-www-form-urlencoded' } });
+        const { id_token: idToken, refresh_token: refreshToken } = result.data;
+        await decodeToken(idToken); // never hand out a token we can't verify
+        res.json({ id_token: idToken, refresh_token: refreshToken });
+    } catch (err) {
+        tokenError(res, err, "App sign-in");
+    }
+});
+
+/** POST /auth/app/refresh { refresh_token } -> { id_token, refresh_token? } */
+authRouter.post("/app/refresh", async function (req, res) {
+    const { refresh_token: refreshToken } = req.body || {};
+    if (!refreshToken) return res.status(400).json({ error: "Missing refresh_token" });
+    try {
+        const tokens = await session.exchangeRefreshToken(refreshToken);
+        // A new refresh token only when rotation is on for the app client.
+        res.json({ id_token: tokens.id_token, ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token } : {}) });
+    } catch (err) {
+        tokenError(res, err, "App token refresh");
+    }
+});
+
+/** POST /auth/app/logout { refresh_token } — the app then forgets its tokens. */
+authRouter.post("/app/logout", async function (req, res) {
+    await session.revokeRefreshToken((req.body || {}).refresh_token);
+    res.json({});
+});
 
 module.exports = authRouter;

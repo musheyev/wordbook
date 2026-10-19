@@ -11,7 +11,7 @@ const express = require("express");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-const { refreshSession } = require("./session");
+const { refreshSession, appTokenHeader } = require("./session");
 
 const rootRouter = require("./routes/rootRouter");
 const dictionaryRouter = require("./routes/dictionaryRouter");
@@ -37,6 +37,7 @@ app.use(express.static("public"));                // serve files in public/ as-i
 app.use(express.urlencoded({ extended: true }));  // parse HTML form bodies into req.body
 app.use(express.json());                          // parse JSON bodies into req.body
 app.use(cookieParser());                          // parse the Cookie header into req.cookies
+app.use(appTokenHeader);                          // the iPhone app's token counts as the cookie (session.js)
 // Renew an expired login from the refresh token before any route reads it.
 // Must come after cookieParser (it reads req.cookies) and before the routers
 // (so they see the renewed id_token). See session.js.
