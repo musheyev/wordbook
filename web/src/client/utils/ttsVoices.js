@@ -2,7 +2,7 @@
 // per-language choice and the editor's voice for selected text). Fetched once
 // per language: [{ name, label, gender }], most natural first.
 import { voiceLabel } from './tts';
-import { siteUrl } from '../native/platform';
+import { apiFetch } from '../native/auth';
 
 const cache = {};
 
@@ -14,7 +14,7 @@ const genderOf = (g) => (g === 'FEMALE' ? 'female' : g === 'MALE' ? 'male' : '')
 export async function loadVoices(lang) {
     if (cache[lang]) return cache[lang];
     try {
-        const res = await fetch(siteUrl(`/api/tts/voices?lang=${encodeURIComponent(lang)}`), { credentials: 'same-origin' });
+        const res = await apiFetch(`/api/tts/voices?lang=${encodeURIComponent(lang)}`, { credentials: 'same-origin' });
         const data = await res.json();
         cache[lang] = (data.voices || [])
             .map((v) => ({ name: v.name, label: voiceLabel(v.name), gender: genderOf(v.ssmlGender) }))

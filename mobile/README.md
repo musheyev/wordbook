@@ -41,11 +41,16 @@ Done:
    final name/ID are needed before step 10 (first upload to Apple).
 2. Empty Capacitor shell (`mobile/`).
 3. The app talks to makeyourwordbook.com (`web/src/client/native/platform.js`).
+4. Signing in inside the app (`web/src/client/native/auth.js`): Cognito's
+   login page in an in-app browser sheet, back to `remembrancer://auth`
+   (Info.plist), tokens from `/api/auth/app/token` (PKCE), kept in the
+   Keychain; every request sends the ID token in `X-Id-Token`, which the API
+   treats like the website's cookie. Needs `remembrancer://auth` as a callback
+   URL on the Cognito app client, and the API deployed.
+   Known: after Log out, the next Log in may skip the password (the login
+   sheet remembers Cognito's own sign-in).
 
 Next:
-4. Signing in inside the app: the API also accepts a sign-in token (the
-   website keeps its cookie); Cognito login in an in-app browser; token in
-   the phone's secure storage.
 5. Note images in the app: fetched with the token, kept on the phone.
 6. Background audio: reading continues with the screen locked.
 7. Offline reading: notebooks and notes kept on the phone, synced when

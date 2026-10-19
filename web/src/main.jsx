@@ -9,6 +9,7 @@ import { Provider } from 'react-redux';
 import axios from 'axios';
 import { AppRoutes } from './client/routes.jsx';
 import { siteUrl } from './client/native/platform';
+import { installNativeAuth } from './client/native/auth';
 import reducers from './client/reducers';
 import './client/fonts.js';
 import './styles.css';
@@ -38,6 +39,9 @@ axiosInstance.interceptors.response.use(null, async (error) => {
   }
   return Promise.reject(error);
 });
+
+// Inside the iPhone app: sign-in, and the token on every request.
+installNativeAuth(axiosInstance);
 
 const store = createStore(
   reducers,

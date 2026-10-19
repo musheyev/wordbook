@@ -25,6 +25,7 @@ import { TextSelection, NodeSelection } from '@tiptap/pm/state';
 import { DOMSerializer } from '@tiptap/pm/model';
 import ttsPlayer from '../utils/ttsPlayer';
 import { siteUrl, isNativeApp } from '../native/platform';
+import { apiFetch } from '../native/auth';
 import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
 import katex from 'katex';
@@ -200,7 +201,7 @@ const RichTextEditor = ({ value, onChange }) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 120000);
         try {
-            const res = await fetch(siteUrl('/api/images'), {
+            const res = await apiFetch('/api/images', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': file.type || 'application/octet-stream' },
