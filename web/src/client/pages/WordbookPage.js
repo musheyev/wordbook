@@ -63,6 +63,11 @@ function WordbookPage({
     // notebook highlights it when you come back (utils/lastVisited.js).
     useEffect(() => { if (id) setLastVisited(name, type, id); }, [name, type, id]);
 
+    // An item opens at the top: on phones the window may still be scrolled
+    // from the list it was tapped in, which would hide the back bar and
+    // the title.
+    useEffect(() => { if (id) window.scrollTo(0, 0); }, [type, id]);
+
     // Load the item named in the URL, or clear the selection on the list.
     useEffect(() => {
         if (!id) {

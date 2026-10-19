@@ -26,7 +26,11 @@
 .app-shell {
   display: flex;
   align-items: stretch;
+  /* The visible screen's height (dvh). On iPhones 100vh is the height with
+     Safari's bars hidden — taller than what's visible — which let a page
+     that fits the screen still scroll by the bars' height. */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .app-main {
@@ -887,8 +891,10 @@ nav-button-as-link {
   }
   .cb-detail--item:not(.cb-detail--editing) .search-result--card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .cb-detail--item:not(.cb-detail--editing) .search-result--card .card-content--scroll {
-    flex: 1; min-height: 0; max-height: none; overscroll-behavior: contain;
+    flex: 1; min-height: 0; max-height: none; overscroll-behavior: contain; margin-bottom: 0;
   }
+  /* The text runs down to just above the tab bar. */
+  .cb-detail--item:not(.cb-detail--editing) #worddefinition { padding-bottom: 6px; }
 }
 
 /* Dialog that becomes a bottom sheet on phones (rename, add) */
