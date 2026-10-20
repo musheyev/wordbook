@@ -156,6 +156,35 @@ export async function nativeSignIn(action = 'login') {
     }
 }
 
+/**
+ * Sign in again, only to prove it's still you (before deleting the account):
+ * the private sign-in sheet asks for the password. Nothing on the phone
+ * changes; the one-time code goes to the server with the request it guards.
+ *
+ * @returns {Promise<{code: string, code_verifier: string}|null>} null when
+ *   the sheet was closed without signing in
+ * @throws if this build of the app has no sign-in sheet, or it failed
+ */
+export async function nativeReauth() {
+    const state = randomString();
+    const verifier = randomString();
+    const url = `${COGNITO_DOMAIN}/login?client_id=${CLIENT_ID}&response_type=code&scope=${SCOPE}`
+        + `&redirect_uri=${APP_REDIRECT_URI}&state=${state}`
+        + `&code_challenge=${await sha256(verifier)}&code_challenge_method=S256`;
+    const { registerPlugin } = await import('@capacitor/core');
+    const WebAuth = registerPlugin('WebAuth');
+    let result;
+    try {
+        result = await WebAuth.signIn({ url, callbackScheme: APP_REDIRECT_URI.split(':')[0], ephemeral: true });
+    } catch (err) {
+        if (err && err.code === 'CANCELLED') return null;
+        throw err;
+    }
+    const params = new URL(result.url).searchParams;
+    if (params.get('state') !== state || !params.get('code')) return null;
+    return { code: params.get('code'), code_verifier: verifier };
+}
+
 // remembrancer://auth?code=…&state=… : finish signing in.
 async function onAppUrl(url) {
     if (!url || !url.startsWith(APP_REDIRECT_URI)) return;

@@ -33,4 +33,15 @@ function buildUrl(action) {
 }
 
 export const COGNITO_LOGIN = buildUrl('login');
+
+// Sign in again to confirm deleting the account (components/DeleteAccount.js):
+// Cognito's /logout, given a response_type and redirect_uri, first forgets
+// Cognito's own remembered sign-in and then shows the sign-in page, so the
+// password must be typed. The server's GET /auth sees the `state` (starting
+// "delete-") and hands the code back to the page instead of signing in.
+export const reauthUrl = (state) => (
+    `${COGNITO_DOMAIN}/logout?client_id=${CLIENT_ID}`
+    + `&response_type=code&scope=${SCOPE}`
+    + `&redirect_uri=${redirectUri()}&state=${state}`
+);
 export const COGNITO_SIGNUP = buildUrl('signup');

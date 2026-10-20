@@ -379,6 +379,24 @@ export const logoutCurrentUser = () => async (dispatch, getState, api) => {
 
 };
 
+// Delete the signed-in account and everything stored for it
+// (api/account.js), then sign out here: the iPhone app forgets its tokens and
+// its downloads. `username` must be the signed-in user's name, and `proof`
+// the fresh sign-in that confirms it ({ code, code_verifier?, via: 'app' |
+// 'web' }; components/DeleteAccount.js); the server checks both. Throws with
+// a message to show if the server refused or couldn't do it.
+export const deleteAccount = (username, proof) => async (dispatch, getState, api) => {
+  try {
+    await api.post('/auth/delete-account', { username, ...proof }, JSON_HEADERS);
+  } catch (err) {
+    throw new Error(requestErrorMessage(err, "Your account couldn't be deleted. Please try again."));
+  }
+  if (isNativeApp()) await nativeSignOut();
+  await clearOfflineData({ send: false });
+  dispatch({ type: SET_CURRENT_WORD, payload: '' });
+  dispatch({ type: LOGOUT_CURRENT_USER });
+};
+
 export const FETCH_ADMINS = 'fetch_admins';
 export const fetchAdmins = () => async (dispatch, getState, api) => {
   try {

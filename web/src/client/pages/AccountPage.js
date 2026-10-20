@@ -12,6 +12,7 @@ import requireAuth from '../components/hocs/requireAuth';
 import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
 import DeviceDownloads from '../components/DeviceDownloads';
+import DeleteAccount from '../components/DeleteAccount';
 
 // My Notebooks. Above the list: a search box (filters by name as you type)
 // and the sort button, which opens a sheet with three choices:
@@ -180,6 +181,9 @@ function AccountPage({
 
             {/* iPhone app: what's downloaded, and Remove all downloads. */}
             <DeviceDownloads />
+
+            {/* Who's signed in, and Delete account. */}
+            <DeleteAccount />
 
             {sortOpen && (
                 <div className="cb-sheet__overlay" onMouseDown={() => setSortOpen(false)}>

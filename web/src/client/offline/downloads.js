@@ -321,11 +321,14 @@ export async function storageUsed() {
     }
 }
 
-/** Log out: delete everything offline on this device. */
-export async function clearOfflineData() {
+/**
+ * Log out (or account deleted): delete everything offline on this device.
+ * @param {{ send?: boolean }} [opts] send offline changes first (if there's a
+ *   connection); not when the account was just deleted
+ */
+export async function clearOfflineData({ send = true } = {}) {
     if (!offlineEnabled()) return;
-    // Send any offline changes first, if there's a connection.
-    await syncOutbox().catch(() => {});
+    if (send) await syncOutbox().catch(() => {});
     resetRegistry();
     await Promise.all(STORES.map((store) => dbClear(store).catch(() => {})));
 }

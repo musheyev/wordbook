@@ -25,6 +25,7 @@ const axios = require('axios');
 const log = require("../logger");
 const decodeToken = require("../auth").decodeToken;
 const session = require("../session");
+const account = require("../account");
 
 const COGNITO_DOMAIN = process.env.COGNITO_DOMAIN || "https://auth.musheye.com";
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID || "31i8vt5m567ch5ciedmeskpk67";
@@ -72,6 +73,15 @@ authRouter.get("", function (req, res) {
 
     log("/auth got " + JSON.stringify(req.query));
     let authCode = req.query.code;
+
+    // Signing in again to confirm deleting the account (POST /delete-account):
+    // don't sign in here; hand the one-time code to the page, which sends it
+    // with the deletion. The `state` the page chose comes back with it.
+    const state = typeof req.query.state === "string" ? req.query.state : "";
+    if (state.startsWith("delete-")) {
+        const params = new URLSearchParams({ state, ...(authCode ? { delete_code: authCode } : {}) });
+        return res.redirect(302, `${FRONTEND_URL}/account?${params}`);
+    }
 
     const data = new URLSearchParams({
         grant_type: 'authorization_code',
@@ -216,6 +226,68 @@ authRouter.get("/logout", async function (req, res) {
 });
 
 
+/**
+ * POST /auth/delete-account { username, code, code_verifier?, via } — delete
+ * the signed-in user's account and everything stored for them (account.js),
+ * then sign them out.
+ *
+ * Deleting needs a fresh sign-in, with the password, just before: being
+ * signed in isn't enough, since someone else might be holding an unlocked
+ * phone or using a computer left signed in. So the screen first has the user
+ * sign in again, which produces a one-time `code`:
+ *   via "app"  the iPhone app's private sign-in sheet (with its PKCE
+ *              code_verifier), redirect remembrancer://auth
+ *   via "web"  Cognito's "sign out, then sign in" page, back through GET /auth
+ *              (which hands the code to the page instead of signing in)
+ * The code is traded for tokens here, and only if that sign-in is the same
+ * account as the signed-in one (and `username`) is anything deleted.
+ *
+ * Answers { deleted: { table: rows } }; 401 not signed in, 400 missing or
+ * mismatched details, 403 signed in again as someone else, 500 if deleting
+ * failed (calling again is safe).
+ */
+authRouter.post("/delete-account", async function (req, res) {
+    let userName;
+    try {
+        const decoded = await decodeToken(req.cookies && req.cookies[session.ID_COOKIE]);
+        userName = decoded["cognito:username"];
+    } catch (err) {
+        return res.status(401).json({ error: "Please log in again." });
+    }
+    const { username, code, code_verifier: codeVerifier, via } = req.body || {};
+    if (!userName || username !== userName) {
+        return res.status(400).json({ error: "That isn't the signed-in account." });
+    }
+    if (!code) {
+        return res.status(400).json({ error: "Please sign in again to confirm it's you." });
+    }
+
+    // The fresh sign-in: who was it?
+    let confirmed;
+    try {
+        const fresh = await exchangeCode(code, via === "app" ? APP_REDIRECT_URI : REDIRECT_URI, codeVerifier);
+        confirmed = fresh.decoded["cognito:username"];
+        // Its own session isn't needed: end it.
+        if (fresh.refreshToken) await session.revokeRefreshToken(fresh.refreshToken);
+    } catch (err) {
+        return tokenError(res, err, "Signing in again to delete the account");
+    }
+    if (confirmed !== userName) {
+        log(`Account deletion refused for ${userName}: signed in again as ${confirmed}`);
+        return res.status(403).json({ error: "You signed in as a different account, so nothing was deleted." });
+    }
+
+    try {
+        await session.revokeRefreshToken(req.cookies[session.REFRESH_COOKIE]);
+        const deleted = await account.deleteAccount(userName);
+        session.clearSessionCookies(res);
+        res.json({ deleted });
+    } catch (err) {
+        log(`Account deletion failed for ${userName}: ${err.name}: ${err.message}`);
+        res.status(500).json({ error: "Your account couldn't be fully deleted. Please try again." });
+    }
+});
+
 /*
  * The iPhone app's sign-in (/auth/app/*).
  *
@@ -243,25 +315,37 @@ const tokenError = (res, err, what) => {
     res.status(401).json({ error: `${what} failed` });
 };
 
-/** POST /auth/app/token { code, code_verifier } -> { id_token, refresh_token } */
-authRouter.post("/app/token", async function (req, res) {
-    const { code, code_verifier: codeVerifier } = req.body || {};
-    if (!code) return res.status(400).json({ error: "Missing code" });
-
+/**
+ * Trade a sign-in's one-time code for tokens at Cognito (with our client
+ * secret), and verify the ID token so a forged one is never trusted.
+ *
+ * @param {string} code
+ * @param {string} redirectUri the redirect_uri the sign-in used
+ * @param {string} [codeVerifier] its PKCE verifier (the iPhone app's)
+ * @returns {Promise<{idToken: string, refreshToken?: string, decoded: object}>}
+ */
+async function exchangeCode(code, redirectUri, codeVerifier) {
     const data = new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: COGNITO_CLIENT_ID,
         client_secret: COGNITO_CLIENT_SECRET,
-        redirect_uri: APP_REDIRECT_URI,
+        redirect_uri: redirectUri,
         code,
         ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
     }).toString();
+    const result = await axios.post(`${COGNITO_DOMAIN}/oauth2/token`, data,
+        { headers: { 'content-type': 'application/x-www-form-urlencoded' } });
+    const { id_token: idToken, refresh_token: refreshToken } = result.data;
+    const decoded = await decodeToken(idToken);
+    return { idToken, refreshToken, decoded };
+}
 
+/** POST /auth/app/token { code, code_verifier } -> { id_token, refresh_token } */
+authRouter.post("/app/token", async function (req, res) {
+    const { code, code_verifier: codeVerifier } = req.body || {};
+    if (!code) return res.status(400).json({ error: "Missing code" });
     try {
-        const result = await axios.post(`${COGNITO_DOMAIN}/oauth2/token`, data,
-            { headers: { 'content-type': 'application/x-www-form-urlencoded' } });
-        const { id_token: idToken, refresh_token: refreshToken } = result.data;
-        await decodeToken(idToken); // never hand out a token we can't verify
+        const { idToken, refreshToken } = await exchangeCode(code, APP_REDIRECT_URI, codeVerifier);
         res.json({ id_token: idToken, refresh_token: refreshToken });
     } catch (err) {
         tokenError(res, err, "App sign-in");

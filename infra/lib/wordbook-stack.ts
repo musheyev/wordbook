@@ -47,6 +47,11 @@ const DYNAMO_TABLES = [
   // (api/tts-refs.js). PK item_key + SK user_name; PK audio_key.
   'dictionary_tts_refs',
   'dictionary_tts_released',
+  // Word-of-the-day emails sent to a user, and words they unsubscribed from
+  // (written by the separate emailer service). PK user_name, SK word. Here
+  // only so deleting an account (api/account.js) removes them too.
+  'dictionary_email_history',
+  'dictionary_unsubscribed',
 ];
 
 export class WordbookStack extends cdk.Stack {
@@ -183,7 +188,9 @@ export class WordbookStack extends cdk.Stack {
     if (userPoolId) {
       apiFn.addToRolePolicy(
         new iam.PolicyStatement({
-          actions: ['cognito-idp:ListUsers', 'cognito-idp:ListUsersInGroup', 'cognito-idp:AdminGetUser'],
+          // AdminDeleteUser: a user deleting their own account (api/account.js).
+          actions: ['cognito-idp:ListUsers', 'cognito-idp:ListUsersInGroup', 'cognito-idp:AdminGetUser',
+            'cognito-idp:AdminDeleteUser'],
           resources: [
             `arn:aws:cognito-idp:${cognitoRegion}:${this.account}:userpool/${userPoolId}`,
           ],
