@@ -11,6 +11,7 @@
 import { getChosenSpeeds, htmlToChunks, chunkRequest } from './tts';
 import { apiFetch } from '../native/auth';
 import { chunkAudio } from '../offline/audio';
+import { site } from './site';
 
 let audioEl = null;
 function getAudio() {
@@ -457,7 +458,7 @@ class TtsPlayer {
                     : (this.status === 'paused' || this.status === 'ended') ? 'paused' : 'none';
             if (window.MediaMetadata) {
                 navigator.mediaSession.metadata = new window.MediaMetadata({
-                    title: this.title || 'Reading', artist: 'Remembrancer',
+                    title: this.title || 'Reading', artist: site.name,
                 });
             }
         } catch (e) { /* ignore */ }

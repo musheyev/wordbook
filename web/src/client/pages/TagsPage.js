@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
 import { fetchAllTags, fetchWordData, fetchItemNotebooks } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
+import { site } from '../utils/site';
 
 // Browse your tagged items by tag. Words open on the Words page; notes open in
 // the first notebook that contains them.
@@ -23,7 +24,7 @@ function TagsPage({ allTags, fetchAllTags, fetchWordData, fetchItemNotebooks }) 
         setError('');
         if (it.type === 'word') {
             fetchWordData(it.id);
-            navigate('/');
+            navigate(site.wordsPath);
             return;
         }
         try {

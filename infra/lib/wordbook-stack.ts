@@ -72,26 +72,48 @@ export class WordbookStack extends cdk.Stack {
     //   A/AAAA alias records pointing at the distribution. Pass -c certArn=... to
     //   reuse an existing cert instead of creating one. If domainName is omitted,
     //   the app is served on the generated *.cloudfront.net domain.
+    //
+    // More domains, same site (e.g. myremembrancer.com): listed in cdk.json as
+    // "otherDomainNames". They serve the same app, API and data; the web app
+    // looks at its address to decide how to present itself (web/src/client/
+    // utils/site.js). Each one's hosted zone must also exist in Route 53. The
+    // certificate covers all of them, and each gets its own A/AAAA records.
+    // Adding or removing one replaces the certificate: CloudFormation makes
+    // and validates the new one first, then switches the distribution to it,
+    // and only then deletes the old one, so the site keeps working throughout.
     // APP_URL is the public URL the auth flow redirects to; defaults to the domain.
     // -------------------------------------------------------------------------
     const domainName = this.node.tryGetContext('domainName') as string | undefined;
+    const otherDomainNames = domainName
+      ? ((this.node.tryGetContext('otherDomainNames') as string[] | undefined) ?? [])
+      : [];
+    const allDomainNames = domainName ? [domainName, ...otherDomainNames] : [];
     const certArn = this.node.tryGetContext('certArn') as string | undefined;
     const appUrl =
       (process.env.APP_URL as string | undefined) ||
       (this.node.tryGetContext('appUrl') as string | undefined) ||
       (domainName ? `https://${domainName}` : undefined);
 
-    // Look up the hosted zone and provision (or reuse) the certificate up front,
+    // Look up the hosted zones and provision (or reuse) the certificate up front,
     // so the distribution below can attach it and we can add DNS records later.
-    let hostedZone: route53.IHostedZone | undefined;
+    // The first domain keeps its original construct ids ('Zone', 'SiteCert'),
+    // so adding domains doesn't recreate what's already there.
+    const hostedZones: Record<string, route53.IHostedZone> = {};
     let certificate: certmgr.ICertificate | undefined;
     if (domainName) {
-      hostedZone = route53.HostedZone.fromLookup(this, 'Zone', { domainName });
+      allDomainNames.forEach((name, i) => {
+        hostedZones[name] = route53.HostedZone.fromLookup(this, i === 0 ? 'Zone' : `Zone-${name}`, {
+          domainName: name,
+        });
+      });
       certificate = certArn
         ? certmgr.Certificate.fromCertificateArn(this, 'SiteCert', certArn)
         : new certmgr.Certificate(this, 'SiteCert', {
             domainName,
-            validation: certmgr.CertificateValidation.fromDns(hostedZone),
+            ...(otherDomainNames.length ? { subjectAlternativeNames: otherDomainNames } : {}),
+            validation: otherDomainNames.length
+              ? certmgr.CertificateValidation.fromDnsMultiZone(hostedZones)
+              : certmgr.CertificateValidation.fromDns(hostedZones[domainName]),
           });
     }
 
@@ -158,6 +180,9 @@ export class WordbookStack extends cdk.Stack {
         // Public URLs used by the Cognito auth redirect flow. Only correct once
         // APP_URL is known; harmless for the (non-auth) dictionary/wordbook APIs.
         ...(appUrl ? { FRONTEND_URL: appUrl, BACKEND_URL: `${appUrl}/api` } : {}),
+        // The site addresses whose sign-in comes back to the same address
+        // (api/routes/authRouter.js siteUrls), told apart by X-Site-Host.
+        ...(allDomainNames.length ? { SITE_HOSTS: allDomainNames.join(',') } : {}),
       },
     });
 
@@ -279,12 +304,20 @@ export class WordbookStack extends cdk.Stack {
     //    strips the leading "/api" before the request reaches API Gateway.
     //    This mirrors the Vite dev proxy's rewrite, so the Express routes
     //    (/dictionary, /wordbook, /auth) match in both environments.
+    //    It also copies the address the visitor used (makeyourwordbook.com or
+    //    myremembrancer.com) into an X-Site-Host header: API Gateway needs its
+    //    own Host header, so the API can't see the visitor's. Sign-in uses it
+    //    to come back to the same site. Whatever X-Site-Host the visitor sent
+    //    is overwritten.
     // =========================================================================
     const stripApiPrefix = new cloudfront.Function(this, 'StripApiPrefix', {
       comment: 'Remove the /api prefix before forwarding to API Gateway',
       code: cloudfront.FunctionCode.fromInline(`
 function handler(event) {
   var request = event.request;
+  if (request.headers.host) {
+    request.headers['x-site-host'] = { value: request.headers.host.value };
+  }
   if (request.uri.startsWith('/api')) {
     request.uri = request.uri.substring(4);
     if (request.uri === '') { request.uri = '/'; }
@@ -345,18 +378,23 @@ function handler(event) {
 
       // Custom domain (only when a domainName was supplied; cert created above).
       ...(domainName && certificate
-        ? { domainNames: [domainName], certificate }
+        ? { domainNames: allDomainNames, certificate }
         : {}),
     });
 
-    // Point the domain's apex at this distribution (A + AAAA aliases). This
-    // replaces any stale record, so the deploy fixes DNS itself.
-    if (domainName && hostedZone) {
+    // Point each domain's apex at this distribution (A + AAAA aliases). This
+    // replaces any stale record, so the deploy fixes DNS itself. The first
+    // domain keeps its original construct ids.
+    if (domainName) {
       const dnsTarget = route53.RecordTarget.fromAlias(
         new targets.CloudFrontTarget(distribution)
       );
-      new route53.ARecord(this, 'AliasRecordA', { zone: hostedZone, target: dnsTarget });
-      new route53.AaaaRecord(this, 'AliasRecordAaaa', { zone: hostedZone, target: dnsTarget });
+      allDomainNames.forEach((name, i) => {
+        const suffix = i === 0 ? '' : `-${name}`;
+        const zone = hostedZones[name];
+        new route53.ARecord(this, `AliasRecordA${suffix}`, { zone, target: dnsTarget });
+        new route53.AaaaRecord(this, `AliasRecordAaaa${suffix}`, { zone, target: dnsTarget });
+      });
     }
 
     // =========================================================================

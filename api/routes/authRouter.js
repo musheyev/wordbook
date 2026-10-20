@@ -5,7 +5,7 @@
  * hosted login page, using the OAuth 2.0 "authorization code" flow:
  *
  *   1. Browser  -> GET /auth/login
- *      We redirect the browser to Cognito's login page (LOGIN_URL), saying
+ *      We redirect the browser to Cognito's login page (loginUrl), saying
  *      who we are (client_id) and where to come back to (redirect_uri).
  *   2. User signs in on Cognito's page (password, sign-up, forgot password…).
  *   3. Cognito  -> redirects the browser to GET /auth?code=XYZ
@@ -39,10 +39,38 @@ const REDIRECT_URI = `${BACKEND_URL}/auth`;
 // Cognito's hosted login page (step 1). `response_type=code` asks for the
 // authorization code flow; `scope` lists what the tokens may be used for
 // (`openid` is what makes Cognito include an ID token).
-const LOGIN_URL =
+const loginUrl = (redirectUri) =>
     `${COGNITO_DOMAIN}/login?client_id=${COGNITO_CLIENT_ID}` +
     "&response_type=code&scope=aws.cognito.signin.user.admin+email+openid+profile" +
-    `&redirect_uri=${REDIRECT_URI}`;
+    `&redirect_uri=${redirectUri}`;
+
+// Two websites share this API: makeyourwordbook.com and myremembrancer.com
+// (web/src/client/utils/site.js). Each signs in through its own address, so
+// Cognito sends the browser back to the site it came from, and the cookies
+// belong to that site. CloudFront says which site a request came through in
+// the X-Site-Host header (see the CloudFront function in infra/); only the
+// hosts listed in SITE_HOSTS ("makeyourwordbook.com,myremembrancer.com") are
+// believed, so a made-up header can't send anyone elsewhere. Anything else
+// (localhost, the bare API address) uses BACKEND_URL / FRONTEND_URL as before.
+// Each site's /api/auth must be a callback URL on the Cognito app client, and
+// its address a sign-out URL.
+const SITE_HOSTS = (process.env.SITE_HOSTS || "")
+    .split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+
+/**
+ * The site this request came through.
+ *
+ * @returns {{frontend: string, redirectUri: string}} the site's address, and
+ *   the redirect_uri its sign-in uses (step 3)
+ */
+function siteUrls(req) {
+    const host = String(req.get("x-site-host") || "").trim().toLowerCase();
+    if (SITE_HOSTS.includes(host)) {
+        const frontend = `https://${host}`;
+        return { frontend, redirectUri: `${frontend}/api/auth` };
+    }
+    return { frontend: FRONTEND_URL, redirectUri: REDIRECT_URI };
+}
 
 // The iPhone app's sign-in comes back to the app itself, through its own
 // address scheme (registered in the app's Info.plist). Also a callback URL on
@@ -56,7 +84,8 @@ let authRouter = express.Router();
  */
 authRouter.get("/login", function (req, res) {
     log("Recieved request on " + req.path);
-    res.redirect(301, LOGIN_URL);
+    // 302, not 301: the answer depends on the site, so browsers mustn't keep it.
+    res.redirect(302, loginUrl(siteUrls(req).redirectUri));
 });
 
 /**
@@ -73,6 +102,7 @@ authRouter.get("", function (req, res) {
 
     log("/auth got " + JSON.stringify(req.query));
     let authCode = req.query.code;
+    const { frontend, redirectUri } = siteUrls(req);
 
     // Signing in again to confirm deleting the account (POST /delete-account):
     // don't sign in here; hand the one-time code to the page, which sends it
@@ -80,7 +110,7 @@ authRouter.get("", function (req, res) {
     const state = typeof req.query.state === "string" ? req.query.state : "";
     if (state.startsWith("delete-")) {
         const params = new URLSearchParams({ state, ...(authCode ? { delete_code: authCode } : {}) });
-        return res.redirect(302, `${FRONTEND_URL}/account?${params}`);
+        return res.redirect(302, `${frontend}/account?${params}`);
     }
 
     const data = new URLSearchParams({
@@ -88,7 +118,7 @@ authRouter.get("", function (req, res) {
         client_id: COGNITO_CLIENT_ID,
         client_secret: COGNITO_CLIENT_SECRET,
         scope: 'email+openid+phone+profile',
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: redirectUri,
         code: authCode,
     }).toString();
 
@@ -116,7 +146,7 @@ authRouter.get("", function (req, res) {
                     }
                     // 302 = "temporary" redirect. A 301 ("permanent") would
                     // let the browser cache it and skip this route next time.
-                    res.redirect(302, FRONTEND_URL);
+                    res.redirect(302, frontend);
                 })
                 .catch((err) => {
                     if (err.response != null && err.response.data != null) {
@@ -125,7 +155,7 @@ authRouter.get("", function (req, res) {
                     else {
                         console.log(err, null, 2);
                     };
-                    res.redirect(500, FRONTEND_URL);
+                    res.redirect(500, frontend);
                 });
 
         })
@@ -138,7 +168,7 @@ authRouter.get("", function (req, res) {
             else {
                 console.log(err, null, 2);
             };
-            res.redirect(500, FRONTEND_URL);
+            res.redirect(500, frontend);
 
         })
 
@@ -215,7 +245,7 @@ authRouter.get("/logout", async function (req, res) {
     session.clearSessionCookies(res);
 
     const awsCognitoLogoutEndPoint =
-        `${COGNITO_DOMAIN}/logout?client_id=${COGNITO_CLIENT_ID}&logout_uri=${FRONTEND_URL}`;
+        `${COGNITO_DOMAIN}/logout?client_id=${COGNITO_CLIENT_ID}&logout_uri=${siteUrls(req).frontend}`;
 
     axios.get(awsCognitoLogoutEndPoint)
         .then(awsResponse => {
@@ -271,7 +301,7 @@ authRouter.post("/delete-account", async function (req, res) {
     // The fresh sign-in: who was it?
     let confirmed;
     try {
-        const fresh = await exchangeCode(code, via === "app" ? APP_REDIRECT_URI : REDIRECT_URI, codeVerifier);
+        const fresh = await exchangeCode(code, via === "app" ? APP_REDIRECT_URI : siteUrls(req).redirectUri, codeVerifier);
         confirmed = fresh.decoded["cognito:username"];
         // Its own session isn't needed: end it.
         if (fresh.refreshToken) await session.revokeRefreshToken(fresh.refreshToken);

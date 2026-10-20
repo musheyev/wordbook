@@ -9,10 +9,16 @@ import AddItemSheet from './AddItemSheet';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
 import { notebookFromPathname, isItemPathname } from '../utils/notebookPaths';
 import { ADMIN_PAGES } from '../utils/adminPages';
+import { site } from '../utils/site';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
 // The main links (Words, My Notebooks, Tags, Inbox): first in the rail.
 const mainClass = (state) => `${navClass(state)} nav-main`;
+
+// The phone's bottom bar has room for five tabs, so Tags, Admin and Log out
+// move into the More page there (pages/MorePage.js). CSS hides them (and
+// shows More) only on phones; the desktop rail keeps them all.
+const phoneMore = (state) => `${mainClass(state)} nav-phone-more`;
 
 // Cardbook navigation. A left rail on desktop, a bottom tab bar on mobile.
 // Inside a cardbook, while one of its notes (or words) is open, the rail
@@ -30,9 +36,11 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
     const cardbookName = notebookFromPathname(location.pathname);
     const inCardbook = cardbookName !== '';
     const itemOpen = isItemPathname(location.pathname);
-    // The phone Admin tab stays highlighted on every admin page.
+    // The phone's More tab stays highlighted on every admin page, and on
+    // Tags and More itself (reached from More on phones).
     const inAdminArea = ADMIN_PAGES.some((page) => location.pathname.startsWith(page.to))
         || location.pathname === '/admin';
+    const inMoreArea = inAdminArea || location.pathname === '/more' || location.pathname === '/tags';
 
     const [confirmingLogout, setConfirmingLogout] = React.useState(false);
     const [addOpen, setAddOpen] = React.useState(false);
@@ -51,9 +59,9 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
 
     return (
         <nav className={`nav-rail${inCardbook ? ' nav-rail--ctx' : ''}`}>
-            <Link to="/" className="nav-brand">
-                <i className="book icon"></i>
-                Remembrancer
+            <Link to={site.homePath} className="nav-brand">
+                <i className={`${site.icon} icon`}></i>
+                {site.name}
             </Link>
 
             {inCardbook && userExists && (
@@ -87,60 +95,68 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
             )}
 
             <div className="nav-items">
-                <NavLink to="/" end className={mainClass}>
-                    <i className="search icon"></i>
-                    <span className="nav-label">Words</span>
+                {site.nav.map((key) => {
+                    switch (key) {
+                        case 'words':
+                            return (
+                                <NavLink key={key} to={site.wordsPath} end className={mainClass}>
+                                    <i className="search icon"></i>
+                                    <span className="nav-label">Words</span>
+                                </NavLink>
+                            );
+                        case 'notebooks':
+                            return (
+                                <NavLink key={key} to="/account" className={mainClass}>
+                                    <i className="clone outline icon"></i>
+                                    {/* "My" is dropped on phones, to fit the tab. */}
+                                    <span className="nav-label"><span className="nav-desk-only">My </span>Notebooks</span>
+                                </NavLink>
+                            );
+                        case 'tags':
+                            return (
+                                <NavLink key={key} to="/tags" className={phoneMore}>
+                                    <i className="tags icon"></i>
+                                    <span className="nav-label">Tags</span>
+                                </NavLink>
+                            );
+                        case 'inbox':
+                            return (
+                                <NavLink key={key} to="/inbox" className={mainClass}>
+                                    <span className="nav-icon-wrap">
+                                        <i className="inbox icon"></i>
+                                        {inboxCount > 0 && (
+                                            <span className="nav-badge" aria-label={`${inboxCount} new`}>
+                                                {inboxCount > 99 ? '99+' : inboxCount}
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span className="nav-label">Inbox</span>
+                                </NavLink>
+                            );
+                        default:
+                            return null;
+                    }
+                })}
+
+                {/* Phones only: Tags, Admin and Log out, on one page. */}
+                <NavLink to="/more" className={() => `nav-item nav-main nav-more-tab${inMoreArea ? ' on' : ''}`}>
+                    <i className="ellipsis horizontal icon"></i>
+                    <span className="nav-label">More</span>
                 </NavLink>
 
-                {userExists && (
-                    <NavLink to="/account" className={mainClass}>
-                        <i className="clone outline icon"></i>
-                        <span className="nav-label">My Notebooks</span>
-                    </NavLink>
-                )}
-
-                {userExists && (
-                    <NavLink to="/tags" className={mainClass}>
-                        <i className="tags icon"></i>
-                        <span className="nav-label">Tags</span>
-                    </NavLink>
-                )}
-
-                {userExists && (
-                    <NavLink to="/inbox" className={mainClass}>
-                        <span className="nav-icon-wrap">
-                            <i className="inbox icon"></i>
-                            {inboxCount > 0 && (
-                                <span className="nav-badge" aria-label={`${inboxCount} new`}>
-                                    {inboxCount > 99 ? '99+' : inboxCount}
-                                </span>
-                            )}
-                        </span>
-                        <span className="nav-label">Inbox</span>
-                    </NavLink>
-                )}
-
-                {/* Admin area, admins only. Desktop rail: an "Admin" group
-                    listing each admin page. Phone tab bar: one Admin tab that
-                    opens the /admin hub, so the bar doesn't grow. CSS shows
-                    one or the other (.nav-admin-group / .nav-admin-tab). */}
+                {/* Admin area, admins only: an "Admin" group listing each
+                    admin page, in the desktop rail. On phones it's hidden;
+                    More links to the /admin hub instead. */}
                 {userExists && isAdmin && (
-                    <>
-                        <div className="nav-admin-group">
-                            <div className="nav-group-label">Admin</div>
-                            {ADMIN_PAGES.map((page) => (
-                                <NavLink key={page.to} to={page.to} className={navClass}>
-                                    <i className={`${page.icon} icon`}></i>
-                                    <span className="nav-label">{page.label}</span>
-                                </NavLink>
-                            ))}
-                        </div>
-                        <NavLink to="/admin" end={false}
-                            className={() => `nav-item nav-admin-tab${inAdminArea ? ' on' : ''}`}>
-                            <i className="shield alternate icon"></i>
-                            <span className="nav-label">Admin</span>
-                        </NavLink>
-                    </>
+                    <div className="nav-admin-group">
+                        <div className="nav-group-label">Admin</div>
+                        {ADMIN_PAGES.map((page) => (
+                            <NavLink key={page.to} to={page.to} className={navClass}>
+                                <i className={`${page.icon} icon`}></i>
+                                <span className="nav-label">{page.label}</span>
+                            </NavLink>
+                        ))}
+                    </div>
                 )}
 
                 <div className="nav-spacer" />

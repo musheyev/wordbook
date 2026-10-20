@@ -16,6 +16,7 @@
     "@aws-cdk/core:checkSecretUsage": true,
     "@aws-cdk/aws-iam:minimizePolicies": true,
     "@aws-cdk/core:validateSnapshotRemovalPolicy": true,
-    "domainName": "makeyourwordbook.com"
+    "domainName": "makeyourwordbook.com",
+    "otherDomainNames": ["myremembrancer.com"]
   }
 }

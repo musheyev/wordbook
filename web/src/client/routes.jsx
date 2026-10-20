@@ -1,16 +1,19 @@
 import React, { Suspense, lazy, useEffect } from 'react';
-import { useRoutes } from 'react-router-dom';
+import { useRoutes, Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import App from './App';
 import HomePage from './pages/HomePage';
 import AccountPage from './pages/AccountPage';
 import WordbookPage from './pages/WordbookPage';
 import InboxPage from './pages/InboxPage';
 import TagsPage from './pages/TagsPage';
+import MorePage from './pages/MorePage';
 import NotFoundPage from './pages/NotFoundPage';
 import Spinner from './components/Spinner';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from './utils/cognito';
 import { isNativeApp } from './native/platform';
 import { nativeSignIn } from './native/auth';
+import { isRemembrancer } from './utils/site';
 
 // The original /login and /signup "routes" ran window.location during render,
 // which is a render-time side effect. Do the redirect in an effect instead.
@@ -42,6 +45,17 @@ const AdminAudioCleanupPage = loadOnDemand(() => import('./pages/AdminAudioClean
 const UsersListPage = loadOnDemand(() => import('./pages/UsersListPage'));
 const AdminsListPage = loadOnDemand(() => import('./pages/AdminsListPage'));
 
+// The site's home page (utils/site.js). Make Your Wordbook opens on the Words
+// search; Remembrancer opens on My Notebooks once signed in (its Words search
+// is at /words). Signed out, both show the Words page's intro (Landing).
+const SiteHome = () => {
+  const auth = useSelector((state) => state.auth);
+  if (!isRemembrancer) return <HomePage />;
+  if (auth === null) return <Spinner label="Loading…" />;
+  if (auth) return <Navigate to="/account" replace />;
+  return <HomePage />;
+};
+
 const LoginRedirect = () => <ExternalRedirect to={COGNITO_LOGIN} />;
 const SignupRedirect = () => <ExternalRedirect to={COGNITO_SIGNUP} />;
 
@@ -50,13 +64,15 @@ export const routes = [
     path: '/',
     Component: App,
     children: [
-      { index: true, Component: HomePage },
+      { index: true, Component: SiteHome },
+      { path: 'words', Component: HomePage },
       { path: 'account', Component: AccountPage },
       { path: 'wordbook/:name', Component: WordbookPage },
       { path: 'wordbook/:name/:type/:id', Component: WordbookPage },
       { path: 'inbox', Component: InboxPage },
       { path: 'inbox/:id', Component: InboxPage },
       { path: 'tags', Component: TagsPage },
+      { path: 'more', Component: MorePage },
       { path: 'admin', Component: AdminPage },
       { path: 'admin/images', Component: AdminImagesPage },
       { path: 'admin/image-cleanup', Component: AdminImageCleanupPage },
