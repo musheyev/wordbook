@@ -227,3 +227,21 @@ export const tagItem = (chunks, item) => chunks.map((c) => ({ ...c, item }));
 // A note read aloud: the same chunks wherever it's read (its page, a note
 // window, a notebook's "Play all"), so its audio list doesn't flip-flop.
 export const cardChunks = (card) => tagItem(htmlToChunks(card.content), `card:${card.card_id}`);
+
+// A word in a notebook's "Play all": just the word, read on its own.
+export const wordTitleChunk = (item) => ({
+    text: item.title, lang: HEBREW.test(item.title) ? 'he-IL' : 'en-US', title: item.title,
+    item: `wordtitle:${item.id}`,
+});
+
+// What the server is asked for to read a chunk (POST /api/tts): its text,
+// language, and voice — a voice chosen for that text in the note
+// (chunk.voice), else this device's choice for its language, else the app's
+// default (DEFAULT_VOICES: Achernar for English), else Google's default for
+// the language (undefined). The same request always gets the same audio, so
+// it's also the key audio is saved under on the phone (offline/audio.js).
+export const chunkRequest = (chunk) => ({
+    text: chunk.text,
+    languageCode: chunk.lang,
+    voiceName: chunk.voice || getChosenVoices()[chunk.lang] || DEFAULT_VOICES[chunk.lang] || undefined,
+});

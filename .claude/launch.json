@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wordbook-web",
+      "runtimeExecutable": "/Users/rudy/.nvm/versions/node/v24.18.0/bin/node",
+      "runtimeArgs": [
+        "/Users/rudy/Code/web/wordbook/web/node_modules/vite/bin/vite.js",
+        "/Users/rudy/Code/web/wordbook/web",
+        "--host"
+      ],
+      "port": 3000
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 // open safely in a new tab.
 import DOMPurify from 'dompurify';
 import { siteUrl } from '../native/platform';
+import { isApiImage, loadsImagesItself } from '../offline/images';
 
 // Make all links open in a new tab with a safe rel. Registered once at module load.
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
@@ -10,12 +11,23 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
         node.setAttribute('target', '_blank');
         node.setAttribute('rel', 'noopener noreferrer');
     }
-    // Images saved as "/api/images/…": in full inside the iPhone app.
+    // Images saved as "/api/images/…". Inside the iPhone app they can't load
+    // by themselves (no login cookie there): the address moves to
+    // data-api-src and components/NoteHtml.js loads them with the app's
+    // sign-in, or from the phone offline (offline/images.js). Other images:
+    // in full inside the app (client/native/platform.js).
     if (node.tagName === 'IMG' && node.getAttribute('src')) {
-        node.setAttribute('src', siteUrl(node.getAttribute('src')));
+        const src = node.getAttribute('src');
+        if (loadsImagesItself() && isApiImage(src)) {
+            node.setAttribute('data-api-src', src);
+            node.removeAttribute('src');
+        } else {
+            node.setAttribute('src', siteUrl(src));
+        }
     }
 });
 
 export function sanitizeCardHtml(html) {
+    // data-api-src is ours (above); DOMPurify keeps data- attributes anyway.
     return DOMPurify.sanitize(html || '', { USE_PROFILES: { html: true } });
 }

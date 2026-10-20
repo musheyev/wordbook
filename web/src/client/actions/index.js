@@ -2,6 +2,7 @@ import shrinkImage from '../utils/shrinkImage';
 import axios from 'axios';
 import { isNativeApp } from '../native/platform';
 import { nativeSignOut } from '../native/auth';
+import { clearOfflineData, itemDeleted, notebookDeleted, notebookRenamed } from '../offline/downloads';
 
 export const FETCH_USERS = 'fetch_users';
 export const fetchUsers = () => async (dispatch, getState, api) => {
@@ -42,6 +43,8 @@ export const clearCurrentSelection = () => (dispatch) => {
 // What to tell the user when a request fails: the server's own message when
 // it sent one, else whether it timed out or the connection dropped.
 export const requestErrorMessage = (err, fallback = "Something went wrong. Try again.") => {
+  // No connection, and nothing downloaded for it (offline/apiCache.js).
+  if (err && err.isOffline) return "You're offline, and this wasn't downloaded.";
   if (err && (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT')) {
     return "The server is taking too long to answer. Check your connection and try again.";
   }
@@ -260,6 +263,7 @@ export const updateCard = (cardId, title, content) => async (dispatch, getState,
 // Delete a card everywhere (from every wordbook).
 export const deleteCard = (cardId) => async (dispatch, getState, api) => {
   await api.post('/wordbook/card/delete', { card_id: cardId }, JSON_HEADERS);
+  itemDeleted(`card:${cardId}`); // no download of it to keep (offline/downloads.js)
 
   dispatch(closeCardEditor());
   dispatch({ type: FETCH_CARD_DATA, payload: null });
@@ -357,6 +361,8 @@ export const logoutCurrentUser = () => async (dispatch, getState, api) => {
   // are cookies the server clears.
   if (isNativeApp()) await nativeSignOut();
   else await api.get('auth/logout');
+  // Downloads belong to the account: none stay on the device after log out.
+  await clearOfflineData();
 
   dispatch({
     type: LOGOUT_CURRENT_USER,
@@ -455,6 +461,7 @@ export const deleteWordbook = (name) => async (dispatch, getState, api) => {
       type: DELETE_WORDBOOK,
       payload: res
     });
+    notebookDeleted(name); // nor of the notebook (offline/downloads.js)
 
   }
   catch (err) {
@@ -614,6 +621,7 @@ export const renameWordbook = (wordbook, name) => async (dispatch, getState, api
     throw new Error(message);
   }
 
+  notebookRenamed(wordbook, name.trim()); // its download follows (offline/downloads.js)
   if (getState().currentWordbook === wordbook) {
     dispatch({ type: SET_CURRENT_WORDBOOK, payload: name.trim() });
   }

@@ -3411,3 +3411,41 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   transform: translateY(-100%); z-index: 401; max-height: 55vh; overflow-y: auto;
   box-shadow: 0 -6px 24px rgba(15, 20, 35, 0.18);
 }
+
+/* ---- Offline (iPhone app; client/offline/) ---------------------------------
+   The Offline bar, the ↓ marking downloaded notebooks and notes, the
+   "N more notes aren't downloaded" line, dimmed notebooks with nothing
+   downloaded, and note images that couldn't be loaded. */
+.offline-bar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 6px 12px; margin: 0 0 8px;
+  background: var(--cb-ink-2); color: #fff;
+  font-size: 0.85rem; font-weight: 500;
+  border-radius: var(--cb-radius-sm);
+}
+.offline-bar i.icon { margin: 0; opacity: 0.8; }
+i.icon.download-badge {
+  margin: 0 0 0 6px; font-size: 0.85em; color: var(--cb-accent);
+  vertical-align: 0.05em;
+}
+i.icon.download-badge--item { font-size: 0.8em; }
+.offline-missing {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 0; padding: 10px 12px;
+  color: var(--cb-ink-2); background: var(--cb-surface);
+  border: 1px dashed var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  font-size: 0.9rem;
+}
+.offline-missing i.icon { margin: 0; color: var(--cb-ink-3); }
+@media (min-width: 769px) { .nb-missing--phone { display: none; } }
+@media (max-width: 768px) { .nb-missing--phone { padding: 0 12px; } }
+.cb-book--unavailable { opacity: 0.5; }
+.card-tool--on i.icon { color: var(--cb-accent); }
+.card-tool--on:disabled { opacity: 1; }
+img.img-unavailable {
+  display: inline-block; min-width: 160px; min-height: 48px; padding: 12px;
+  border: 1px dashed var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  color: var(--cb-ink-3); font-size: 0.85rem;
+}
+.cb-mbar__add:disabled { opacity: 0.45; cursor: default; }

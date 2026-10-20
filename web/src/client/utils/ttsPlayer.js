@@ -8,8 +8,9 @@
 // listening, across sentences: back from
 // the start of a sentence continues into the end of the one before. The
 // last few sentences' audio stays in memory (KEEP_BEHIND) so that's instant.
-import { getChosenVoices, getChosenSpeeds, htmlToChunks, DEFAULT_VOICES } from './tts';
+import { getChosenSpeeds, htmlToChunks, chunkRequest } from './tts';
 import { apiFetch } from '../native/auth';
+import { chunkAudio } from '../offline/audio';
 
 let audioEl = null;
 function getAudio() {
@@ -63,13 +64,7 @@ const whenLoaded = (a) => new Promise((resolve) => {
     a.addEventListener('error', done);
 });
 
-// The voice a chunk is read in: a voice chosen for that text in the note
-// (chunk.voice), else this device's choice for its language, else the app's
-// default (DEFAULT_VOICES: Achernar for English), else Google's default for
-// the language (undefined).
-const voiceFor = (chunk) => chunk.voice || getChosenVoices()[chunk.lang] || DEFAULT_VOICES[chunk.lang] || undefined;
-
-const asRequest = (chunk) => ({ text: chunk.text, languageCode: chunk.lang, voiceName: voiceFor(chunk) });
+const asRequest = chunkRequest;
 
 /**
  * Tell the server which audio an item uses now (api/tts-refs.js), so audio it
@@ -104,21 +99,11 @@ function reportItems(chunks) {
     byItem.forEach((list, item) => reportItemAudio(item, list));
 }
 
+// A chunk's audio as a blob URL: the phone's saved copy, or from the server
+// (offline/audio.js).
 async function fetchChunkUrl(chunk) {
     if (chunk.pause) return silentUrl(chunk.pause);
-    const res = await apiFetch('/api/tts', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify(asRequest(chunk)),
-    });
-    if (!res.ok) {
-        const msg = await res.text().catch(() => '');
-        const err = new Error(msg || 'TTS request failed');
-        err.status = res.status;
-        throw err;
-    }
-    return URL.createObjectURL(await res.blob());
+    return URL.createObjectURL(await chunkAudio(chunk));
 }
 
 class TtsPlayer {
@@ -222,7 +207,8 @@ class TtsPlayer {
         } catch (err) {
             this.error = err.status === 503
                 ? 'Read-aloud isn’t set up on the server yet.'
-                : 'Could not play audio.';
+                : err.isOffline ? 'You’re offline, and this audio wasn’t downloaded.'
+                    : 'Could not play audio.';
             this.status = 'idle'; this.sourceId = null; this._emit();
             return;
         }

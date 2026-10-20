@@ -7,12 +7,18 @@ import ShareDialog from './ShareDialog';
 import { notebookPath } from '../utils/notebookPaths';
 import { timeAgo } from '../utils/timeAgo';
 import GripIcon from './GripIcon';
+import { NotebookBadge, useOffline } from './DownloadBadge';
+import { notebookStatus } from '../offline/registry';
+import { downloadNotebook, removeNotebookDownload } from '../offline/downloads';
 
 // One notebook on My Notebooks.
 //   handleProps  given in "My order": shows a grip that drags the card
 //                (from SortableList)
 //   updated      given in "Recently updated": when it was last updated,
 //                shown after the preview
+// In the iPhone app its menu also has Download / Remove download, and a
+// small ↓ follows the name once downloaded (offline/downloads.js). With no
+// connection, a notebook with nothing downloaded is dimmed.
 function WordbookItemConfig({ name, id, preview, deleteWordbook, handleProps, updated }) {
     const [renaming, setRenaming] = useState(false);
     const [sharing, setSharing] = useState(false);
@@ -20,10 +26,14 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, handleProps, up
     const [remindersOpen, setRemindersOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuUp, setMenuUp] = useState(false);
+    const offline = useOffline();
+    const noConnection = offline.enabled && !offline.online;
+    const status = offline.enabled ? notebookStatus(offline.registry, name) : null;
+    const downloading = offline.progress[`notebook:${name}`];
 
     // Open the menu upward when there isn't room below the button (e.g. the
     // last notebook on a phone, where the bottom tab bar would cover it).
-    const MENU_HEIGHT = 150;
+    const MENU_HEIGHT = 190;
     const TAB_BAR_HEIGHT = 64;
     const toggleMenu = (e) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -36,7 +46,7 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, handleProps, up
     };
 
     return (
-        <div className="cb-book">
+        <div className={`cb-book${noConnection && !status ? ' cb-book--unavailable' : ''}`}>
             <RenameNotebookDialog open={renaming} name={name}
                 onClose={() => setRenaming(false)} onRenamed={() => setRenaming(false)} />
             <ShareDialog open={sharing} item={{ type: 'notebook', id: name, title: name }}
@@ -50,7 +60,7 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, handleProps, up
                     )}
                     {/* The cardbook name is the link that opens it. */}
                     <div className="cb-book__info">
-                        <Link className="cb-book__title" to={notebookPath(name)}>{name}</Link>
+                        <Link className="cb-book__title" to={notebookPath(name)}>{name}<NotebookBadge name={name} /></Link>
                         <div className="cb-book__preview">
                             <span className="cb-book__preview-text">{preview ? preview : 'Empty'}</span>
                             {updated && <span className="cb-book__updated"> · {timeAgo(updated)}</span>}
@@ -69,6 +79,21 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, handleProps, up
                                     <button onClick={() => { setRemindersOpen((v) => !v); setMenuOpen(false); }}>
                                         <i className="bell outline icon"></i>Reminders
                                     </button>
+                                    {offline.enabled && (downloading && !downloading.error ? (
+                                        <button disabled>
+                                            <i className="spinner loading icon"></i>Downloading…
+                                        </button>
+                                    ) : status === 'full' && !downloading ? (
+                                        <button title="Removes only this device’s copy; the notebook stays"
+                                            onClick={() => { removeNotebookDownload(name); setMenuOpen(false); }}>
+                                            <i className="arrow alternate circle down outline icon"></i>Remove download
+                                        </button>
+                                    ) : (
+                                        <button disabled={noConnection}
+                                            onClick={() => { downloadNotebook(name); setMenuOpen(false); }}>
+                                            <i className="arrow alternate circle down outline icon"></i>Download
+                                        </button>
+                                    ))}
                                     <button onClick={() => { startRename(); setMenuOpen(false); }}>
                                         <i className="edit icon"></i>Rename
                                     </button>

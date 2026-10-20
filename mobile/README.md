@@ -31,7 +31,7 @@ Apple; after that the app ID is permanent):
 Needs Xcode (Mac App Store) selected as the developer tools:
 `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
 
-## Plan (branch feature/iphone-app)
+## Plan
 
 The app carries its own copy of the web app (not a wrapper around the
 website) so it can work offline — the main reason for an app.
@@ -50,20 +50,37 @@ Done:
    Known: after Log out, the next Log in may skip the password (the login
    sheet remembers Cognito's own sign-in).
 
+5, 7, 8. Note images, offline reading and offline listening
+   (`web/src/client/offline/`, see the header of each file):
+   - **Download** in a notebook's menu (and on My Notebooks) downloads the
+     whole notebook: every note's and word's text and tags, the notes'
+     images, and the audio Play all reads. New notes added later are
+     downloaded too. **Remove download** removes only the phone's copy.
+   - A note's ↓ button, or Select → Download, downloads single notes/words;
+     they then show offline in every notebook they belong to.
+   - A small ↓ marks downloaded notebooks (outlined: only some notes) and
+     notes. With no connection: an Offline bar; notebooks show their
+     downloaded notes, then "N more notes aren't downloaded"; Play all plays
+     the downloaded notes; Add/Edit/Delete are greyed out.
+   - Downloads refresh when the app starts or the connection returns (at
+     most every 15 minutes). Log out deletes everything offline.
+   - Note images inside the app load with the app's sign-in (no cookie
+     there), from the phone when downloaded.
+   - Test in a browser with the console: `offlineTest.on()`,
+     `offlineTest.noConnection()`, `offlineTest.connection()`,
+     `offlineTest.off()` (offline/network.js).
+   - Known: iOS may clear an app's web storage when the phone is very short
+     of space (the app asks it not to); a download is easy to redo.
+
 Next:
-5. Note images in the app: fetched with the token, kept on the phone.
 6. Background audio: reading continues with the screen locked.
-7. Offline reading: notebooks and notes kept on the phone, synced when
-   online.
-8. Offline listening: read-aloud audio kept on the phone, and a **Download**
-   option per notebook ("Make available offline").
 9. Offline editing: changes queued and sent when back online; **the latest
    change wins** (with a notice when it overwrote a newer change).
 10. Icon and launch screen, keyboard (hide the ^ ˅ ✓ bar), TestFlight.
 
 Later:
-- Managing space on the phone: **Remove download** for a notebook, and
-  **Remove all downloads from this device**. These delete only the copies
+- Managing space on the phone: **Remove all downloads from this device**
+  (Remove download per notebook/note is done). It deletes only the copies
   kept on the phone (notes, images, audio); the notebooks themselves stay in
   the account, untouched, and can be downloaded again.
 - Share → Remembrancer (add text from other apps as a note), notifications,

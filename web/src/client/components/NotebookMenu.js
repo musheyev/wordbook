@@ -6,9 +6,14 @@ import RenameNotebookDialog from './RenameNotebookDialog';
 import ConfirmDialog from './ConfirmDialog';
 import ShareDialog from './ShareDialog';
 import { notebookPath } from '../utils/notebookPaths';
+import { NotebookBadge, useOffline } from './DownloadBadge';
+import { downloadNotebook, removeNotebookDownload, dismissDownloadError } from '../offline/downloads';
 
 // The notebook title with its menu: rename, share, go to all notebooks, or
-// delete. Used in the mobile notebook header and the desktop rail.
+// delete — and, in the iPhone app, Download / Remove download (offline/
+// downloads.js), with a small ↓ beside the name once downloaded. Used in the
+// mobile notebook header and the desktop rail. With no connection, what
+// needs one is greyed out.
 //
 // By default the whole title is the menu button. With `nameLink` (the desktop
 // rail), the name is a link there instead (the notebook's overview) and only
@@ -20,6 +25,11 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
     const [renaming, setRenaming] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const offline = useOffline();
+    const noConnection = offline.enabled && !offline.online;
+    const downloaded = offline.enabled && !!offline.registry.notebooks[name];
+    const progress = offline.progress[`notebook:${name}`];
+    const needsConnection = noConnection ? 'Needs a connection' : undefined;
 
     // Keep whatever item is open (/wordbook/<old>/card/x -> /wordbook/<new>/card/x).
     const onRenamed = (newName) => {
@@ -39,7 +49,7 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
             {nameLink ? (
                 <div className="nb-menu__split">
                     <Link className="nb-menu__link" to={nameLink} title={`${name}: all notes and words`}>
-                        {name}
+                        {name}<NotebookBadge name={name} />
                     </Link>
                     <button type="button" className="nb-menu__toggle" aria-haspopup="menu" aria-expanded={menuOpen}
                         aria-label="Notebook options" title="Notebook options" onClick={() => setMenuOpen((v) => !v)}>
@@ -50,6 +60,7 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
                 <button type="button" className="nb-menu__title" aria-haspopup="menu" aria-expanded={menuOpen}
                     title={name} onClick={() => setMenuOpen((v) => !v)}>
                     <span className="nb-menu__name">{name}</span>
+                    <NotebookBadge name={name} />
                     <i className={`chevron ${menuOpen ? 'up' : 'down'} icon`} aria-hidden="true"></i>
                 </button>
             )}
@@ -58,16 +69,39 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
                 <>
                     <div className="cb-menu__backdrop" onMouseDown={() => setMenuOpen(false)} />
                     <div className="cb-menu__list nb-menu__list" role="menu">
-                        <button role="menuitem" onClick={() => { setMenuOpen(false); setRenaming(true); }}>
+                        {offline.enabled && (progress && !progress.error ? (
+                            <button role="menuitem" disabled>
+                                <i className="spinner loading icon"></i>
+                                Downloading…{progress.total ? ` ${progress.done} of ${progress.total}` : ''}
+                            </button>
+                        ) : progress && progress.error ? (
+                            <button role="menuitem" disabled={noConnection} title={progress.error}
+                                onClick={() => { setMenuOpen(false); dismissDownloadError(`notebook:${name}`); downloadNotebook(name); }}>
+                                <i className="redo icon"></i>Download didn’t finish — try again
+                            </button>
+                        ) : downloaded ? (
+                            <button role="menuitem" title="Removes only this device’s copy; the notebook stays"
+                                onClick={() => { setMenuOpen(false); removeNotebookDownload(name); }}>
+                                <i className="arrow alternate circle down outline icon"></i>Remove download
+                            </button>
+                        ) : (
+                            <button role="menuitem" disabled={noConnection} title={needsConnection}
+                                onClick={() => { setMenuOpen(false); downloadNotebook(name); }}>
+                                <i className="arrow alternate circle down outline icon"></i>Download
+                            </button>
+                        ))}
+                        <button role="menuitem" disabled={noConnection} title={needsConnection}
+                            onClick={() => { setMenuOpen(false); setRenaming(true); }}>
                             <i className="pencil alternate icon"></i>Rename notebook
                         </button>
-                        <button role="menuitem" onClick={() => { setMenuOpen(false); setSharing(true); }}>
+                        <button role="menuitem" disabled={noConnection} title={needsConnection}
+                            onClick={() => { setMenuOpen(false); setSharing(true); }}>
                             <i className="paper plane outline icon"></i>Share notebook
                         </button>
                         <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/account'); }}>
                             <i className="clone outline icon"></i>All notebooks
                         </button>
-                        <button role="menuitem" className="cb-menu__danger"
+                        <button role="menuitem" className="cb-menu__danger" disabled={noConnection} title={needsConnection}
                             onClick={() => { setMenuOpen(false); setConfirmingDelete(true); }}>
                             <i className="trash alternate outline icon"></i>Delete notebook
                         </button>

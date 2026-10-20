@@ -10,6 +10,7 @@ import axios from 'axios';
 import { AppRoutes } from './client/routes.jsx';
 import { siteUrl } from './client/native/platform';
 import { installNativeAuth } from './client/native/auth';
+import { installOffline } from './client/offline/downloads';
 import reducers from './client/reducers';
 import './client/fonts.js';
 import './styles.css';
@@ -32,7 +33,8 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.response.use(null, async (error) => {
   const config = error.config;
   const connectionProblem = !error.response; // timeout or network error
-  if (config && connectionProblem && (config.method || 'get') === 'get' && !config.__retried) {
+  // (Not when we know we're offline: offline/apiCache.js already answered.)
+  if (config && connectionProblem && !error.isOffline && (config.method || 'get') === 'get' && !config.__retried) {
     config.__retried = true;
     await new Promise((resolve) => setTimeout(resolve, 1000));
     return axiosInstance(config);
@@ -48,10 +50,14 @@ const store = createStore(
   composeWithDevTools(applyMiddleware(withExtraArgument(axiosInstance)))
 );
 
-createRoot(document.getElementById('root')).render(
+// Inside the iPhone app: downloads and saved copies for offline use
+// (client/offline/). The first screen waits for the list of what's
+// downloaded — a quick read from the phone — so it shows the right notes.
+const render = () => createRoot(document.getElementById('root')).render(
   <Provider store={store}>
     <BrowserRouter>
       <AppRoutes />
     </BrowserRouter>
   </Provider>
 );
+installOffline(store, axiosInstance).catch(() => {}).finally(render);

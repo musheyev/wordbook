@@ -7,6 +7,7 @@ import {
 } from '../actions';
 import Definition from '../components/Definition';
 import { sanitizeCardHtml } from '../utils/sanitize';
+import { showApiImages } from '../offline/images';
 import { renderMathIn } from '../utils/math';
 import { itemPath, notebookPath } from '../utils/notebookPaths';
 import { timeAgo } from '../utils/timeAgo';
@@ -118,7 +119,8 @@ function InboxItem({ id, wordbooks, fetchInboxItem, moveInboxItem, removeInboxIt
     useEffect(() => { fetchWordbooks(); }, [fetchWordbooks]);
 
     // KaTeX math in a shared note is rendered after its HTML is on the page.
-    useEffect(() => { renderMathIn(contentRef.current); });
+    // In the iPhone app, a shared note's images load with the app's sign-in.
+    useEffect(() => { renderMathIn(contentRef.current); showApiImages(contentRef.current); });
 
     const onMove = async (wordbook) => {
         setMenuOpen(false);

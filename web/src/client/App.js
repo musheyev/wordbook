@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { connect } from 'react-redux';
 import Header from './components/Header';
 import NoteWindows from './components/NoteWindows';
+import OfflineBar from './components/OfflineBar';
 import PlayerPanel from './components/PlayerPanel';
 import { fetchCurrentUser, fetchInbox } from './actions';
 import { preloadRichTextEditor } from './components/LazyRichTextEditor';
@@ -76,6 +77,7 @@ const App = ({ auth, fetchCurrentUser, fetchInbox }) => {
         <div className={`app-shell${loggedIn ? '' : ' app-shell--norail'}`}>
             <Header />
             <main className="app-main">
+                <OfflineBar />
                 <Outlet />
             </main>
             {/* Floating note windows (desktop) render above everything. */}
