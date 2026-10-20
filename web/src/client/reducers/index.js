@@ -25,6 +25,7 @@ import allTagsReducer from './allTagsReducer';
 import noteWindowsReducer from './noteWindowsReducer';
 import { notebookSortReducer, wordbookUpdatedReducer, itemSortsReducer, itemColorsReducer } from './notebookSortReducers';
 import { myWordImagesReducer, imageSearchEnabledReducer } from './wordImageReducers';
+import offlineReducer from './offlineReducer';
 
 export default combineReducers({
     users: usersReducer,
@@ -57,5 +58,6 @@ export default combineReducers({
     wordbookUpdated: wordbookUpdatedReducer,
     myWordImages: myWordImagesReducer,
     imageSearchEnabled: imageSearchEnabledReducer,
+    offline: offlineReducer,
 
 });

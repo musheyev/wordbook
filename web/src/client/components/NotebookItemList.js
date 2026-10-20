@@ -12,6 +12,8 @@ import NotebookSearchBar, {
 import { SelectBar, SelectCheck } from './NotebookSelect';
 import ItemColorButton from './ItemColorButton';
 import { colorOf } from '../utils/itemColors';
+import { ItemBadge } from './DownloadBadge';
+import { DownloadSelectedButton } from './DownloadButtons';
 
 // A notebook's items as tappable rows (the page a notebook opens on, on
 // phones), in the notebook's sort (`items` comes sorted; Sort changes it).
@@ -56,7 +58,7 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
                     </span>
                 )}
                 <span className="nb-row__text">
-                    <span className="nb-row__title">{item.title}</span>
+                    <span className="nb-row__title">{item.title}<ItemBadge notebook={wordbook} item={item} /></span>
                     {after || (
                         <span className="nb-row__sub">{isCard ? (item.preview || 'Note') : 'Word'}</span>
                     )}
@@ -74,7 +76,10 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
             {ticking && (
                 <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={wordbook}
                     extra={selection.picked.size > 0 && (
-                        <ItemColorButton items={items.filter((item) => selection.isPicked(item))} />
+                        <>
+                            <ItemColorButton items={items.filter((item) => selection.isPicked(item))} />
+                            <DownloadSelectedButton notebook={wordbook} items={items.filter((item) => selection.isPicked(item))} />
+                        </>
                     )} />
             )}
         </>

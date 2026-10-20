@@ -26,6 +26,7 @@ import { DOMSerializer } from '@tiptap/pm/model';
 import ttsPlayer from '../utils/ttsPlayer';
 import { siteUrl, isNativeApp } from '../native/platform';
 import { apiFetch } from '../native/auth';
+import { apiImageUrl, isApiImage, loadsImagesItself } from '../offline/images';
 import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
 import katex from 'katex';
@@ -267,14 +268,20 @@ const RichTextEditor = ({ value, onChange }) => {
             Highlight.configure({ multicolor: true }),
             Indent,
             // Images are uploaded to S3; the note stores only the URL (no base64).
-            // Inside the iPhone app the picture is shown from the full address
-            // (client/native/platform.js), while the note keeps "/api/…".
+            // Inside the iPhone app our images ("/api/images/…") are loaded
+            // with the app's sign-in, or from the phone (offline/images.js);
+            // others are shown from the full address (client/native/platform.js).
+            // Either way the note keeps the address as it was.
             Image.extend({
                 addNodeView() {
-                    if (!isNativeApp()) return null;
+                    if (!isNativeApp() && !loadsImagesItself()) return null;
                     return ({ node }) => {
                         const img = document.createElement('img');
-                        img.src = siteUrl(node.attrs.src);
+                        if (isApiImage(node.attrs.src)) {
+                            apiImageUrl(node.attrs.src).then((url) => { if (url) img.src = url; });
+                        } else {
+                            img.src = siteUrl(node.attrs.src);
+                        }
                         if (node.attrs.alt) img.alt = node.attrs.alt;
                         if (node.attrs.title) img.title = node.attrs.title;
                         return { dom: img };

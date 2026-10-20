@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import { getCardContent, closeNoteWindow, focusNoteWindow } from '../actions';
 import { sanitizeCardHtml } from '../utils/sanitize';
+import { showApiImages } from '../offline/images';
 import { renderMathIn } from '../utils/math';
 import { cardChunks } from '../utils/tts';
 import ReadAloud from './ReadAloud';
@@ -46,7 +47,8 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
     }, [win.cardId]);
 
     // Render any KaTeX math once the content is in the DOM.
-    useEffect(() => { renderMathIn(bodyRef.current); }, [content]);
+    // In the iPhone app, also its images (offline/images.js).
+    useEffect(() => { renderMathIn(bodyRef.current); showApiImages(bodyRef.current, `card:${win.cardId}`); }, [content]);
 
     // Shared drag handler for both moving (by the title bar) and resizing (corner).
     const startInteraction = (mode) => (e) => {

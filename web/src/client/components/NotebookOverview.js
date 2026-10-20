@@ -16,6 +16,8 @@ import NotebookSearchBar, {
 import { SelectBar, SelectCheck } from './NotebookSelect';
 import CopyNotesButton from './CopyNotesButton';
 import NotebookMenu from './NotebookMenu';
+import { ItemBadge, MissingLine } from './DownloadBadge';
+import { DownloadSelectedButton } from './DownloadButtons';
 
 // A notebook's overview on desktop, shown when no item is open (the
 // notebook name in the rail leads here). Every note and word as a card:
@@ -48,7 +50,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const keyOf = (item) => `${item.type}:${item.id}`;
 
 export default function NotebookOverview({
-    name, items, search, sort, onSort, selection, playSelected, onAdd, getReadAloudChunks, lastKey, colors,
+    name, items, search, sort, onSort, selection, playSelected, onAdd, getReadAloudChunks, lastKey, colors, missing,
 }) {
     const dispatch = useDispatch();
     const rootRef = useRef(null);
@@ -98,7 +100,7 @@ export default function NotebookOverview({
                         <i className={`${isNote ? 'sticky note outline' : 'font'} icon`}></i>
                     </span>
                     <span className="nb-card__text">
-                        <span className="nb-card__title">{item.title}</span>
+                        <span className="nb-card__title">{item.title}<ItemBadge notebook={name} item={item} /></span>
                         {snippet ? <MatchSnippet snippet={snippet} where={where} /> : (
                             <>
                                 {isNote && item.preview && <span className="nb-card__preview">{item.preview}</span>}
@@ -193,7 +195,9 @@ export default function NotebookOverview({
                     </div>
                 </div>
                 <div className="nb-overview__actions">
-                    <button type="button" className="cb-btn cb-btn--accent" onClick={onAdd}>
+                    {/* No onAdd offline (iPhone app): adding needs a connection. */}
+                    <button type="button" className="cb-btn cb-btn--accent" onClick={onAdd || undefined} disabled={!onAdd}
+                        title={onAdd ? undefined : 'Adding needs a connection'}>
                         <i className="plus icon" aria-hidden="true"></i>Add
                     </button>
                     {!empty && (
@@ -217,7 +221,7 @@ export default function NotebookOverview({
                 </div>
             </div>
 
-            {empty && (
+            {empty && !missing && (
                 <div className="nb-overview__empty">
                     This notebook is empty. Click <strong>Add</strong> to look up a word or write a note.
                 </div>
@@ -243,6 +247,7 @@ export default function NotebookOverview({
                     extra={selection.picked.size > 0 && (
                         <>
                             <ItemColorButton items={items.filter((item) => selection.isPicked(item))} />
+                            <DownloadSelectedButton notebook={name} items={items.filter((item) => selection.isPicked(item))} />
                             {isAdmin && (
                                 <CopyNotesButton title={name} label="Copy selected"
                                     getItems={() => items.filter((item) => selection.isPicked(item))} />
@@ -253,6 +258,7 @@ export default function NotebookOverview({
 
             <NotebookSearchStatus search={search} />
             {grid}
+            <MissingLine text={missing} />
         </div>
     );
 }

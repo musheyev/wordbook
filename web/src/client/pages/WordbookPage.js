@@ -16,14 +16,14 @@ import NotebookOverview from '../components/NotebookOverview';
 import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
 import { itemPath, notebookPath } from '../utils/notebookPaths';
-import { cardChunks } from '../utils/tts';
+import { cardChunks, wordTitleChunk } from '../utils/tts';
 import { highlightFirstMatch } from '../utils/highlightMatch';
 import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
 import useNotebookSearch from '../utils/useNotebookSearch';
 import { keyOf } from '../components/NotebookSelect';
 import { getLastVisited, setLastVisited } from '../utils/lastVisited';
+import { MissingLine, useAvailableItems, useIsOffline } from '../components/DownloadBadge';
 
-const HEBREW = /[֐-׿]/;
 
 // A notebook. With no item in the URL it shows the notebook: on phones its
 // item list; on desktop (where the list also lives in the left rail) an
@@ -85,10 +85,15 @@ function WordbookPage({
     // wrong, like "the open item is gone".
     const haveList = wordbookWordsFor === name;
     const sort = (itemSorts && itemSorts[name]) || DEFAULT_ITEM_SORT;
-    const items = useMemo(
+    const allItems = useMemo(
         () => (haveList ? sortItems(wordbookWords || [], sort, itemColors) : []),
         [haveList, wordbookWords, sort, sort === 'color' ? itemColors : null],
     );
+    // In the iPhone app with no connection, only what's downloaded; `missing`
+    // says how many others there are ("12 more notes aren't downloaded").
+    // Everything below — the list, Play all, next/previous — uses `items`.
+    const { items, missing } = useAvailableItems(name, allItems);
+    const noConnection = useIsOffline();
     const setSort = (next) => dispatch(saveItemSort(name, next));
     const search = useNotebookSearch(name, items);
     // What the search/filter shows (all items when there's none).
@@ -152,17 +157,14 @@ function WordbookPage({
                 const content = await dispatch(getCardContent(item.id));
                 cardChunks({ card_id: item.id, content }).forEach((c, i) => out.push({ ...c, title: i === 0 ? item.title : undefined }));
             } else {
-                out.push({
-                    text: item.title, lang: HEBREW.test(item.title) ? 'he-IL' : 'en-US', title: item.title,
-                    item: `wordtitle:${item.id}`,
-                });
+                out.push(wordTitleChunk(item));
             }
         }
         return out;
     };
 
     // Phones (the desktop overview shows its own, under its toolbar).
-    const emptyMessage = listReady && items.length === 0 ? (
+    const emptyMessage = listReady && items.length === 0 && !missing ? (
         <div className="cb-detail__empty cb-detail__empty--phone">
             This notebook is empty. Tap Add to look up a word or write a note.
         </div>
@@ -211,7 +213,8 @@ function WordbookPage({
                             <i className="chevron left icon" aria-hidden="true"></i>
                         </Link>
                         <NotebookMenu name={name} />
-                        <button type="button" className="cb-mbar__add" onClick={() => setAddOpen(true)}>
+                        <button type="button" className="cb-mbar__add" onClick={() => setAddOpen(true)}
+                            disabled={noConnection} title={noConnection ? 'Adding needs a connection' : undefined}>
                             <i className="plus icon" aria-hidden="true"></i>Add
                         </button>
                         {items.length > 0 && (
@@ -231,11 +234,12 @@ function WordbookPage({
                     )}
                 </div>
                 {emptyMessage}
+                {listReady && <div className="nb-missing--phone"><MissingLine text={missing} /></div>}
                 {listReady ? (
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
                         selection={selection} playSelected={() => notebookChunks(pickedItems)}
-                        lastKey={getLastVisited(name)} colors={itemColors}
-                        onAdd={() => setAddOpen(true)} getReadAloudChunks={notebookChunks} />
+                        lastKey={getLastVisited(name)} colors={itemColors} missing={missing}
+                        onAdd={noConnection ? null : () => setAddOpen(true)} getReadAloudChunks={notebookChunks} />
                 ) : (
                     <div className="nb-overview-loading">
                         {loadError

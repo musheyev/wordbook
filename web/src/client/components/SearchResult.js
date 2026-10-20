@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { connect } from 'react-redux';
+import { connect, useSelector } from 'react-redux';
 import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote, fetchWordData, fetchCardData, requestErrorMessage } from '../actions';
 import Definition from './Definition';
 import Spinner from './Spinner';
@@ -12,6 +12,9 @@ import ReadAloud from './ReadAloud';
 import RichTextEditor from './LazyRichTextEditor';
 import ItemTags from './ItemTags';
 import { sanitizeCardHtml } from '../utils/sanitize';
+import { showApiImages } from '../offline/images';
+import { useIsOffline } from './DownloadBadge';
+import { NoteDownloadButton } from './DownloadButtons';
 import { renderMathIn } from '../utils/math';
 import { htmlToChunks, htmlToPlainText, textToChunks, cardChunks, tagItem } from '../utils/tts';
 import TranslateMenu from './TranslateMenu';
@@ -33,6 +36,9 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     fetchSourceVotes, setSourceVote }) {
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    // Offline (iPhone app, no connection): editing and deleting need one.
+    const noConnection = useIsOffline();
+    const currentWordbook = useSelector((state) => state.currentWordbook);
     const [sharing, setSharing] = useState(false);
     const [editingNote, setEditingNote] = useState(false);
     const [noteDraft, setNoteDraft] = useState('');
@@ -114,7 +120,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
 
     // Render KaTeX math inside the word note after it's in the DOM.
     const noteRef = React.useRef(null);
-    React.useEffect(() => { renderMathIn(noteRef.current); });
+    React.useEffect(() => { renderMathIn(noteRef.current); showApiImages(noteRef.current, `word:${currentWord}`); });
 
     // Saving the note waits for the server: on failure the editor stays open
     // with the text and a "Try again", and the text is kept on this device
@@ -152,10 +158,12 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     };
     const onDeleteNote = () => { deleteWordNote(currentWord); setEditingNote(false); };
 
-    // Render any KaTeX math in the card body after the HTML is in the DOM.
+    // Render any KaTeX math in the card body after the HTML is in the DOM,
+    // and, in the iPhone app, load its images (offline/images.js).
     const cardRef = React.useRef(null);
     React.useEffect(() => {
         renderMathIn(cardRef.current);
+        if (currentCard) showApiImages(cardRef.current, `card:${currentCard.card_id}`);
     });
 
     // Reset the delete confirmation and note editor whenever the selection changes.
@@ -241,15 +249,19 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     <div className="card-header-actions">
                         {/* Edit / Delete live up here (as a toolbar) so they stay
                             visible no matter how long the card is. */}
-                        <button className="card-tool" title="Edit note" aria-label="Edit note"
+                        <button className="card-tool" title={noConnection ? 'Editing needs a connection' : 'Edit note'}
+                            aria-label="Edit note" disabled={noConnection}
                             onClick={() => openCardEditor({ mode: 'edit', card: currentCard })}>
                             <i className="edit icon"></i>
                         </button>
-                        <button className="card-tool card-tool--danger" title="Delete note" aria-label="Delete note"
+                        <button className="card-tool card-tool--danger" title={noConnection ? 'Needs a connection' : 'Delete note'}
+                            aria-label="Delete note" disabled={noConnection}
                             onClick={() => setConfirmingDelete(true)}>
                             <i className="trash alternate outline icon"></i>
                         </button>
                         <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title} />
+                        <NoteDownloadButton notebook={currentWordbook}
+                            item={{ type: 'card', id: currentCard.card_id, title: currentCard.title }} />
                         {addToWordbookControl}
                         {shareControl}
                         <ItemColorButton items={[{ type: 'card', id: currentCard.card_id }]} label={null} className="card-tool" />
