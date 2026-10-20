@@ -2956,15 +2956,21 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
    Image curation: word page images, admin area, admin Images page
    =========================================================================== */
 
-/* --- Admin navigation: a group in the desktop rail, one tab on phones --- */
+/* --- Admin navigation: a group in the desktop rail; on phones, in More --- */
 .nav-group-label {
   font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--cb-ink-3); padding: 12px 12px 4px;
 }
-.nav-admin-tab { display: none; }
+
+/* --- Phone tab bar: five tabs at most. Tags, Admin and Log out move into
+   the More page (pages/MorePage.js); More shows only on phones. --- */
+.nav-more-tab { display: none; }
 @media (max-width: 768px) {
-  .nav-admin-group { display: none; }
-  .nav-admin-tab { display: flex; }
+  .nav-admin-group,
+  .nav-phone-more,
+  .nav-logout,
+  .nav-desk-only { display: none; }
+  .nav-more-tab { display: flex; }
 }
 
 .admin-tag {
@@ -3120,6 +3126,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .admin-hub__text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .admin-hub__label { font-weight: 600; }
 .admin-hub__hint { font-size: 0.82rem; color: var(--cb-ink-2); }
+.more-logout { width: 100%; background: none; border: none; border-bottom: 1px solid var(--cb-border); font: inherit; text-align: left; cursor: pointer; }
 .admin-hub__chev { margin: 0 !important; color: var(--cb-ink-3); font-size: 0.8rem !important; }
 
 /* --- Admin › Images --- */

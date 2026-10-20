@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import requireAdmin from '../components/hocs/requireAdmin';
 import { ADMIN_PAGES } from '../utils/adminPages';
 
-// Admin hub (/admin): the phone tab bar has a single Admin tab that opens this
-// list of admin pages (ADMIN_PAGES, in utils/adminPages.js). On desktop the
-// rail lists the same pages directly.
+// Admin hub (/admin): on phones, More's Admin row (pages/MorePage.js) opens
+// this list of admin pages (ADMIN_PAGES, in utils/adminPages.js). On desktop
+// the rail lists the same pages directly.
 
 function AdminPage() {
     return (

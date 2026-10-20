@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { connect } from 'react-redux';
 import { addWordbook } from '../actions';
+import { site } from '../utils/site';
 
 // New-user onboarding shown on the Words page when the user has no cardbooks
 // yet. Three quick steps; creating the first cardbook (step 2) makes this panel
@@ -19,7 +20,7 @@ const GetStarted = ({ onLookUp, addWordbook }) => {
     return (
         <div className="cb-onboard">
             <div className="cb-onboard__head">
-                <div className="cb-onboard__title">Welcome to Remembrancer</div>
+                <div className="cb-onboard__title">Welcome to {site.name}</div>
                 <div className="cb-onboard__sub">Three quick steps to get going.</div>
             </div>
 

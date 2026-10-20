@@ -6,7 +6,9 @@ export default (ChildComponent) => {
     class RequireAuth extends Component {
         render() {
             switch (this.props.auth) {
+                // false: not signed in; '': just logged out (authReducer).
                 case false:
+                case '':
                     return <Navigate to="/" replace />
                 case null:
                     return <div>Loading...</div>
