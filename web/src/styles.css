@@ -3514,3 +3514,8 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
   border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
   font-size: 1rem; color: var(--cb-ink); background: var(--cb-bg);
 }
+.account-section__why {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 10px 12px; background: var(--cb-accent-weak); border-radius: var(--cb-radius-sm); color: var(--cb-ink);
+}
+.account-section__why i.icon { margin: 1px 0 0; color: var(--cb-accent); }
