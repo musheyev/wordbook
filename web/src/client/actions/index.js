@@ -3,6 +3,9 @@ import axios from 'axios';
 import { isNativeApp } from '../native/platform';
 import { nativeSignOut } from '../native/auth';
 import { clearOfflineData, itemDeleted, notebookDeleted, notebookRenamed } from '../offline/downloads';
+import {
+  isQueueing, queueCardCreate, queueCardUpdate, queueItemColors, queueItemTags,
+} from '../offline/outbox';
 
 export const FETCH_USERS = 'fetch_users';
 export const fetchUsers = () => async (dispatch, getState, api) => {
@@ -234,7 +237,10 @@ export const fetchCardData = (cardId) => async (dispatch, getState, api) => {
 // Create a new card and add it to the given wordbooks in one request.
 // Resolves to the new card ({ card_id, title, content }) so the caller can open it.
 export const createCard = (title, content, wordbooks = []) => async (dispatch, getState, api) => {
-  const res = await api.post('/wordbook/card/create', { title, content, wordbooks }, JSON_HEADERS);
+  // Offline in the iPhone app: kept on the phone and sent later (offline/outbox.js).
+  const res = isQueueing()
+    ? { data: await queueCardCreate(title, content, wordbooks) }
+    : await api.post('/wordbook/card/create', { title, content, wordbooks }, JSON_HEADERS);
   dispatch(closeCardEditor());
 
   const currentWordbook = getState().currentWordbook;
@@ -247,7 +253,10 @@ export const createCard = (title, content, wordbooks = []) => async (dispatch, g
 // Edit an existing card. Because a card is stored once, this updates it in
 // every wordbook it belongs to.
 export const updateCard = (cardId, title, content) => async (dispatch, getState, api) => {
-  const res = await api.post('/wordbook/card/update', { card_id: cardId, title, content }, JSON_HEADERS);
+  // Offline in the iPhone app: kept on the phone and sent later (offline/outbox.js).
+  const res = isQueueing()
+    ? { data: await queueCardUpdate(cardId, title, content) }
+    : await api.post('/wordbook/card/update', { card_id: cardId, title, content }, JSON_HEADERS);
 
   // Refresh the open card viewer with the new content.
   dispatch({ type: FETCH_CARD_DATA, payload: res.data });
@@ -587,6 +596,7 @@ export const saveItemColors = (items, color) => async (dispatch, getState, api) 
     if (color) next[k] = color; else delete next[k];
   });
   dispatch({ type: SET_ITEM_COLORS, payload: next });
+  if (isQueueing()) { await queueItemColors(items, color, next); return; } // sent later (offline/outbox.js)
   try {
     await api.post('/wordbook/item-colors',
       { items: items.map(({ type, id }) => ({ type, id })), color: color || null }, JSON_HEADERS);
@@ -1105,6 +1115,11 @@ export const fetchItemTags = (type, id) => async (dispatch, getState, api) => {
 
 // Replace an item's tags (title is stored so the tag browser can label it).
 export const setItemTags = (type, id, tags, title) => async (dispatch, getState, api) => {
+  if (isQueueing()) { // sent later (offline/outbox.js)
+    await queueItemTags(type, id, tags, title);
+    dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags }, saved: true });
+    return;
+  }
   const res = await api.post('/tags', { type, id, tags, title }, JSON_HEADERS);
   dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: (res.data && res.data.tags) || [] }, saved: true });
 };

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { lookupWord, addWordbookWord, openCardEditor } from '../actions';
+import { useIsOffline } from './DownloadBadge';
 import { itemPath } from '../utils/notebookPaths';
 
 // First definition of a lookup result as plain text (definitions are HTML).
@@ -23,6 +24,7 @@ function AddItemSheet({ open, wordbook, onClose, wordbookWords, lookupWord, addW
     const [status, setStatus] = useState('idle'); // idle | loading | done | error
     const [result, setResult] = useState(null);   // { word, definition }
     const [adding, setAdding] = useState(false);
+    const noConnection = useIsOffline();
 
     useEffect(() => {
         if (open) {
@@ -99,6 +101,12 @@ function AddItemSheet({ open, wordbook, onClose, wordbookWords, lookupWord, addW
                     <i className="sticky note outline icon"></i>Write a note
                 </button>
 
+                {/* Offline (iPhone app): a note is kept and sent later
+                    (offline/outbox.js); looking up a word needs the dictionary. */}
+                {noConnection ? (
+                    <div className="add-sheet__hint">Offline: you can write a note now. Looking up words needs a connection.</div>
+                ) : (
+                <>
                 <div className="add-sheet__or"><span>or look up a word</span></div>
 
                 <form className="cb-search cb-search--sheet" onSubmit={onLookup}>
@@ -110,6 +118,8 @@ function AddItemSheet({ open, wordbook, onClose, wordbookWords, lookupWord, addW
                         <i className="arrow right icon" aria-hidden="true"></i>
                     </button>
                 </form>
+                </>
+                )}
 
                 <div className="add-sheet__result" aria-live="polite">
                     {status === 'loading' && <div className="add-sheet__hint">Looking up…</div>}

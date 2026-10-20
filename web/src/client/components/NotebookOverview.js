@@ -195,9 +195,7 @@ export default function NotebookOverview({
                     </div>
                 </div>
                 <div className="nb-overview__actions">
-                    {/* No onAdd offline (iPhone app): adding needs a connection. */}
-                    <button type="button" className="cb-btn cb-btn--accent" onClick={onAdd || undefined} disabled={!onAdd}
-                        title={onAdd ? undefined : 'Adding needs a connection'}>
+                    <button type="button" className="cb-btn cb-btn--accent" onClick={onAdd}>
                         <i className="plus icon" aria-hidden="true"></i>Add
                     </button>
                     {!empty && (

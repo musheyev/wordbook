@@ -72,16 +72,20 @@ Done:
    - Known: iOS may clear an app's web storage when the phone is very short
      of space (the app asks it not to); a download is easy to redo.
 
+9. Offline editing (`web/src/client/offline/outbox.js`): with no connection
+   you can edit downloaded notes, write new notes, and change colours and
+   tags. Changes show at once (↻ on the note, "N changes waiting to be sent"
+   in the Offline bar) and are sent in order when the connection returns.
+   **The latest change wins**: if the note was saved elsewhere after the
+   offline edit, that version is kept; a notice says so either way. Deleting,
+   renaming notebooks and looking up words still need a connection.
+   - **Remove all downloads** and the space downloads take: bottom of My
+     Notebooks. Changes not yet sent are kept.
+
 Next:
 6. Background audio: reading continues with the screen locked.
-9. Offline editing: changes queued and sent when back online; **the latest
-   change wins** (with a notice when it overwrote a newer change).
 10. Icon and launch screen, keyboard (hide the ^ ˅ ✓ bar), TestFlight.
 
 Later:
-- Managing space on the phone: **Remove all downloads from this device**
-  (Remove download per notebook/note is done). It deletes only the copies
-  kept on the phone (notes, images, audio); the notebooks themselves stay in
-  the account, untouched, and can be downloaded again.
 - Share → Remembrancer (add text from other apps as a note), notifications,
   App Store, Android.
