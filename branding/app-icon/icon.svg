@@ -1,0 +1,12 @@
+<!-- Remembrancer app icon, design "U5": a rounded white bookmark with two
+     sound waves, on brand blue (#2563eb, the website's accent). 130x130 grid.
+     iOS rounds the corners itself, so the app icon PNG is a full square; this
+     preview shows it rounded. PNGs are drawn by make-icons.swift. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 130" width="1024" height="1024">
+  <rect width="130" height="130" rx="29" fill="#2563eb"/>
+  <path d="M31 24 H69 Q78 24 78 33 V99 Q78 108 71 103 L50 88 L29 103 Q22 108 22 99 V33 Q22 24 31 24 Z" fill="#fff"/>
+  <g fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round">
+    <path d="M89 51 Q97 65 89 79"/>
+    <path d="M101 40 Q115 65 101 90" opacity="0.7"/>
+  </g>
+</svg>
