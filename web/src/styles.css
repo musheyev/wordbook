@@ -3519,3 +3519,18 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
   padding: 10px 12px; background: var(--cb-accent-weak); border-radius: var(--cb-radius-sm); color: var(--cb-ink);
 }
 .account-section__why i.icon { margin: 1px 0 0; color: var(--cb-accent); }
+
+/* Account deletion grace period (components/PendingDeletion.js). */
+.pending-deletion__screen { display: flex; justify-content: center; padding: 48px 16px; }
+.pending-deletion__screen .pending-deletion {
+  max-width: 520px; padding: 24px; border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+  background: var(--cb-surface-2); color: var(--cb-ink); line-height: 1.5;
+}
+.pending-deletion__title { margin: 0 0 12px; font-size: 1.25rem; }
+.pending-deletion__actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.pending-deletion--kept, .pending-deletion--notice {
+  display: flex; align-items: center; gap: 10px; margin: 12px auto; max-width: 720px; padding: 10px 14px;
+  border-radius: var(--cb-radius-sm); background: var(--cb-accent-weak); color: var(--cb-ink); font-size: 0.95rem;
+}
+.pending-deletion--kept span, .pending-deletion--notice span { flex: 1; }
+.pending-deletion--kept i.icon, .pending-deletion--notice i.icon { margin: 0; color: var(--cb-accent); }

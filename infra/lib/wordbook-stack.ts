@@ -7,6 +7,8 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as eventsTargets from 'aws-cdk-lib/aws-events-targets';
 import * as certmgr from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
@@ -114,23 +116,27 @@ export class WordbookStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
+    // The api/ folder, packaged once and used by both the API and the nightly
+    // account clean-up (section 1b).
+    const apiCode = lambda.Code.fromAsset(apiRoot, {
+      exclude: [
+        'node_modules/@aws-sdk/**',
+        'node_modules/.cache/**',
+        '.env',
+        '.env.example',
+        '.git/**',
+        'tests/**',
+        '.vscode/**',
+        'Dockerfile',
+        '*.md',
+        'example_DynamoDb_bulk_delete.js',
+      ],
+    });
+
     const apiFn = new lambda.Function(this, 'ApiFunction', {
       runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'lambda.handler',
-      code: lambda.Code.fromAsset(apiRoot, {
-        exclude: [
-          'node_modules/@aws-sdk/**',
-          'node_modules/.cache/**',
-          '.env',
-          '.env.example',
-          '.git/**',
-          'tests/**',
-          '.vscode/**',
-          'Dockerfile',
-          '*.md',
-          'example_DynamoDb_bulk_delete.js',
-        ],
-      }),
+      code: apiCode,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
@@ -188,15 +194,57 @@ export class WordbookStack extends cdk.Stack {
     if (userPoolId) {
       apiFn.addToRolePolicy(
         new iam.PolicyStatement({
-          // AdminDeleteUser: a user deleting their own account (api/account.js).
+          // AdminUserGlobalSignOut: asking to delete your account signs you out
+          // on every device (api/account.js scheduleDeletion).
           actions: ['cognito-idp:ListUsers', 'cognito-idp:ListUsersInGroup', 'cognito-idp:AdminGetUser',
-            'cognito-idp:AdminDeleteUser'],
+            'cognito-idp:AdminUserGlobalSignOut'],
           resources: [
             `arn:aws:cognito-idp:${cognitoRegion}:${this.account}:userpool/${userPoolId}`,
           ],
         })
       );
     }
+
+    // =========================================================================
+    // 1b. NIGHTLY ACCOUNT CLEAN-UP — deleting an account waits 7 days (a grace
+    //     period, so nothing is lost by accident; api/account.js). Once a day
+    //     AWS EventBridge (a scheduler) runs this small function, which deletes
+    //     the accounts whose 7 days are up: their data, then their Cognito
+    //     user. One that fails is tried again the next night. Its logs are in
+    //     CloudWatch under this function's name.
+    // =========================================================================
+    const purgeFn = new lambda.Function(this, 'AccountPurgeFunction', {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      handler: 'purge-accounts.handler',
+      code: apiCode,
+      timeout: cdk.Duration.minutes(5),
+      memorySize: 256,
+      environment: {
+        COGNITO_REGION: process.env.COGNITO_REGION ?? 'us-east-1',
+        COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID ?? '',
+      },
+    });
+    purgeFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:Scan', 'dynamodb:UpdateItem',
+          'dynamodb:DeleteItem', 'dynamodb:BatchWriteItem'],
+        resources: tableArns,
+      })
+    );
+    if (userPoolId) {
+      purgeFn.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ['cognito-idp:AdminDeleteUser'],
+          resources: [`arn:aws:cognito-idp:${cognitoRegion}:${this.account}:userpool/${userPoolId}`],
+        })
+      );
+    }
+    // Every day at 07:00 UTC: 3 a.m. in New York in summer, 2 a.m. in winter.
+    new events.Rule(this, 'AccountPurgeSchedule', {
+      description: 'Delete accounts whose 7-day deletion grace period is over (api/purge-accounts.js)',
+      schedule: events.Schedule.cron({ minute: '0', hour: '7' }),
+      targets: [new eventsTargets.LambdaFunction(purgeFn, { retryAttempts: 2 })],
+    });
 
     // =========================================================================
     // 2. HTTP API GATEWAY — the front door to the Lambda.

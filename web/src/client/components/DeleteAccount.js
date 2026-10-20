@@ -22,9 +22,10 @@ import { reauthUrl } from '../utils/cognito';
 //        website     Cognito's "sign out, then sign in" page (reauthUrl),
 //                    which returns here with ?delete_code=…&state=…; the
 //                    state, kept in sessionStorage, shows it's our request
-//   3. The server checks that sign-in is this same account, then deletes
-//      everything (api/account.js), and the user is signed out, back on the
-//      start page.
+//   3. The server checks that sign-in is this same account, then marks the
+//      account to be deleted in 7 days and signs it out everywhere
+//      (api/account.js); here too, back on the start page, which shows the
+//      date. Signing in before then offers to keep it (PendingDeletion.js).
 // With no connection (iPhone app) the button is greyed out.
 const CONFIRM_WORD = 'DELETE';
 const PENDING_KEY = 'delete-account-state';
@@ -58,7 +59,7 @@ export default function DeleteAccount() {
         setBusy('deleting');
         setError('');
         try {
-            await dispatch(deleteAccount(username, proof));
+            await dispatch(deleteAccount(username, proof)); // signs out; the start page shows the date
             navigate('/', { replace: true });
         } catch (err) {
             setError(err.message);
@@ -129,14 +130,19 @@ export default function DeleteAccount() {
                         <h3 className="cb-dialog__title" id="delete-account-title">Delete your account?</h3>
                         {busy === 'deleting' ? (
                             <p className="cb-dialog__msg">
-                                <i className="spinner loading icon" aria-hidden="true"></i>Deleting your account…
+                                <i className="spinner loading icon" aria-hidden="true"></i>Scheduling the deletion…
                             </p>
                         ) : (
                             <>
                                 <p className="cb-dialog__msg">
-                                    This permanently deletes the account <strong>{username}</strong> and everything in
-                                    it: your notebooks, notes, words, tags, images, history and settings. Notes you
-                                    shared stay with the people you shared them with. This can’t be undone.
+                                    The account <strong>{username}</strong> and everything in it will be permanently
+                                    deleted: your notebooks, notes, words, tags, images, history and settings. Notes
+                                    you shared stay with the people you shared them with.
+                                </p>
+                                <p className="cb-dialog__msg">
+                                    It happens <strong>7 days</strong> after you confirm, and you’ll be signed out on
+                                    all your devices. If you change your mind, sign in before then and keep your
+                                    account. After that, it can’t be undone.
                                 </p>
                                 <p className="cb-dialog__msg account-section__why">
                                     <i className="lock icon" aria-hidden="true"></i>

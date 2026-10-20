@@ -168,7 +168,11 @@ authRouter.get("/current_user", function (req, res) {
                 // the token after the user re-logs in once added to the group).
                 const groups = decodedToken["cognito:groups"] || [];
                 const isAdmin = Array.isArray(groups) && groups.includes("admins");
-                res.json({ username: userName || "", isAdmin });
+                // An account waiting out its deletion grace period says when
+                // (account.js): the screen then asks to keep it or not.
+                return account.deletionDueAt(userName)
+                    .catch(() => null)
+                    .then((deletionDueAt) => res.json({ username: userName || "", isAdmin, deletionDueAt }));
             })
             .catch((err) => {
                 if (err.response != null && err.response.data != null) {
@@ -227,9 +231,11 @@ authRouter.get("/logout", async function (req, res) {
 
 
 /**
- * POST /auth/delete-account { username, code, code_verifier?, via } — delete
- * the signed-in user's account and everything stored for them (account.js),
- * then sign them out.
+ * POST /auth/delete-account { username, code, code_verifier?, via } — ask for
+ * the signed-in user's account to be deleted in 7 days (account.js
+ * scheduleDeletion: marked, and signed out on every device), then sign out
+ * here. A nightly job deletes it when the day comes; signing in before then
+ * offers to keep it (POST /auth/keep-account).
  *
  * Deleting needs a fresh sign-in, with the password, just before: being
  * signed in isn't enough, since someone else might be holding an unlocked
@@ -242,9 +248,9 @@ authRouter.get("/logout", async function (req, res) {
  * The code is traded for tokens here, and only if that sign-in is the same
  * account as the signed-in one (and `username`) is anything deleted.
  *
- * Answers { deleted: { table: rows } }; 401 not signed in, 400 missing or
- * mismatched details, 403 signed in again as someone else, 500 if deleting
- * failed (calling again is safe).
+ * Answers { deletion_due_at }; 401 not signed in, 400 missing or mismatched
+ * details, 403 signed in again as someone else, 500 if it failed (calling
+ * again is safe, and keeps the first date).
  */
 authRouter.post("/delete-account", async function (req, res) {
     let userName;
@@ -278,13 +284,34 @@ authRouter.post("/delete-account", async function (req, res) {
     }
 
     try {
+        const dueAt = await account.scheduleDeletion(userName);
         await session.revokeRefreshToken(req.cookies[session.REFRESH_COOKIE]);
-        const deleted = await account.deleteAccount(userName);
         session.clearSessionCookies(res);
-        res.json({ deleted });
+        res.json({ deletion_due_at: dueAt });
     } catch (err) {
-        log(`Account deletion failed for ${userName}: ${err.name}: ${err.message}`);
-        res.status(500).json({ error: "Your account couldn't be fully deleted. Please try again." });
+        log(`Scheduling account deletion failed for ${userName}: ${err.name}: ${err.message}`);
+        res.status(500).json({ error: "Your account couldn't be scheduled for deletion. Please try again." });
+    }
+});
+
+/**
+ * POST /auth/keep-account — the signed-in user, whose account is waiting to
+ * be deleted, keeps it (account.js cancelDeletion). Signing in is the proof:
+ * the grace period signed them out everywhere, so they've just signed in.
+ */
+authRouter.post("/keep-account", async function (req, res) {
+    let userName;
+    try {
+        userName = (await decodeToken(req.cookies && req.cookies[session.ID_COOKIE]))["cognito:username"];
+    } catch (err) {
+        return res.status(401).json({ error: "Please log in again." });
+    }
+    try {
+        await account.cancelDeletion(userName);
+        res.json({ kept: true });
+    } catch (err) {
+        log(`Keeping account failed for ${userName}: ${err.name}`);
+        res.status(500).json({ error: "Couldn't keep your account. Please try again." });
     }
 });
 

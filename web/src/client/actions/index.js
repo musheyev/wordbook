@@ -2,6 +2,7 @@ import shrinkImage from '../utils/shrinkImage';
 import axios from 'axios';
 import { isNativeApp } from '../native/platform';
 import { nativeSignOut } from '../native/auth';
+import { rememberScheduledNotice } from '../utils/deletionDate';
 import { clearOfflineData, itemDeleted, notebookDeleted, notebookRenamed } from '../offline/downloads';
 import {
   isQueueing, queueCardCreate, queueCardUpdate, queueItemColors, queueItemTags,
@@ -379,22 +380,38 @@ export const logoutCurrentUser = () => async (dispatch, getState, api) => {
 
 };
 
-// Delete the signed-in account and everything stored for it
-// (api/account.js), then sign out here: the iPhone app forgets its tokens and
-// its downloads. `username` must be the signed-in user's name, and `proof`
-// the fresh sign-in that confirms it ({ code, code_verifier?, via: 'app' |
-// 'web' }; components/DeleteAccount.js); the server checks both. Throws with
-// a message to show if the server refused or couldn't do it.
+// Ask for the signed-in account to be deleted, 7 days from now
+// (api/account.js: marked, and signed out on every device), then sign out
+// here: the iPhone app forgets its tokens and its downloads. `username` must
+// be the signed-in user's name, and `proof` the fresh sign-in that confirms it
+// ({ code, code_verifier?, via: 'app' | 'web' }; components/DeleteAccount.js);
+// the server checks both. Returns when it will be deleted (ISO time); throws
+// with a message to show if the server refused or couldn't do it.
 export const deleteAccount = (username, proof) => async (dispatch, getState, api) => {
+  let dueAt;
   try {
-    await api.post('/auth/delete-account', { username, ...proof }, JSON_HEADERS);
+    dueAt = (await api.post('/auth/delete-account', { username, ...proof }, JSON_HEADERS)).data.deletion_due_at;
   } catch (err) {
-    throw new Error(requestErrorMessage(err, "Your account couldn't be deleted. Please try again."));
+    throw new Error(requestErrorMessage(err, "Your account couldn't be scheduled for deletion. Please try again."));
   }
+  rememberScheduledNotice(dueAt); // the start page says when (before it's shown)
   if (isNativeApp()) await nativeSignOut();
   await clearOfflineData({ send: false });
   dispatch({ type: SET_CURRENT_WORD, payload: '' });
   dispatch({ type: LOGOUT_CURRENT_USER });
+  return dueAt;
+};
+
+// Keep the account: it was waiting to be deleted, and the user signed in
+// again and chose to keep it (components/PendingDeletion.js).
+export const ACCOUNT_KEPT = 'account_kept';
+export const keepAccount = () => async (dispatch, getState, api) => {
+  try {
+    await api.post('/auth/keep-account', {}, JSON_HEADERS);
+  } catch (err) {
+    throw new Error(requestErrorMessage(err, "Couldn't keep your account. Please try again."));
+  }
+  dispatch({ type: ACCOUNT_KEPT });
 };
 
 export const FETCH_ADMINS = 'fetch_admins';
