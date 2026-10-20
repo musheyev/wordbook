@@ -134,6 +134,10 @@ router.get("/:name", async (req, res) => {
         res.set("Content-Type", img.contentType);
         res.set("Cache-Control", "public, max-age=31536000, immutable");
         res.set("X-Content-Type-Options", "nosniff");
+        // helmet() (app.js) says "same-origin" by default, which stops the
+        // iPhone app (its pages come from capacitor://localhost) from showing
+        // these public pictures in an <img>. They're public, so any site may.
+        res.set("Cross-Origin-Resource-Policy", "cross-origin");
         res.send(img.buffer);
     } catch (err) {
         log("word image serve error: " + err);
