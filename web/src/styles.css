@@ -3499,3 +3499,18 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
   /* Editing a note covers the screen; its toolbar starts below the status bar. */
   html.is-native-app .cb-detail--editing { padding-top: var(--safe-top); }
 }
+
+/* Account section on My Notebooks: who's signed in, and Delete account. */
+.account-section {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin: 12px 0 24px; padding: 12px 14px;
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+}
+.account-section__sub { display: block; color: var(--cb-ink-2); font-size: 0.85rem; }
+.account-section__delete { color: var(--cb-danger); }
+.account-section__confirm { display: block; margin: 0 0 16px; font-size: 0.9rem; color: var(--cb-ink-2); }
+.account-section__confirm input {
+  display: block; width: 100%; margin-top: 6px; padding: 8px 10px;
+  border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  font-size: 1rem; color: var(--cb-ink); background: var(--cb-bg);
+}

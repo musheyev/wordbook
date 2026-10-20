@@ -379,6 +379,22 @@ export const logoutCurrentUser = () => async (dispatch, getState, api) => {
 
 };
 
+// Delete the signed-in account and everything stored for it
+// (api/account.js), then sign out here: the iPhone app forgets its tokens and
+// its downloads. `username` must be the signed-in user's name (the server
+// checks it). Throws with a message to show if the server couldn't do it.
+export const deleteAccount = (username) => async (dispatch, getState, api) => {
+  try {
+    await api.post('/auth/delete-account', { username }, JSON_HEADERS);
+  } catch (err) {
+    throw new Error(requestErrorMessage(err, "Your account couldn't be deleted. Please try again."));
+  }
+  if (isNativeApp()) await nativeSignOut();
+  await clearOfflineData({ send: false });
+  dispatch({ type: SET_CURRENT_WORD, payload: '' });
+  dispatch({ type: LOGOUT_CURRENT_USER });
+};
+
 export const FETCH_ADMINS = 'fetch_admins';
 export const fetchAdmins = () => async (dispatch, getState, api) => {
   try {

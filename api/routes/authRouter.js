@@ -25,6 +25,7 @@ const axios = require('axios');
 const log = require("../logger");
 const decodeToken = require("../auth").decodeToken;
 const session = require("../session");
+const account = require("../account");
 
 const COGNITO_DOMAIN = process.env.COGNITO_DOMAIN || "https://auth.musheye.com";
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID || "31i8vt5m567ch5ciedmeskpk67";
@@ -215,6 +216,38 @@ authRouter.get("/logout", async function (req, res) {
 
 });
 
+
+/**
+ * POST /auth/delete-account { username } — delete the signed-in user's
+ * account and everything stored for them (account.js), then sign them out.
+ *
+ * `username` must be the signed-in user's own name: a second check, on top of
+ * the confirmation the screen asks for, that this is really meant. Works with
+ * the website's cookie and the iPhone app's token (session.js).
+ * Answers { deleted: { table: rows } }; 401 when not signed in, 400 when the
+ * name doesn't match, 500 if something failed (calling again is safe).
+ */
+authRouter.post("/delete-account", async function (req, res) {
+    let userName;
+    try {
+        const decoded = await decodeToken(req.cookies && req.cookies[session.ID_COOKIE]);
+        userName = decoded["cognito:username"];
+    } catch (err) {
+        return res.status(401).json({ error: "Please log in again." });
+    }
+    if (!userName || (req.body || {}).username !== userName) {
+        return res.status(400).json({ error: "That isn't the signed-in account." });
+    }
+    try {
+        await session.revokeRefreshToken(req.cookies[session.REFRESH_COOKIE]);
+        const deleted = await account.deleteAccount(userName);
+        session.clearSessionCookies(res);
+        res.json({ deleted });
+    } catch (err) {
+        log(`Account deletion failed for ${userName}: ${err.name}: ${err.message}`);
+        res.status(500).json({ error: "Your account couldn't be fully deleted. Please try again." });
+    }
+});
 
 /*
  * The iPhone app's sign-in (/auth/app/*).
