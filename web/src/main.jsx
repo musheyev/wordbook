@@ -8,7 +8,7 @@ import { withExtraArgument } from 'redux-thunk';
 import { Provider } from 'react-redux';
 import axios from 'axios';
 import { AppRoutes } from './client/routes.jsx';
-import { siteUrl } from './client/native/platform';
+import { siteUrl, isNativeApp } from './client/native/platform';
 import { installNativeAuth } from './client/native/auth';
 import { installOffline } from './client/offline/downloads';
 import reducers from './client/reducers';
@@ -44,6 +44,17 @@ axiosInstance.interceptors.response.use(null, async (error) => {
 
 // Inside the iPhone app: sign-in, and the token on every request.
 installNativeAuth(axiosInstance);
+
+// Inside the iPhone app the page fills the whole screen, under the status bar
+// (clock, camera, battery) and the home indicator. "viewport-fit=cover" makes
+// the browser report how much room those take (CSS env(safe-area-inset-*)),
+// and the "is-native-app" class lets styles.css keep the page clear of them.
+// The website is left as it was.
+if (isNativeApp()) {
+  document.documentElement.classList.add('is-native-app');
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if (viewport && !viewport.content.includes('viewport-fit')) viewport.content += ', viewport-fit=cover';
+}
 
 const store = createStore(
   reducers,
