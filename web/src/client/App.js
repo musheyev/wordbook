@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import Header from './components/Header';
 import NoteWindows from './components/NoteWindows';
 import OfflineBar from './components/OfflineBar';
+import { PendingDeletion, DeletionScheduledNotice } from './components/PendingDeletion';
 import PlayerPanel from './components/PlayerPanel';
 import { fetchCurrentUser, fetchInbox } from './actions';
 import { preloadRichTextEditor } from './components/LazyRichTextEditor';
@@ -14,7 +15,7 @@ applyShowTtsMarks();
 
 // The card editor is now rendered in place inside the detail pane (see
 // CardEditorInline), not as a global modal.
-const App = ({ auth, fetchCurrentUser, fetchInbox }) => {
+const App = ({ auth, accountDeletion, fetchCurrentUser, fetchInbox }) => {
     // Previously loaded on the server via react-router-config's loadData.
     // As a client-side SPA we fetch the current user once on mount.
     useEffect(() => {
@@ -73,12 +74,18 @@ const App = ({ auth, fetchCurrentUser, fetchInbox }) => {
         return () => document.removeEventListener('visibilitychange', onVisible);
     }, [loggedIn, fetchInbox]);
 
+    const pendingDeletion = !!(loggedIn && accountDeletion);
+
     return (
-        <div className={`app-shell${loggedIn ? '' : ' app-shell--norail'}`}>
-            <Header />
+        <div className={`app-shell${loggedIn && !pendingDeletion ? '' : ' app-shell--norail'}`}>
+            {/* An account waiting to be deleted sees only the choice to keep
+                it or not (components/PendingDeletion.js). */}
+            {!pendingDeletion && <Header />}
             <main className="app-main">
                 <OfflineBar />
-                <Outlet />
+                {!loggedIn && <DeletionScheduledNotice />}
+                <PendingDeletion />
+                {!pendingDeletion && <Outlet />}
             </main>
             {/* Floating note windows (desktop) render above everything. */}
             <NoteWindows />
@@ -87,8 +94,8 @@ const App = ({ auth, fetchCurrentUser, fetchInbox }) => {
     );
 };
 
-function mapStateToProps({ auth }) {
-    return { auth };
+function mapStateToProps({ auth, accountDeletion }) {
+    return { auth, accountDeletion };
 }
 
 export default connect(mapStateToProps, { fetchCurrentUser, fetchInbox })(App);

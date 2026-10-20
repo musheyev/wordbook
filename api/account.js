@@ -1,9 +1,20 @@
 /**
- * Deleting an account: everything stored for a user, then their login.
+ * Deleting an account: everything stored for a user, then their login —
+ * after a 7-day grace period.
  *
  * Apple requires apps that let people sign up to also let them delete their
  * account from inside the app (App Store Review Guideline 5.1.1(v)). The
- * website offers the same (authRouter's POST /auth/delete-account calls this).
+ * website offers the same (authRouter's POST /auth/delete-account).
+ *
+ * The grace period, so nothing is lost by accident:
+ *   1. Asking (scheduleDeletion) marks the account in dictionary_user_settings
+ *      with `deletion_due_at` (7 days later) and signs the user out on every
+ *      device (Cognito's global sign-out ends all their refresh tokens).
+ *   2. Signing in again during those days shows the date, with Keep my
+ *      account (cancelDeletion) or Continue with deletion.
+ *   3. Every night a scheduled job (purge-accounts.js, run by AWS EventBridge;
+ *      infra/lib/wordbook-stack.ts) deletes the accounts whose date has come
+ *      (purgeDueAccounts -> deleteAccount below).
  *
  * What goes:
  *   - Every row the user owns in DynamoDB: notebooks and their items, notes,
@@ -22,7 +33,9 @@
  */
 const log = require("./logger");
 const database = require("./dynamoDb");
-const { CognitoIdentityProviderClient, AdminDeleteUserCommand } = require("@aws-sdk/client-cognito-identity-provider");
+const {
+    CognitoIdentityProviderClient, AdminDeleteUserCommand, AdminUserGlobalSignOutCommand,
+} = require("@aws-sdk/client-cognito-identity-provider");
 
 const REGION = process.env.COGNITO_REGION || process.env.AWS_REGION || "us-east-1";
 const POOL_ID = process.env.COGNITO_USER_POOL_ID || "us-east-1_zFsf56WQR";
@@ -44,6 +57,10 @@ const USER_TABLES = [
     ["dictionary_unsubscribed", ["user_name", "word"]],
 ];
 const TTS_REFS_TABLE = "dictionary_tts_refs";
+const SETTINGS_TABLE = "dictionary_user_settings";
+
+/** How long an account stays after deletion is asked for. */
+const GRACE_DAYS = 7;
 
 const db = () => database.dynamoDbClientInstance();
 
@@ -138,4 +155,102 @@ async function deleteAccount(userName) {
     return deleted;
 }
 
-module.exports = { deleteAccount, USER_TABLES };
+/**
+ * Ask for the account to be deleted after the grace period: mark it with
+ * the date, then sign the user out on every device.
+ *
+ * Global sign-out makes Cognito refuse all the user's refresh tokens, so the
+ * website and app can't renew their sign-in; an ID token already handed out
+ * stays valid until it expires (within the hour). Asking again keeps the
+ * first date.
+ *
+ * @param {string} userName
+ * @returns {Promise<string>} when it will be deleted (ISO time)
+ */
+async function scheduleDeletion(userName) {
+    const now = new Date();
+    const due = new Date(now.getTime() + GRACE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const res = await db().update({
+        TableName: SETTINGS_TABLE,
+        Key: { user_name: userName },
+        UpdateExpression: "SET deletion_requested_at = if_not_exists(deletion_requested_at, :now), "
+            + "deletion_due_at = if_not_exists(deletion_due_at, :due)",
+        ExpressionAttributeValues: { ":now": now.toISOString(), ":due": due },
+        ReturnValues: "ALL_NEW",
+    }).promise();
+    try {
+        await cognito.send(new AdminUserGlobalSignOutCommand({ UserPoolId: POOL_ID, Username: userName }));
+    } catch (err) {
+        log(`Global sign-out failed for ${userName}: ${err.name}`); // the mark still stands
+    }
+    log(`Account deletion scheduled for ${userName} on ${res.Attributes.deletion_due_at}`);
+    return res.Attributes.deletion_due_at;
+}
+
+/**
+ * When the account is due to be deleted, or null if it isn't.
+ * @param {string} userName
+ * @returns {Promise<string|null>} ISO time
+ */
+async function deletionDueAt(userName) {
+    const res = await db().get({
+        TableName: SETTINGS_TABLE,
+        Key: { user_name: userName },
+        ProjectionExpression: "deletion_due_at",
+    }).promise();
+    return (res.Item && res.Item.deletion_due_at) || null;
+}
+
+/** Keep my account: take the deletion mark off (the user signed in again). */
+async function cancelDeletion(userName) {
+    await db().update({
+        TableName: SETTINGS_TABLE,
+        Key: { user_name: userName },
+        UpdateExpression: "REMOVE deletion_requested_at, deletion_due_at",
+    }).promise();
+    log(`Account deletion cancelled for ${userName}`);
+}
+
+/**
+ * The nightly job: delete every account whose date has come. One failing
+ * doesn't stop the others; it's tried again the next night.
+ *
+ * Settings is a small table (one row per user), so it's scanned for marked
+ * rows rather than kept in an index.
+ *
+ * @param {Date} [now]
+ * @returns {Promise<{deleted: string[], failed: string[]}>}
+ */
+async function purgeDueAccounts(now = new Date()) {
+    const due = [];
+    let start;
+    do {
+        const res = await db().scan({
+            TableName: SETTINGS_TABLE,
+            FilterExpression: "attribute_exists(deletion_due_at) AND deletion_due_at <= :now",
+            ExpressionAttributeValues: { ":now": now.toISOString() },
+            ProjectionExpression: "user_name",
+            ExclusiveStartKey: start,
+        }).promise();
+        due.push(...(res.Items || []).map((item) => item.user_name));
+        start = res.LastEvaluatedKey;
+    } while (start);
+
+    const deleted = [];
+    const failed = [];
+    for (const userName of due) {
+        try {
+            await deleteAccount(userName);
+            deleted.push(userName);
+        } catch (err) {
+            log(`Purge failed for ${userName}: ${err.name}: ${err.message}`);
+            failed.push(userName);
+        }
+    }
+    log(`Account purge: ${deleted.length} deleted, ${failed.length} failed`);
+    return { deleted, failed };
+}
+
+module.exports = {
+    GRACE_DAYS, scheduleDeletion, deletionDueAt, cancelDeletion, purgeDueAccounts, deleteAccount, USER_TABLES,
+};
