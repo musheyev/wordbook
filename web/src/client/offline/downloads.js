@@ -4,6 +4,7 @@ import { saveChunksAudio } from './audio';
 import { dbClear, dbDeleteWhere, STORES } from './db';
 import { saveNoteImages } from './images';
 import { isOnline, offlineEnabled, onConnectionChange } from './network';
+import { installOutbox, pendingKeys, syncOutbox } from './outbox';
 import {
     coveredKeys, getRegistry, isCovered, loadRegistry, onRegistryChange, resetRegistry, updateRegistry,
 } from './registry';
@@ -22,7 +23,12 @@ import {
 //                         again: changed text replaces the old, new notes in
 //                         a downloaded notebook are added, audio and images
 //                         already saved aren't fetched again.
+//   Remove all downloads  every download at once (My Notebooks). Notes
+//                         written or edited offline and not yet sent stay.
 //   Log out               everything offline is deleted (it's the account's).
+//
+// Changes made offline are in offline/outbox.js. They're sent before
+// downloads are refreshed, so a refresh never replaces an edit not yet sent.
 //
 // The text is saved by offline/apiCache.js as the requests answer (the
 // download sends them with `offlineSave: true`), so they must be the same
@@ -57,19 +63,40 @@ export async function installOffline(store, axiosInstance) {
     if (!offlineEnabled()) return;
     api = axiosInstance;
     dispatch = store.dispatch;
-    installApiCache(api, { isCovered, onNotebookList });
+    installApiCache(api, { isCovered, onNotebookList, isPending: (key) => pendingKeys().has(key) });
     onRegistryChange((reg) => dispatch({ type: OFFLINE_STATE, payload: { registry: reg } }));
     onConnectionChange((online) => {
         dispatch({ type: OFFLINE_STATE, payload: { online } });
-        if (online) refreshDownloads();
+        if (online) catchUp();
     });
     dispatch({ type: OFFLINE_STATE, payload: { enabled: true, online: isOnline() } });
     // Ask the system to treat this storage as the user's data, not a cache
     // it may clear when the device is short of space (best effort).
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     await loadRegistry();
-    // Bring downloads up to date once the app has settled.
-    setTimeout(() => refreshDownloads(), 5000);
+    await installOutbox({
+        api,
+        publish: (payload) => dispatch({ type: OFFLINE_STATE, payload }),
+        // Changes were sent: refresh downloads, and let screens reload
+        // (pages/WordbookPage.js listens).
+        afterSync: () => {
+            refreshDownloads({ force: true });
+            window.dispatchEvent(new CustomEvent('offline-synced'));
+        },
+    });
+    // Once the app has settled: send offline changes, then refresh downloads.
+    setTimeout(catchUp, 5000);
+}
+
+/**
+ * Online (again): send changes made offline, then refresh downloads. Also
+ * saves My Notebooks' list (names and previews), so it shows offline even
+ * if My Notebooks wasn't opened since (offline/apiCache.js keeps the answers).
+ */
+async function catchUp() {
+    await syncOutbox().catch(() => {});
+    await Promise.all([api.get('/wordbook/list'), api.get('/wordbook/list?preview=y')]).catch(() => {});
+    refreshDownloads();
 }
 
 /**
@@ -207,6 +234,7 @@ export function dismissDownloadError(target) {
  */
 async function collectGarbage() {
     const covered = coveredKeys();
+    pendingKeys().forEach((key) => covered.add(key)); // changes not yet sent
     const unused = (record) => Array.isArray(record.items) && record.items.length > 0
         && !record.items.some((key) => covered.has(key));
     await Promise.all(['responses', 'audio', 'images'].map((store) => dbDeleteWhere(store, unused).catch(() => 0)));
@@ -265,9 +293,39 @@ export function itemDeleted(key) {
     collectGarbage();
 }
 
+/**
+ * Remove every download (My Notebooks → Remove all downloads). Only the
+ * device's copies; notes written offline and not yet sent are kept.
+ */
+export function removeAllDownloads() {
+    const pending = pendingKeys();
+    updateRegistry((draft) => {
+        draft.notebooks = {};
+        Object.keys(draft.items).forEach((key) => { if (!pending.has(key)) delete draft.items[key]; });
+    });
+    Object.keys(progress).forEach((target) => { delete progress[target]; });
+    publishProgress();
+    return collectGarbage();
+}
+
+/**
+ * Roughly how much this app stores on the device (downloads and saved
+ * copies), in bytes, or null if the browser can't say.
+ */
+export async function storageUsed() {
+    try {
+        const { usage } = await navigator.storage.estimate();
+        return typeof usage === 'number' ? usage : null;
+    } catch (err) {
+        return null;
+    }
+}
+
 /** Log out: delete everything offline on this device. */
 export async function clearOfflineData() {
     if (!offlineEnabled()) return;
+    // Send any offline changes first, if there's a connection.
+    await syncOutbox().catch(() => {});
     resetRegistry();
     await Promise.all(STORES.map((store) => dbClear(store).catch(() => {})));
 }

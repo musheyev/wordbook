@@ -36,7 +36,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     fetchSourceVotes, setSourceVote }) {
     const [shouldDisplayPopup, setShouldDisplayPopup] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
-    // Offline (iPhone app, no connection): editing and deleting need one.
+    // Offline (iPhone app, no connection): deleting needs a connection.
     const noConnection = useIsOffline();
     const currentWordbook = useSelector((state) => state.currentWordbook);
     const [sharing, setSharing] = useState(false);
@@ -249,8 +249,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     <div className="card-header-actions">
                         {/* Edit / Delete live up here (as a toolbar) so they stay
                             visible no matter how long the card is. */}
-                        <button className="card-tool" title={noConnection ? 'Editing needs a connection' : 'Edit note'}
-                            aria-label="Edit note" disabled={noConnection}
+                        {/* Offline (iPhone app), edits are kept and sent later (offline/outbox.js). */}
+                        <button className="card-tool" title="Edit note" aria-label="Edit note"
                             onClick={() => openCardEditor({ mode: 'edit', card: currentCard })}>
                             <i className="edit icon"></i>
                         </button>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
@@ -22,7 +22,7 @@ import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
 import useNotebookSearch from '../utils/useNotebookSearch';
 import { keyOf } from '../components/NotebookSelect';
 import { getLastVisited, setLastVisited } from '../utils/lastVisited';
-import { MissingLine, useAvailableItems, useIsOffline } from '../components/DownloadBadge';
+import { MissingLine, useAvailableItems } from '../components/DownloadBadge';
 
 
 // A notebook. With no item in the URL it shows the notebook: on phones its
@@ -93,7 +93,34 @@ function WordbookPage({
     // says how many others there are ("12 more notes aren't downloaded").
     // Everything below — the list, Play all, next/previous — uses `items`.
     const { items, missing } = useAvailableItems(name, allItems);
-    const noConnection = useIsOffline();
+
+    // Offline changes (offline/outbox.js): once they're sent, reload this
+    // notebook and its open note; a note written offline that just got its
+    // real id is shown under it.
+    // (Read through a ref: both events can come before this page redraws.)
+    const shownRef = useRef({ name, type, id });
+    shownRef.current = { name, type, id };
+    useEffect(() => {
+        const onSynced = () => {
+            const now = shownRef.current;
+            fetchWordbookWords(now.name);
+            if (now.type === 'card' && now.id && !now.id.startsWith('local-')) fetchCardData(now.id);
+        };
+        const onIdChanged = async (e) => {
+            const now = shownRef.current;
+            if (now.type !== e.detail.type || now.id !== e.detail.from) return;
+            // The list first, so the note is in it under its new id (else
+            // the page would think it was deleted and go back to the list).
+            await fetchWordbookWords(now.name);
+            navigate(itemPath(now.name, { type: now.type, id: e.detail.to }), { replace: true });
+        };
+        window.addEventListener('offline-synced', onSynced);
+        window.addEventListener('offline-id-changed', onIdChanged);
+        return () => {
+            window.removeEventListener('offline-synced', onSynced);
+            window.removeEventListener('offline-id-changed', onIdChanged);
+        };
+    }, []);
     const setSort = (next) => dispatch(saveItemSort(name, next));
     const search = useNotebookSearch(name, items);
     // What the search/filter shows (all items when there's none).
@@ -126,8 +153,10 @@ function WordbookPage({
     const index = id ? items.findIndex((item) => item.type === type && item.id === id) : -1;
 
     // The open item was deleted or removed from this notebook: back to the list.
+    // (Not a note written offline that's just been sent: it moves to its real
+    // id instead, above.)
     useEffect(() => {
-        if (id && listFresh && index === -1 && !cardEditorOpen) {
+        if (id && listFresh && index === -1 && !cardEditorOpen && !id.startsWith('local-')) {
             navigate(notebookPath(name), { replace: true });
         }
     }, [id, listFresh, index, cardEditorOpen]);
@@ -213,8 +242,7 @@ function WordbookPage({
                             <i className="chevron left icon" aria-hidden="true"></i>
                         </Link>
                         <NotebookMenu name={name} />
-                        <button type="button" className="cb-mbar__add" onClick={() => setAddOpen(true)}
-                            disabled={noConnection} title={noConnection ? 'Adding needs a connection' : undefined}>
+                        <button type="button" className="cb-mbar__add" onClick={() => setAddOpen(true)}>
                             <i className="plus icon" aria-hidden="true"></i>Add
                         </button>
                         {items.length > 0 && (
@@ -239,7 +267,7 @@ function WordbookPage({
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
                         selection={selection} playSelected={() => notebookChunks(pickedItems)}
                         lastKey={getLastVisited(name)} colors={itemColors} missing={missing}
-                        onAdd={noConnection ? null : () => setAddOpen(true)} getReadAloudChunks={notebookChunks} />
+                        onAdd={() => setAddOpen(true)} getReadAloudChunks={notebookChunks} />
                 ) : (
                     <div className="nb-overview-loading">
                         {loadError

@@ -3449,3 +3449,26 @@ img.img-unavailable {
   color: var(--cb-ink-3); font-size: 0.85rem;
 }
 .cb-mbar__add:disabled { opacity: 0.45; cursor: default; }
+/* Offline changes waiting to be sent, notices, and Downloads on My Notebooks. */
+.offline-bar--sending { background: var(--cb-accent); }
+i.icon.download-badge--pending { color: #b45309; }
+.offline-notice {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 0 0 8px; padding: 8px 12px;
+  background: var(--cb-accent-weak); color: var(--cb-ink);
+  border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  font-size: 0.9rem;
+}
+.offline-notice span { flex: 1; }
+.offline-notice button {
+  border: 0; background: none; color: var(--cb-ink-2);
+  font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0 2px;
+}
+.device-downloads {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin: 24px 0 8px; padding: 12px 14px;
+  background: var(--cb-surface); border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+}
+.device-downloads__text { display: flex; align-items: flex-start; gap: 10px; }
+.device-downloads__text i.icon { margin: 2px 0 0; color: var(--cb-accent); }
+.device-downloads__sub { display: block; color: var(--cb-ink-2); font-size: 0.85rem; }

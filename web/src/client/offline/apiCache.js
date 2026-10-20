@@ -74,6 +74,13 @@ export function describeRequest(config) {
     return { key, rule: classify(method, rawPath, query, body) };
 }
 
+/**
+ * The saved-copy key for a request, built like the app's own requests, e.g.
+ * savedKey('post', '/wordbook/card/get', { card_id: 'abc' }). Used to change
+ * saved copies directly (offline/outbox.js applies offline edits to them).
+ */
+export const savedKey = (method, url, data) => describeRequest({ method, url, data }).key;
+
 /** An error like axios's own for "no answer", marked as offline. */
 function offlineError(config) {
     const err = new Error("You're offline.");
@@ -97,8 +104,10 @@ const savedAnswer = (config, saved) => ({
  * @param {(item: string) => boolean} hooks.isCovered is this item downloaded?
  * @param {(notebook: string, items: object[]) => void} hooks.onNotebookList a
  *   notebook's item list just arrived from the server
+ * @param {(item: string) => boolean} hooks.isPending does this item have
+ *   offline changes not yet sent?
  */
-export function installApiCache(api, { isCovered, onNotebookList }) {
+export function installApiCache(api, { isCovered, onNotebookList, isPending }) {
     if (!offlineEnabled()) return;
 
     api.interceptors.request.use((config) => {
@@ -119,6 +128,9 @@ export function installApiCache(api, { isCovered, onNotebookList }) {
         const { offlineKey: key, offlineRule: rule } = res.config || {};
         if (!rule || res.fromSavedCopy) return res;
         if (rule.notebook && Array.isArray(res.data)) onNotebookList(rule.notebook, res.data);
+        // A note with offline changes not yet sent keeps the phone's copy
+        // (offline/outbox.js), until they're sent.
+        if (rule.item && isPending(rule.item)) return res;
         if (rule.always || isCovered(rule.item) || res.config.offlineSave) {
             const record = { data: res.data, savedAt: Date.now(), items: rule.item ? [rule.item] : [] };
             dbPut('responses', key, record).catch(() => { /* storage full: just not saved */ });

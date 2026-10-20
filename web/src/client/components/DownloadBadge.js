@@ -46,8 +46,17 @@ export function NotebookBadge({ name, className }) {
  */
 export function ItemBadge({ notebook, item }) {
     const offline = useOffline();
-    if (!offline.enabled || offline.registry.notebooks[notebook]) return null;
-    return isCovered(`${item.type}:${item.id}`, offline.registry)
+    if (!offline.enabled) return null;
+    const key = `${item.type}:${item.id}`;
+    // Changed offline, not yet sent (offline/outbox.js).
+    if (offline.outbox.pending.includes(key)) {
+        return (
+            <i className="sync alternate icon download-badge download-badge--item download-badge--pending"
+                title="Changed offline — waiting to be sent" aria-label="Waiting to be sent" role="img"></i>
+        );
+    }
+    if (offline.registry.notebooks[notebook]) return null;
+    return isCovered(key, offline.registry)
         ? <DownloadBadge status="full" className="download-badge--item" /> : null;
 }
 
