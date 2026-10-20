@@ -137,6 +137,10 @@ function getCard(userIdToken, cardId) {
                             card_id: data.Item.card_id,
                             title: data.Item.title || "",
                             content: data.Item.content || "",
+                            // When it was last saved: the iPhone app compares
+                            // it with its offline edits, so the latest change
+                            // wins (web/src/client/offline/outbox.js).
+                            updated_datetime: data.Item.updated_datetime || null,
                         });
                     })
                     .catch((err) => reject(err));
