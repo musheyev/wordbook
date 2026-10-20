@@ -3472,3 +3472,30 @@ i.icon.download-badge--pending { color: #b45309; }
 .device-downloads__text { display: flex; align-items: flex-start; gap: 10px; }
 .device-downloads__text i.icon { margin: 2px 0 0; color: var(--cb-accent); }
 .device-downloads__sub { display: block; color: var(--cb-ink-2); font-size: 0.85rem; }
+
+/* ---- iPhone app: room for the status bar and home indicator -----------------
+   The app's page fills the whole screen (main.jsx sets viewport-fit=cover and
+   the is-native-app class). env(safe-area-inset-top) is the status bar's
+   height, env(safe-area-inset-bottom) the home indicator's. The page starts
+   below the status bar, a strip the page's colour stays behind it while
+   scrolling, and bars that stick to the top stop under it. The website
+   (no is-native-app class) is unchanged. */
+html.is-native-app {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+html.is-native-app .app-shell { padding-top: var(--safe-top); }
+html.is-native-app body::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; height: var(--safe-top);
+  background: var(--cb-bg); z-index: 1000; pointer-events: none;
+}
+html.is-native-app .offline-bar,
+html.is-native-app .nb-selectbar { top: var(--safe-top); }
+@media (max-width: 768px) {
+  /* An open note fills the screen between the status bar and the tab bar. */
+  html.is-native-app .cb-detail--item:not(.cb-detail--editing) {
+    height: calc(100dvh - 64px - var(--safe-top) - var(--safe-bottom));
+  }
+  /* Editing a note covers the screen; its toolbar starts below the status bar. */
+  html.is-native-app .cb-detail--editing { padding-top: var(--safe-top); }
+}
