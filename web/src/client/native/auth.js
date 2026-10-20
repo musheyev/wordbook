@@ -4,9 +4,15 @@ import { COGNITO_DOMAIN, CLIENT_ID, SCOPE } from '../utils/cognito';
 // Signing in inside the iPhone app (the website uses cookies instead; see
 // api/routes/authRouter.js, "The iPhone app's sign-in").
 //
-//   Log in / Sign up   opens Cognito's login page in an in-app browser sheet,
-//                      coming back to remembrancer://auth?code=… The code and
-//                      its PKCE verifier go to /api/auth/app/token for tokens.
+//   Log in / Sign up   opens Cognito's login page in Apple's sign-in sheet
+//                      (the app's own WebAuth plugin, mobile/ios/App/App/
+//                      WebAuthPlugin.swift), which hands back
+//                      remembrancer://auth?code=… when it's done. It's private:
+//                      it keeps no cookies, so after Log out the next Log in
+//                      asks for the password. The code and its PKCE verifier go
+//                      to /api/auth/app/token for tokens. (If the plugin is
+//                      missing, an ordinary in-app browser sheet is used, and
+//                      the answer arrives through the app's address instead.)
 //   Tokens             kept in the iPhone's Keychain (secure storage), so the
 //                      app stays signed in across launches, for as long as the
 //                      refresh token lasts (30 days).
@@ -138,7 +144,16 @@ export async function nativeSignIn(action = 'login') {
     const url = `${COGNITO_DOMAIN}/${action}?client_id=${CLIENT_ID}&response_type=code&scope=${SCOPE}`
         + `&redirect_uri=${APP_REDIRECT_URI}&state=${state}`
         + `&code_challenge=${await sha256(verifier)}&code_challenge_method=S256`;
-    await Browser.open({ url });
+    try {
+        const { registerPlugin } = await import('@capacitor/core');
+        const WebAuth = registerPlugin('WebAuth');
+        const result = await WebAuth.signIn({ url, callbackScheme: APP_REDIRECT_URI.split(':')[0], ephemeral: true });
+        await onAppUrl(result.url);
+    } catch (err) {
+        if (err && err.code === 'CANCELLED') { pending = null; return; } // closed without signing in
+        if (err && err.code === 'UNIMPLEMENTED') { await Browser.open({ url }); return; } // older app build
+        window.alert('Signing in didn’t work. Please try again.');
+    }
 }
 
 // remembrancer://auth?code=…&state=… : finish signing in.

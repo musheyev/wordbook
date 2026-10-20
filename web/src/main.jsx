@@ -10,6 +10,7 @@ import axios from 'axios';
 import { AppRoutes } from './client/routes.jsx';
 import { siteUrl, isNativeApp } from './client/native/platform';
 import { installNativeAuth } from './client/native/auth';
+import { installNativeKeyboard } from './client/native/keyboard';
 import { installOffline } from './client/offline/downloads';
 import reducers from './client/reducers';
 import './client/fonts.js';
@@ -50,6 +51,8 @@ installNativeAuth(axiosInstance);
 // the browser report how much room those take (CSS env(safe-area-inset-*)),
 // and the "is-native-app" class lets styles.css keep the page clear of them.
 // The website is left as it was.
+// Also hide the ^ ˅ ✓ bar above the keyboard (client/native/keyboard.js).
+installNativeKeyboard();
 if (isNativeApp()) {
   document.documentElement.classList.add('is-native-app');
   const viewport = document.querySelector('meta[name="viewport"]');

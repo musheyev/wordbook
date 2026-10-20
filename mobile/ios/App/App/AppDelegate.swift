@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 import Capacitor
 
 @UIApplicationMain
@@ -7,8 +8,31 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        configureAudioForReadAloud()
         return true
+    }
+
+    /// Read-aloud keeps playing with the screen locked or the app in the
+    /// background, like a podcast app.
+    ///
+    /// iOS decides how an app's sound behaves from its audio session
+    /// "category". The default ("ambient") goes quiet when the screen locks
+    /// and obeys the silent switch, which suits game sounds, not reading.
+    /// `.playback` says the audio is the point of the app: it continues when
+    /// locked (together with "audio" in Info.plist's UIBackgroundModes) and
+    /// plays even with the silent switch on. The `.spokenAudio` mode tells
+    /// iOS it's speech, so another app's announcement (say, navigation)
+    /// pauses it rather than talking over it.
+    ///
+    /// Only the category is set here; the session becomes active when the
+    /// page actually plays audio, so opening the app doesn't stop music
+    /// that's already playing from another app.
+    private func configureAudioForReadAloud() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+        } catch {
+            print("Could not set the audio session category: \(error)")
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {

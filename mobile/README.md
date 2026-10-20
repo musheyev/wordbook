@@ -82,9 +82,22 @@ Done:
    - **Remove all downloads** and the space downloads take: bottom of My
      Notebooks. Changes not yet sent are kept.
 
+6. Background audio (AppDelegate audio session, Info.plist UIBackgroundModes):
+   set up; in the Simulator reading continues ~30 s locked, then the
+   Simulator stops the web page (it can't grant WebKit's media assertion).
+   To confirm on a real iPhone; if it stops there too, play the read-aloud
+   queue natively instead.
+10. (part) App icon "U5" (rounded bookmark with sound waves, brand blue;
+   `branding/app-icon/`), with dark and tinted styles; launch screen (the
+   icon on white); keyboard ^ ˅ ✓ bar hidden. Sign-in uses Apple's sign-in
+   sheet (WebAuthPlugin.swift): private, so Log in after Log out asks for the
+   password, and no "Open in Remembrancer?" question.
+
 Next:
-6. Background audio: reading continues with the screen locked.
-10. Icon and launch screen, keyboard (hide the ^ ˅ ✓ bar), TestFlight.
+- Test on a real iPhone (free Apple ID in Xcode): background audio,
+  offline features (airplane mode).
+10. TestFlight and the App Store: Apple Developer membership, privacy
+   policy page, App Store listing.
 
 Later:
 - Share → Remembrancer (add text from other apps as a note), notifications,
