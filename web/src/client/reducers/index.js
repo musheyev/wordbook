@@ -26,6 +26,7 @@ import noteWindowsReducer from './noteWindowsReducer';
 import { notebookSortReducer, wordbookUpdatedReducer, itemSortsReducer, itemColorsReducer } from './notebookSortReducers';
 import { myWordImagesReducer, imageSearchEnabledReducer } from './wordImageReducers';
 import offlineReducer from './offlineReducer';
+import accountDeletionReducer from './accountDeletionReducer';
 
 export default combineReducers({
     users: usersReducer,
@@ -59,5 +60,6 @@ export default combineReducers({
     myWordImages: myWordImagesReducer,
     imageSearchEnabled: imageSearchEnabledReducer,
     offline: offlineReducer,
+    accountDeletion: accountDeletionReducer,
 
 });
