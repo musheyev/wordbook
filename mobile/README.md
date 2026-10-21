@@ -15,11 +15,10 @@ mobile/
     └── CapApp-SPM/         Capacitor and plugins (Swift Package Manager)
 ```
 
-Placeholders until the App Store setup (change before the first upload to
-Apple; after that the app ID is permanent):
+Decided for the App Store (2026-10-21):
 
 - app name: Remembrancer
-- app ID: com.makeyourwordbook.remembrancer
+- app ID (bundle ID): com.myremembrancer — permanent once uploaded to Apple
 
 ## Everyday commands (from `mobile/`)
 
