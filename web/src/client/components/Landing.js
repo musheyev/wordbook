@@ -1,4 +1,5 @@
 import React from 'react';
+import LegalLinks from './LegalLinks';
 import { Link } from 'react-router-dom';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
 import { site, isRemembrancer } from '../utils/site';
@@ -81,6 +82,7 @@ const Landing = ({ loggedIn = false }) => (
                 </>
             )}
         </div>
+        <LegalLinks className="cb-landing__legal" />
     </div>
 );
 
