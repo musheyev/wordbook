@@ -18,7 +18,7 @@ import './styles.css';
 
 // All API calls go through /api, which Vite proxies to the backend on :4000
 // (and CloudFront to the Lambda on the website). Inside the iPhone app it's
-// https://makeyourwordbook.com/api (client/native/platform.js).
+// https://myremembrancer.com/api (client/native/platform.js).
 //
 // Slow or dropped connections: every request gives up after 20 seconds
 // (rather than waiting forever), so the screen can say so and offer "Try

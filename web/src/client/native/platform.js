@@ -1,13 +1,17 @@
 // The iPhone app (mobile/, Capacitor) runs this same web app from files
-// packaged inside it, at capacitor://localhost — not at
-// makeyourwordbook.com. So, only inside the app, anything addressed
-// relative to the site ("/api/…": server calls, images saved in notes) has
-// to name the server in full. On the website nothing changes.
+// packaged inside it, at capacitor://localhost — not at a website. So, only
+// inside the app, anything addressed relative to the site ("/api/…": server
+// calls, images saved in notes) has to name the server in full. On the
+// website nothing changes.
+//
+// The app is Remembrancer (utils/site.js), so it talks to myremembrancer.com.
+// Both sites reach the same server and data; the server tells them apart by
+// address for a few things (sign-in links, api/routes/authRouter.js).
 //
 // This folder (client/native/) is the only app-aware code in the web app.
 
 /** The website, whose server the app talks to. */
-export const SITE = 'https://makeyourwordbook.com';
+export const SITE = 'https://myremembrancer.com';
 
 /** Running inside the iPhone app (Capacitor puts window.Capacitor in the page). */
 export const isNativeApp = () => typeof window !== 'undefined'
