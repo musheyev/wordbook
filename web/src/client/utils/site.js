@@ -34,7 +34,9 @@ const SITES = {
         nav: ['notebooks', 'words', 'tags', 'inbox'],
         wordsPath: '/words',
         homePath: '/account',
-        email: 'myremembrancer@gmail.com',
+        // One inbox for both sites (each keeps its own setting, so they can
+        // be split later).
+        email: 'makeyourwordbook@gmail.com',
         domain: 'myremembrancer.com',
     },
 };
