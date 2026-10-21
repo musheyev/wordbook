@@ -249,11 +249,15 @@ nav-button-as-link {
 .history__ctrls { display: inline-flex; align-items: center; gap: 12px; margin-left: 4px; white-space: nowrap; }
 .history__head .history__ctrls { margin-left: 0; }
 /* Invisible single-line copy of the chips and controls, used by UserHistory
-   to measure how many chips fit on the row. */
+   to measure how many chips fit on the row. It's as wide as all the recent
+   words in one line, so it sits off the left edge (right: 100%): there it
+   can't widen the page. At left: 0 it stuck out on the right, and phones
+   zoomed the whole page out to fit it. Only widths are measured, so where
+   it sits doesn't matter. */
 .history__measure {
   position: absolute;
   top: 0;
-  left: 0;
+  right: 100%;
   display: flex;
   gap: 8px;
   visibility: hidden;
