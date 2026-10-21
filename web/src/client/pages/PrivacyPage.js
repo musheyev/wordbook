@@ -104,7 +104,10 @@ export default function PrivacyPage() {
             <ul>
                 <li>No ads, and no selling or renting of your information.</li>
                 <li>No tracking you across other apps or websites, and no analytics services.</li>
-                <li>No reading your notes ourselves, except when you ask us for help with something specific.</li>
+                <li>
+                    We don’t read your notes, not for support and not even if you ask us to. There’s no reason for us to:
+                    everything works without anyone looking at them.
+                </li>
             </ul>
 
             <h2>Deleting your account</h2>
