@@ -1,6 +1,9 @@
 import React from 'react';
-import { useOffline } from './DownloadBadge';
-import { downloadItems, removeItemDownloads } from '../offline/downloads';
+import { useOffline, progressLabel } from './DownloadBadge';
+import {
+    downloadItems, removeItemDownloads, downloadNotebook, removeNotebookDownload, dismissDownloadError,
+} from '../offline/downloads';
+import { notebookStatus } from '../offline/registry';
 
 // Downloading single notes and words (offline/downloads.js), in the iPhone
 // app only. Downloaded on their own, they show offline in every notebook they
@@ -79,6 +82,58 @@ export function DownloadSelectedButton({ notebook, items }) {
         <button type="button" className="cb-btn cb-btn--ghost" disabled={!offline.online}
             onClick={() => downloadItems(items.filter((item) => !offline.registry.items[keyOf(item)]))}>
             <i className="arrow alternate circle down outline icon" aria-hidden="true"></i>Download
+        </button>
+    );
+}
+
+/**
+ * A notebook's download options, for its menus (NotebookMenu, and the ⋮ on My
+ * Notebooks): one of
+ *   Downloading… 12 of 28        while it runs (not a button)
+ *   Finish download + Remove     it was interrupted, or failed
+ *   Remove download              it finished
+ *   Download                     nothing yet
+ * Needs a connection to download. `onPick` closes the menu.
+ */
+export function NotebookDownloadItems({ name, onPick }) {
+    const offline = useOffline();
+    if (!offline.enabled) return null;
+    const noConnection = !offline.online;
+    const target = `notebook:${name}`;
+    const progress = offline.progress[target];
+    const status = notebookStatus(offline.registry, name);
+    const pick = (fn) => () => { onPick(); fn(); };
+    const remove = (
+        <button role="menuitem" title="Removes only this device’s copy; the notebook stays"
+            onClick={pick(() => removeNotebookDownload(name))}>
+            <i className="arrow alternate circle down outline icon"></i>Remove download
+        </button>
+    );
+
+    if (progress && !progress.error) {
+        return (
+            <button role="menuitem" disabled>
+                <i className="spinner loading icon"></i>{progressLabel(progress)}
+            </button>
+        );
+    }
+    if (status === 'downloading' || (progress && progress.error)) {
+        return (
+            <>
+                <button role="menuitem" disabled={noConnection}
+                    title={noConnection ? 'Needs a connection; it continues by itself when you’re online' : undefined}
+                    onClick={pick(() => { dismissDownloadError(target); downloadNotebook(name); })}>
+                    <i className="redo icon"></i>Finish download
+                </button>
+                {remove}
+            </>
+        );
+    }
+    if (status === 'full') return remove;
+    return (
+        <button role="menuitem" disabled={noConnection} title={noConnection ? 'Needs a connection' : undefined}
+            onClick={pick(() => downloadNotebook(name))}>
+            <i className="arrow alternate circle down outline icon"></i>Download
         </button>
     );
 }

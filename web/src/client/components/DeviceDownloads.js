@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useOffline } from './DownloadBadge';
 import ConfirmDialog from './ConfirmDialog';
-import { coveredKeys } from '../offline/registry';
 import { removeAllDownloads, storageUsed } from '../offline/downloads';
 
 // "Downloads on this device", at the bottom of My Notebooks (iPhone app
@@ -17,7 +16,7 @@ export default function DeviceDownloads() {
     const [size, setSize] = useState(null);
     const [confirming, setConfirming] = useState(false);
     const notebooks = Object.keys(offline.registry.notebooks).length;
-    const items = coveredKeys(offline.registry).size;
+    const items = Object.keys(offline.registry.saved || {}).length; // actually on the device
 
     useEffect(() => {
         if (offline.enabled) storageUsed().then(setSize);

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { isCovered, isItemAvailable, notebookStatus } from '../offline/registry';
+import { isItemAvailable, notebookStatus } from '../offline/registry';
 
 // Small pieces of the offline features (offline/), used across the screens.
 // They all read the Redux copy of offline state (reducers/offlineReducer.js),
@@ -22,20 +22,43 @@ export const useIsOffline = () => {
  *
  * @param {{ status: 'full'|'partial'|null, className?: string }} props
  */
-export function DownloadBadge({ status, className = '' }) {
+export function DownloadBadge({ status, className = '', title }) {
     if (!status) return null;
-    const label = status === 'full' ? 'Downloaded' : 'Some notes downloaded';
+    if (status === 'running') {
+        return <i className={`spinner loading icon download-badge ${className}`} title={title || 'Downloading…'}
+            aria-label={title || 'Downloading'} role="img"></i>;
+    }
+    const label = title || (status === 'full' ? 'Downloaded'
+        : status === 'downloading' ? 'Download not finished: it continues when you’re online'
+            : 'Some notes downloaded');
     return (
-        <i className={`arrow alternate circle down${status === 'partial' ? ' outline' : ''} icon download-badge ${className}`}
+        <i className={`arrow alternate circle down${status === 'full' ? '' : ' outline'} icon download-badge ${className}`}
             title={label} aria-label={label} role="img"></i>
     );
 }
 
-/** A notebook's badge (nothing on the website, or when nothing's downloaded). */
+/**
+ * What a download in progress is doing, for menus and tooltips:
+ * "Downloading… 12 of 28" (the text), then "Downloading audio… 5 of 28".
+ */
+export function progressLabel(progress) {
+    if (!progress || !progress.total) return 'Downloading…';
+    return `${progress.phase === 'audio' ? 'Downloading audio…' : 'Downloading…'} ${progress.done} of ${progress.total}`;
+}
+
+/**
+ * A notebook's badge (nothing on the website, or when nothing's downloaded):
+ * filled ↓ when the download finished; a spinner while it runs; an outlined ↓
+ * when it's interrupted (it resumes when there's a connection) or only some
+ * notes are on the device.
+ */
 export function NotebookBadge({ name, className }) {
     const offline = useOffline();
+    if (!offline.enabled) return null;
     const progress = offline.progress[`notebook:${name}`];
-    if (!offline.enabled || (progress && !progress.error)) return null; // not until it's done
+    if (progress && !progress.error) {
+        return <DownloadBadge status="running" title={progressLabel(progress)} className={className} />;
+    }
     return <DownloadBadge status={notebookStatus(offline.registry, name)} className={className} />;
 }
 
@@ -55,8 +78,10 @@ export function ItemBadge({ notebook, item }) {
                 title="Changed offline — waiting to be sent" aria-label="Waiting to be sent" role="img"></i>
         );
     }
-    if (offline.registry.notebooks[notebook]) return null;
-    return isCovered(key, offline.registry)
+    // Its text is on the device (opens offline); not shown in a notebook
+    // that's fully downloaded, where every item is.
+    if ((offline.registry.notebooks[notebook] || {}).complete) return null;
+    return (offline.registry.saved || {})[key]
         ? <DownloadBadge status="full" className="download-badge--item" /> : null;
 }
 
