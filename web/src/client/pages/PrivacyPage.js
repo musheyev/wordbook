@@ -30,8 +30,7 @@ export default function PrivacyPage() {
 
             <h2>Who we are</h2>
             <p>
-                Make Your Wordbook and Remembrancer are run by Rudy Musheyev, an individual developer. Questions about
-                this policy: {mail}.
+                {site.name} is run by Rudy Musheyev, an individual developer. Questions about this policy: {mail}.
             </p>
 
             <h2>What we keep</h2>
