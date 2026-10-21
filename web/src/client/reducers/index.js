@@ -23,7 +23,9 @@ import wordNoteReducer from './wordNoteReducer';
 import itemTagsReducer from './itemTagsReducer';
 import allTagsReducer from './allTagsReducer';
 import noteWindowsReducer from './noteWindowsReducer';
-import { notebookSortReducer, wordbookUpdatedReducer, itemSortsReducer, itemColorsReducer } from './notebookSortReducers';
+import {
+    notebookSortReducer, wordbookUpdatedReducer, wordbookKindsReducer, itemSortsReducer, itemColorsReducer,
+} from './notebookSortReducers';
 import { myWordImagesReducer, imageSearchEnabledReducer } from './wordImageReducers';
 import offlineReducer from './offlineReducer';
 import accountDeletionReducer from './accountDeletionReducer';
@@ -57,6 +59,7 @@ export default combineReducers({
     itemSorts: itemSortsReducer,
     itemColors: itemColorsReducer,
     wordbookUpdated: wordbookUpdatedReducer,
+    wordbookKinds: wordbookKindsReducer,
     myWordImages: myWordImagesReducer,
     imageSearchEnabled: imageSearchEnabledReducer,
     offline: offlineReducer,

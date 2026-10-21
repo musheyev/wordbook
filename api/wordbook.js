@@ -15,7 +15,25 @@ ExpressionAttributeValues:{
 */
 
 
-function addWordbook(userIdToken, wordbookName, returnListWithPreview = false) {
+/**
+ * A notebook is either a "notebook" or a "wordbook". They hold the same
+ * things (words and notes) and look the same; the kind only decides which
+ * list shows it: My Wordbooks or My Notebooks. Stored as `kind: "wordbook"`
+ * on wordbooks only, so every notebook made before wordbooks existed (no
+ * `kind`) is a notebook. Renaming keeps it (_rename copies the whole row).
+ */
+const WORDBOOK = "wordbook";
+const kindOf = (row) => (row && row.kind === WORDBOOK ? WORDBOOK : "notebook");
+
+/**
+ * Create a notebook for the signed-in user.
+ *
+ * @param {string} userIdToken
+ * @param {string} wordbookName
+ * @param {boolean} [returnListWithPreview]
+ * @param {string} [kind] "wordbook" makes a wordbook; anything else a notebook
+ */
+function addWordbook(userIdToken, wordbookName, returnListWithPreview = false, kind = "notebook") {
     return new Promise((resolve, reject) => {
         if (!userIdToken) {
             return resolve("");
@@ -41,6 +59,7 @@ function addWordbook(userIdToken, wordbookName, returnListWithPreview = false) {
                     wordbook_name: wordbookName,
                     user_name: userName,
                     added_datetime: (new Date()).toISOString(),
+                    ...(kind === WORDBOOK ? { kind: WORDBOOK } : {}),
                 }
             };
 
@@ -273,14 +292,17 @@ function listWordbooks(userIdToken) {
  *
  * @param {string} userName
  * @returns {Promise<Array<{wordbook_name: string, sort_order?: number,
- *   added_datetime?: string, updated_datetime?: string}>>}
+ *   added_datetime?: string, updated_datetime?: string, kind?: string}>>}
  */
 async function _queryWordbooks(userName) {
     const data = await database.dynamoDbClientInstance().query({
         TableName: "dictionary_wordbook",
         KeyConditionExpression: "user_name = :userName",
         ExpressionAttributeValues: { ":userName": userName },
-        ProjectionExpression: "wordbook_name, sort_order, added_datetime, updated_datetime",
+        // "#kind": spelled through a name placeholder in case DynamoDB
+        // treats it as a reserved word.
+        ProjectionExpression: "wordbook_name, sort_order, added_datetime, updated_datetime, #kind",
+        ExpressionAttributeNames: { "#kind": "kind" },
     }).promise();
 
     const hasOrder = (row) => typeof row.sort_order === "number";
@@ -298,12 +320,15 @@ function _listWordbooks(userName) {
 }
 
 /**
- * Notebook names with when each was last updated, for sorting My Notebooks.
- * "Updated" means a note was added to it or a note in it was edited (see
- * _touchWordbook); a notebook that never had either uses when it was created.
+ * Notebook names with when each was last updated, for sorting My Notebooks,
+ * and each one's kind, which decides whether My Wordbooks or My Notebooks
+ * lists it. "Updated" means a note was added to it or a note in it was
+ * edited (see _touchWordbook); a notebook that never had either uses when it
+ * was created.
  *
  * @param {string} userIdToken
- * @returns {Promise<Array<{name: string, updated: string|null}>>} in "My order"
+ * @returns {Promise<Array<{name: string, updated: string|null,
+ *   kind: "notebook"|"wordbook"}>>} in "My order"
  */
 async function listWordbooksMeta(userIdToken) {
     if (!userIdToken) return [];
@@ -312,6 +337,7 @@ async function listWordbooksMeta(userIdToken) {
     return rows.map(row => ({
         name: row.wordbook_name,
         updated: row.updated_datetime || row.added_datetime || null,
+        kind: kindOf(row),
     }));
 }
 

@@ -5,7 +5,7 @@ import { deleteWordbook } from '../actions';
 import RenameNotebookDialog from './RenameNotebookDialog';
 import ConfirmDialog from './ConfirmDialog';
 import ShareDialog from './ShareDialog';
-import { notebookPath } from '../utils/notebookPaths';
+import { notebookPath, listPathFor } from '../utils/notebookPaths';
 import { NotebookBadge, useOffline } from './DownloadBadge';
 import { NotebookDownloadItems } from './DownloadButtons';
 
@@ -18,7 +18,11 @@ import { NotebookDownloadItems } from './DownloadButtons';
 // By default the whole title is the menu button. With `nameLink` (the desktop
 // rail), the name is a link there instead (the notebook's overview) and only
 // the ⌄ beside it opens the menu.
-function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
+//
+// A wordbook's menu says "wordbook", and its way out goes to My Wordbooks.
+function NotebookMenu({ name, className = '', nameLink, wordbookKinds, deleteWordbook }) {
+    const one = wordbookKinds && wordbookKinds[name] === 'wordbook' ? 'wordbook' : 'notebook';
+    const listPath = listPathFor(name, wordbookKinds);
     const navigate = useNavigate();
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
@@ -39,7 +43,7 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
     const onDeleteConfirmed = async () => {
         setConfirmingDelete(false);
         await deleteWordbook(name);
-        navigate('/account', { replace: true });
+        navigate(listPath, { replace: true });
     };
 
     return (
@@ -70,18 +74,18 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
                         <NotebookDownloadItems name={name} onPick={() => setMenuOpen(false)} />
                         <button role="menuitem" disabled={noConnection} title={needsConnection}
                             onClick={() => { setMenuOpen(false); setRenaming(true); }}>
-                            <i className="pencil alternate icon"></i>Rename notebook
+                            <i className="pencil alternate icon"></i>Rename {one}
                         </button>
                         <button role="menuitem" disabled={noConnection} title={needsConnection}
                             onClick={() => { setMenuOpen(false); setSharing(true); }}>
-                            <i className="paper plane outline icon"></i>Share notebook
+                            <i className="paper plane outline icon"></i>Share {one}
                         </button>
-                        <button role="menuitem" onClick={() => { setMenuOpen(false); navigate('/account'); }}>
-                            <i className="clone outline icon"></i>All notebooks
+                        <button role="menuitem" onClick={() => { setMenuOpen(false); navigate(listPath); }}>
+                            <i className={`${one === 'wordbook' ? 'book' : 'clone outline'} icon`}></i>All {one}s
                         </button>
                         <button role="menuitem" className="cb-menu__danger" disabled={noConnection} title={needsConnection}
                             onClick={() => { setMenuOpen(false); setConfirmingDelete(true); }}>
-                            <i className="trash alternate outline icon"></i>Delete notebook
+                            <i className="trash alternate outline icon"></i>Delete {one}
                         </button>
                     </div>
                 </>
@@ -96,7 +100,7 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
             <ConfirmDialog
                 open={confirmingDelete}
                 title={`Delete "${name}"?`}
-                message="The notebook and its list are deleted. Notes stay in any other notebooks they're in. This can't be undone."
+                message={`The ${one} and its list are deleted. Notes stay in any other notebooks they're in. This can't be undone.`}
                 confirmLabel="Delete"
                 tone="danger"
                 onConfirm={onDeleteConfirmed}
@@ -106,4 +110,4 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
     );
 }
 
-export default connect(null, { deleteWordbook })(NotebookMenu);
+export default connect(({ wordbookKinds }) => ({ wordbookKinds }), { deleteWordbook })(NotebookMenu);

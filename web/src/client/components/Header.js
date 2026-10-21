@@ -12,7 +12,8 @@ import { ADMIN_PAGES } from '../utils/adminPages';
 import { site } from '../utils/site';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
-// The main links (Words, My Notebooks, Tags, Inbox): first in the rail.
+// The main links (Words, My Wordbooks, My Notebooks, Tags, Inbox): first in
+// the rail, in the order the site gives (utils/site.js).
 const mainClass = (state) => `${navClass(state)} nav-main`;
 
 // The phone's bottom bar has room for five tabs, so Tags, Admin and Log out
@@ -102,6 +103,14 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
                                 <NavLink key={key} to={site.wordsPath} end className={mainClass}>
                                     <i className="search icon"></i>
                                     <span className="nav-label">Words</span>
+                                </NavLink>
+                            );
+                        case 'wordbooks':
+                            return (
+                                <NavLink key={key} to="/wordbooks" className={mainClass}>
+                                    <i className="book icon"></i>
+                                    {/* "My" is dropped on phones, to fit the tab. */}
+                                    <span className="nav-label"><span className="nav-desk-only">My </span>Wordbooks</span>
                                 </NavLink>
                             );
                         case 'notebooks':

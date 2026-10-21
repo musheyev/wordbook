@@ -10,6 +10,8 @@ let wordbookRouter = express.Router();
 wordbookRouter.post("/add", function (req, res) {
 
     let wordbookName = req.body.name;
+    // "wordbook" (from My Wordbooks' New) or a regular notebook.
+    const kind = req.body.kind === "wordbook" ? "wordbook" : "notebook";
 
     let returnListWithPreview = false;
 
@@ -23,7 +25,7 @@ wordbookRouter.post("/add", function (req, res) {
 
     //
     const { id_token: token } = req.cookies;
-    wordbook.addWordbook(token, wordbookName, returnListWithPreview).then((data) => {
+    wordbook.addWordbook(token, wordbookName, returnListWithPreview, kind).then((data) => {
         //console.log(data);
         res.send(data);
     })
@@ -87,7 +89,8 @@ wordbookRouter.get("/list", function (req, res) {
     if (withPreview === 'y') {
         promiseWordbooks = wordbook.listWordbooksWithWords(token);
     } else if (req.query.meta === 'y') {
-        // [{ name, updated }] for sorting My Notebooks.
+        // [{ name, updated, kind }]: for sorting, and for which list
+        // (My Wordbooks or My Notebooks) shows each one.
         promiseWordbooks = wordbook.listWordbooksMeta(token);
     } else {
         promiseWordbooks = wordbook.listWordbooks(token);

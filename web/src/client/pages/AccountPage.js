@@ -14,7 +14,13 @@ import LoadError from '../components/LoadError';
 import DeviceDownloads from '../components/DeviceDownloads';
 import DeleteAccount from '../components/DeleteAccount';
 
-// My Notebooks. Above the list: a search box (filters by name as you type)
+// My Notebooks, and My Wordbooks (`kind="wordbook"`, /wordbooks): the same
+// page, each listing only its own kind (state.wordbookKinds; see api
+// wordbook.js). Wordbooks and notebooks hold and show the same things; the
+// kind only decides which of the two pages lists them. The Inbox card,
+// downloads and the Account section are on My Notebooks only.
+//
+// Above the list: a search box (filters by name as you type)
 // and the sort button, which opens a sheet with three choices:
 //   az       A–Z
 //   updated  Recently updated: a note added or edited most recently first;
@@ -46,8 +52,37 @@ function sortNotebooks(names, sort, updated) {
     return names; // custom: the server returns them in the user's order
 }
 
+// Words for each page.
+const TEXT = {
+    notebook: {
+        title: 'My Notebooks', one: 'notebook', many: 'notebooks', Many: 'Notebooks',
+        empty: 'No notebooks yet — create one above to start collecting words and notes.',
+    },
+    wordbook: {
+        title: 'My Wordbooks', one: 'wordbook', many: 'wordbooks', Many: 'Wordbooks',
+        empty: 'No wordbooks yet — create one above to start collecting words.',
+    },
+};
+
+/**
+ * In My order, a page shows only its own kind, but the order saved is one
+ * list of every notebook. Put the dragged page's new order back into the
+ * full list: its notebooks take the same places, in their new order, and
+ * the other kind's stay where they were.
+ *
+ * @param {string[]} all every notebook, in the saved order
+ * @param {string[]} reordered this page's notebooks, in the new order
+ * @returns {string[]}
+ */
+function mergeOrder(all, reordered) {
+    const mine = new Set(reordered);
+    let next = 0;
+    return all.map((name) => (mine.has(name) ? reordered[next++] : name));
+}
+
 function AccountPage({
-    wordbooks, inbox, notebookSort, wordbookUpdated,
+    kind = 'notebook',
+    wordbooks, wordbookKinds, inbox, notebookSort, wordbookUpdated,
     fetchWordbooks, fetchWordbookPreviews, fetchInbox,
     fetchWordbookUpdated, fetchNotebookSort, saveNotebookSort, reorderWordbooks,
 }) {
@@ -64,11 +99,18 @@ function AccountPage({
         setLoadError(null);
         Promise.resolve(fetchWordbooks())
             .then(() => setListLoaded(true))
-            .catch((err) => setLoadError(requestErrorMessage(err, "Couldn't load your notebooks. Try again.")));
+            .catch((err) => setLoadError(requestErrorMessage(err, `Couldn't load your ${text.many}. Try again.`)));
     };
 
-    const names = Array.isArray(wordbooks) ? wordbooks : null;
-    const namesKey = names ? names.join('\u0000') : '';
+    const text = TEXT[kind];
+    const isNotebooks = kind === 'notebook';
+    // This page's own kind only; nothing until kinds have loaded, so a
+    // wordbook never flashes up on My Notebooks.
+    const allNames = Array.isArray(wordbooks) ? wordbooks : null;
+    const names = allNames && wordbookKinds
+        ? allNames.filter((name) => (wordbookKinds[name] === 'wordbook') === !isNotebooks)
+        : null;
+    const namesKey = allNames ? allNames.join('\u0000') : '';
 
     useEffect(() => {
         loadList();
@@ -77,8 +119,8 @@ function AccountPage({
         fetchNotebookSort();
     }, [fetchWordbooks, fetchWordbookPreviews, fetchInbox, fetchNotebookSort]);
 
-    // Updated times: on arrival, and again when notebooks are added, deleted
-    // or renamed, so every card has one.
+    // Updated times and kinds: on arrival, and again when notebooks are
+    // added, deleted or renamed, so every card has one.
     useEffect(() => {
         fetchWordbookUpdated();
     }, [namesKey, fetchWordbookUpdated]);
@@ -91,6 +133,7 @@ function AccountPage({
     }, [sortOpen]);
 
     const hasBooks = names && names.length > 0;
+    const ready = listLoaded && names !== null;
     const inboxCount = Array.isArray(inbox) ? inbox.length : 0;
     const sort = notebookSort; // null until the saved choice has loaded
     const sortInfo = SORTS.find((s) => s.key === sort) || SORTS[0];
@@ -106,6 +149,8 @@ function AccountPage({
             updated={sort === 'updated' ? (wordbookUpdated || {})[name] : undefined} />
     );
 
+    const onReorder = (reordered) => reorderWordbooks(mergeOrder(allNames || [], reordered));
+
     const pickSort = (key) => {
         setSortOpen(false);
         if (key !== sort) saveNotebookSort(key);
@@ -115,14 +160,14 @@ function AccountPage({
         <div className="cb-account">
             {/* + New (top right) opens a small window to name the notebook. */}
             <div className="cb-account__head">
-                <h1 className="cb-page-title">My Notebooks</h1>
-                <NewNotebookButton />
+                <h1 className="cb-page-title">{text.title}</h1>
+                <NewNotebookButton kind={kind} />
             </div>
 
             {/* The Inbox is pinned above the notebooks. It isn't a notebook
                 (it lives in its own table; see api/inbox.js), so it can't be
                 renamed, deleted or reordered. */}
-            <Link to="/inbox" className="inbox-card">
+            {isNotebooks && <Link to="/inbox" className="inbox-card">
                 <span className="inbox-card__icon" aria-hidden="true">
                     <i className="inbox icon"></i>
                 </span>
@@ -135,14 +180,14 @@ function AccountPage({
                 </span>
                 {inboxCount > 0 && <span className="inbox-badge">{inboxCount}</span>}
                 <i className="chevron right icon inbox-card__chev" aria-hidden="true"></i>
-            </Link>
+            </Link>}
 
 
-            {listLoaded && hasBooks && (
+            {ready && hasBooks && (
                 <div className="nb-tools">
                     <div className="nb-tools__search">
                         <i className="search icon" aria-hidden="true"></i>
-                        <input type="search" placeholder="Search notebooks" aria-label="Search notebooks"
+                        <input type="search" placeholder={`Search ${text.many}`} aria-label={`Search ${text.many}`}
                             value={query} onChange={(e) => setQuery(e.target.value)} />
                         {query && (
                             <button type="button" className="nb-tools__clear" aria-label="Clear search"
@@ -150,7 +195,7 @@ function AccountPage({
                         )}
                     </div>
                     <button type="button" className="nb-tools__sort" onClick={() => setSortOpen(true)}
-                        aria-haspopup="dialog" title="Sort notebooks">
+                        aria-haspopup="dialog" title={`Sort ${text.many}`}>
                         <i className="sort icon" aria-hidden="true"></i>
                         {sortInfo.label}
                     </button>
@@ -158,14 +203,14 @@ function AccountPage({
             )}
 
             {!listLoaded && loadError && <LoadError message={loadError} onRetry={loadList} />}
-            {((!listLoaded && !loadError) || (listLoaded && hasBooks && !sort)) && <Spinner label="Loading notebooks…" />}
+            {((!ready && !loadError) || (ready && hasBooks && !sort)) && <Spinner label={`Loading ${text.many}…`} />}
 
-            {listLoaded && hasBooks && sort && (
+            {ready && hasBooks && sort && (
                 shown.length === 0 ? (
-                    <div className="cb-empty">No notebooks match “{query.trim()}”.</div>
+                    <div className="cb-empty">No {text.many} match “{query.trim()}”.</div>
                 ) : draggable ? (
                     <SortableList items={shown} getKey={(name) => name} grid className="cb-grid"
-                        onReorder={reorderWordbooks}
+                        onReorder={onReorder}
                         renderItem={(name, handleProps) => card(name, handleProps)} />
                 ) : (
                     <div className="cb-grid">
@@ -174,24 +219,22 @@ function AccountPage({
                 )
             )}
 
-            {listLoaded && names && names.length === 0 && (
-                <div className="cb-empty">
-                    No notebooks yet — create one above to start collecting words and notes.
-                </div>
+            {ready && names.length === 0 && (
+                <div className="cb-empty">{text.empty}</div>
             )}
 
             {/* iPhone app: what's downloaded, and Remove all downloads. */}
-            <DeviceDownloads />
+            {isNotebooks && <DeviceDownloads />}
 
             {/* Who's signed in, and Delete account. */}
-            <DeleteAccount />
+            {isNotebooks && <DeleteAccount />}
 
             {sortOpen && (
                 <div className="cb-sheet__overlay" onMouseDown={() => setSortOpen(false)}>
-                    <div className="cb-sheet sort-sheet" role="dialog" aria-modal="true" aria-label="Sort notebooks"
+                    <div className="cb-sheet sort-sheet" role="dialog" aria-modal="true" aria-label={`Sort ${text.many}`}
                         onMouseDown={(e) => e.stopPropagation()}>
                         <div className="cb-sheet__grab" aria-hidden="true" />
-                        <h3 className="cb-sheet__title">Sort notebooks</h3>
+                        <h3 className="cb-sheet__title">Sort {text.many}</h3>
                         {SORTS.map((s) => (
                             <button key={s.key} type="button" className="sort-sheet__option"
                                 aria-pressed={s.key === sort} onClick={() => pickSort(s.key)} autoFocus={s.key === sort}>
@@ -206,8 +249,8 @@ function AccountPage({
     );
 }
 
-function mapStatetoProps({ wordbooks, inbox, notebookSort, wordbookUpdated }) {
-    return { wordbooks, inbox, notebookSort, wordbookUpdated };
+function mapStatetoProps({ wordbooks, wordbookKinds, inbox, notebookSort, wordbookUpdated }) {
+    return { wordbooks, wordbookKinds, inbox, notebookSort, wordbookUpdated };
 }
 
 export default connect(mapStatetoProps, {

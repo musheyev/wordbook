@@ -17,3 +17,10 @@ export const notebookFromPathname = (pathname) => {
     const match = /^\/wordbook\/([^/]+)/.exec(pathname);
     return match ? decodeURIComponent(match[1]) : '';
 };
+
+// The list a notebook belongs to: My Wordbooks for a wordbook, My Notebooks
+// for everything else (also while kinds haven't loaded: `kinds` is null).
+export const WORDBOOKS_PATH = '/wordbooks';
+export const NOTEBOOKS_PATH = '/account';
+export const listPathFor = (name, kinds) =>
+    (kinds && kinds[name] === 'wordbook' ? WORDBOOKS_PATH : NOTEBOOKS_PATH);
