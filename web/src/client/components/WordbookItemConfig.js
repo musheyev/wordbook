@@ -9,7 +9,7 @@ import { timeAgo } from '../utils/timeAgo';
 import GripIcon from './GripIcon';
 import { NotebookBadge, useOffline } from './DownloadBadge';
 import { notebookStatus } from '../offline/registry';
-import { downloadNotebook, removeNotebookDownload } from '../offline/downloads';
+import { NotebookDownloadItems } from './DownloadButtons';
 
 // One notebook on My Notebooks.
 //   handleProps  given in "My order": shows a grip that drags the card
@@ -29,7 +29,6 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, handleProps, up
     const offline = useOffline();
     const noConnection = offline.enabled && !offline.online;
     const status = offline.enabled ? notebookStatus(offline.registry, name) : null;
-    const downloading = offline.progress[`notebook:${name}`];
 
     // Open the menu upward when there isn't room below the button (e.g. the
     // last notebook on a phone, where the bottom tab bar would cover it).
@@ -79,21 +78,7 @@ function WordbookItemConfig({ name, id, preview, deleteWordbook, handleProps, up
                                     <button onClick={() => { setRemindersOpen((v) => !v); setMenuOpen(false); }}>
                                         <i className="bell outline icon"></i>Reminders
                                     </button>
-                                    {offline.enabled && (downloading && !downloading.error ? (
-                                        <button disabled>
-                                            <i className="spinner loading icon"></i>Downloading…
-                                        </button>
-                                    ) : status === 'full' && !downloading ? (
-                                        <button title="Removes only this device’s copy; the notebook stays"
-                                            onClick={() => { removeNotebookDownload(name); setMenuOpen(false); }}>
-                                            <i className="arrow alternate circle down outline icon"></i>Remove download
-                                        </button>
-                                    ) : (
-                                        <button disabled={noConnection}
-                                            onClick={() => { downloadNotebook(name); setMenuOpen(false); }}>
-                                            <i className="arrow alternate circle down outline icon"></i>Download
-                                        </button>
-                                    ))}
+                                    <NotebookDownloadItems name={name} onPick={() => setMenuOpen(false)} />
                                     <button onClick={() => { startRename(); setMenuOpen(false); }}>
                                         <i className="edit icon"></i>Rename
                                     </button>

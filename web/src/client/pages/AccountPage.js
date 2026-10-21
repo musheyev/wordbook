@@ -5,7 +5,7 @@ import {
     fetchWordbooks, fetchWordbookPreviews, fetchInbox,
     fetchWordbookUpdated, fetchNotebookSort, saveNotebookSort, reorderWordbooks, requestErrorMessage,
 } from '../actions';
-import AddWordbook from '../components/AddWordbook';
+import NewNotebookButton from '../components/NewNotebookButton';
 import WordbookItemConfig from '../components/WordbookItemConfig';
 import SortableList from '../components/SortableList';
 import requireAuth from '../components/hocs/requireAuth';
@@ -113,8 +113,10 @@ function AccountPage({
 
     return (
         <div className="cb-account">
+            {/* + New (top right) opens a small window to name the notebook. */}
             <div className="cb-account__head">
                 <h1 className="cb-page-title">My Notebooks</h1>
+                <NewNotebookButton />
             </div>
 
             {/* The Inbox is pinned above the notebooks. It isn't a notebook
@@ -135,7 +137,6 @@ function AccountPage({
                 <i className="chevron right icon inbox-card__chev" aria-hidden="true"></i>
             </Link>
 
-            <AddWordbook />
 
             {listLoaded && hasBooks && (
                 <div className="nb-tools">

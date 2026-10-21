@@ -7,16 +7,23 @@ import { dbGet, dbPut } from './db';
 // offlineReducer.js) so screens redraw when it changes. Item keys are
 // "<type>:<id>", e.g. "card:3f2a…" for a note, "word:serendipity".
 //
-//   notebooks  { [name]: { at } }  notebooks downloaded whole: everything in
-//                                 them, including items added later
-//   items      { [key]:  { at } }  notes/words downloaded one by one
+//   notebooks  { [name]: { at, complete } }  notebooks downloaded whole:
+//                                 everything in them, including items added
+//                                 later. `complete` once every item's text,
+//                                 pictures and audio have arrived; until then
+//                                 the download is resumed whenever there's a
+//                                 connection (offline/downloads.js).
+//   items      { [key]:  { at, complete } }  notes/words downloaded one by one
+//   saved      { [key]: true }     items whose text is on the device: the
+//                                 ones that can be opened offline. (A
+//                                 download in progress has saved some.)
 //   lists      { [name]: [keys] }  each notebook's items as last seen from
 //                                 the server (any notebook opened on this
 //                                 device). Tells which notebooks a
 //                                 downloaded note belongs to, and how many
 //                                 items aren't downloaded.
 const RECORD_KEY = 'registry';
-const EMPTY = { notebooks: {}, items: {}, lists: {} };
+const EMPTY = { notebooks: {}, items: {}, lists: {}, saved: {} };
 
 let registry = EMPTY;
 const listeners = new Set();
@@ -43,6 +50,7 @@ export function updateRegistry(change) {
         notebooks: { ...registry.notebooks },
         items: { ...registry.items },
         lists: { ...registry.lists },
+        saved: { ...(registry.saved || {}) },
     };
     change(draft);
     registry = draft;
@@ -58,7 +66,7 @@ export function onRegistryChange(fn) {
 
 /** Reset to nothing downloaded (on log out). */
 export function resetRegistry() {
-    updateRegistry((draft) => { draft.notebooks = {}; draft.items = {}; draft.lists = {}; });
+    updateRegistry((draft) => { draft.notebooks = {}; draft.items = {}; draft.lists = {}; draft.saved = {}; });
 }
 
 // --- Questions about a registry (the live one, or the Redux copy) ----------
@@ -83,20 +91,26 @@ export function isCovered(key, reg = registry) {
 }
 
 /**
- * Can this item be opened offline in `notebook`? Yes if the notebook is
- * downloaded, or the item is — on its own, or with another notebook it's in.
+ * Can this item be opened offline? Only if its text is actually on the
+ * device (`saved`) — not merely because it belongs to a notebook whose
+ * download started. (`notebook` is kept for callers; it doesn't matter.)
  */
 export function isItemAvailable(reg, notebook, key) {
-    return !!((reg.notebooks || {})[notebook] || isCovered(key, reg));
+    return !!(reg.saved || {})[key];
 }
 
 /**
- * How much of a notebook is downloaded: 'full' (the whole notebook), 'partial'
- * (some of its notes/words are, one by one or with another notebook) or null.
+ * How much of a notebook is downloaded:
+ *   'full'        downloaded whole, and the download finished
+ *   'downloading' downloaded whole, but not finished yet (in progress, or
+ *                 interrupted: it resumes when there's a connection)
+ *   'partial'     some of its notes/words are on the device (one by one, or
+ *                 with another notebook)
+ *   null          nothing
  */
 export function notebookStatus(reg, notebook) {
-    if ((reg.notebooks || {})[notebook]) return 'full';
+    const whole = (reg.notebooks || {})[notebook];
+    if (whole) return whole.complete ? 'full' : 'downloading';
     const list = (reg.lists || {})[notebook] || [];
-    const covered = coveredKeys(reg);
-    return list.some((key) => covered.has(key)) ? 'partial' : null;
+    return list.some((key) => (reg.saved || {})[key]) ? 'partial' : null;
 }

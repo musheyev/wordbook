@@ -170,6 +170,7 @@ export async function queueCardCreate(title, content, wordbooks) {
     }
     updateRegistry((draft) => {
         draft.items[key] = { at: Date.now(), local: true };
+        draft.saved[key] = true; // on the device: it can be opened offline
         wordbooks.forEach((name) => { draft.lists[name] = [...(draft.lists[name] || []), key]; });
     });
     outbox.push({ id: newId(), kind: 'card-create', tempId, title, content, wordbooks, createdAt: new Date().toISOString() });
@@ -205,7 +206,8 @@ async function replaceId(tempId, realId) {
         if (e.kind === 'colors') e.items = e.items.map((i) => (i.type === 'card' && i.id === tempId ? { ...i, id: realId } : i));
     });
     updateRegistry((draft) => {
-        if (draft.items[from]) { draft.items[to] = { at: Date.now() }; delete draft.items[from]; }
+        if (draft.items[from]) { draft.items[to] = { at: Date.now(), complete: true }; delete draft.items[from]; }
+        if (draft.saved[from]) { draft.saved[to] = true; delete draft.saved[from]; }
         Object.keys(draft.lists).forEach((name) => {
             draft.lists[name] = draft.lists[name].map((k) => (k === from ? to : k));
         });

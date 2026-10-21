@@ -11,9 +11,16 @@ import {
 
 // Downloading notebooks and notes to the phone, and keeping them up to date.
 //
-//   Download a notebook   its item list, then every note and word in it: the
-//                         text (and tags), the note's images, and the audio
-//                         Play all would read (a word: just the word).
+//   Download a notebook   its item list, then every note and word in it, in
+//                         two passes: first all the text (and tags), which
+//                         is quick, so reading works offline almost at once;
+//                         then the notes' images and the audio Play all
+//                         would read (a word: just the word), which is slow.
+//                         It counts as downloaded (the ↓) only when both
+//                         passes are done; an interrupted one (app closed,
+//                         no connection) resumes when there's a connection.
+//                         Offline, a notebook shows only the items whose text
+//                         arrived (registry `saved`).
 //   Download notes        the same, for chosen notes/words only. They then show
 //                         offline in every notebook they belong to.
 //   Remove download       forget it, then delete whatever no other download
@@ -96,6 +103,7 @@ export async function installOffline(store, axiosInstance) {
 async function catchUp() {
     await syncOutbox().catch(() => {});
     await Promise.all([api.get('/wordbook/list'), api.get('/wordbook/list?preview=y')]).catch(() => {});
+    await resumeDownloads().catch(() => {});
     refreshDownloads();
 }
 
@@ -109,51 +117,88 @@ function onNotebookList(name, items) {
     if (keys.length === before.size && keys.every((k) => before.has(k))) return;
     updateRegistry((draft) => { draft.lists[name] = keys; });
     // (Not while it's being downloaded: that download saves everything.)
-    if (getRegistry().notebooks[name] && !progress[`notebook:${name}`]) {
+    if (getRegistry().notebooks[name] && !running.has(`notebook:${name}`)) {
         const added = items.filter((item) => !before.has(keyOf(item)));
         if (added.length) saveItemsQuietly(added);
         else collectGarbage(); // items removed from the notebook
     }
 }
 
+/** Mark items' text as on the device (they can be opened offline). */
+const markSaved = (keys) => updateRegistry((draft) => { keys.forEach((key) => { draft.saved[key] = true; }); });
+
 /**
- * Download one note or word: text and tags, the note's images, its audio.
- * @param {{type: string, id: string, title: string}} item
+ * First pass for one note or word: its text and tags (quick).
+ * @returns {Promise<string>} a note's content (for the second pass), '' for a word
  */
-async function saveItem(item) {
-    const key = keyOf(item);
+async function saveText(item) {
+    let content = '';
     if (item.type === 'card') {
         const res = await api.post('/wordbook/card/get', { card_id: item.id }, { ...JSON_HEADERS, ...SAVE });
-        const content = (res.data && res.data.content) || '';
-        await saveNoteImages(content, key);
-        await saveChunksAudio(cardChunks({ card_id: item.id, content }), key);
+        content = (res.data && res.data.content) || '';
     } else {
         await api.get(`/dictionary?search=${encodeURIComponent(item.id)}&json=y`, SAVE);
-        // Play all reads the word as listed (its title); without the title
-        // (a refresh of a word downloaded on its own) the audio saved at
-        // download time stays.
-        if (item.title) await saveChunksAudio([wordTitleChunk(item)], key);
     }
     await api.get(`/tags?type=${encodeURIComponent(item.type)}&id=${encodeURIComponent(item.id)}`, SAVE)
         .catch(() => { /* tags are a nicety */ });
+    markSaved([keyOf(item)]);
+    return content;
 }
 
-/** Download items one after another, counting progress under `target`. */
-async function saveItems(items, target) {
-    progress[target] = { done: 0, total: items.length };
-    publishProgress();
+/**
+ * Second pass for one note or word: a note's images and its read-aloud audio
+ * (slow: one request per sentence not saved yet).
+ */
+async function saveExtras(item, content) {
+    const key = keyOf(item);
+    if (item.type === 'card') {
+        await saveNoteImages(content, key);
+        await saveChunksAudio(cardChunks({ card_id: item.id, content }), key);
+    } else if (item.title) {
+        // Play all reads the word as listed (its title); without the title
+        // (a refresh of a word downloaded on its own) the audio saved at
+        // download time stays.
+        await saveChunksAudio([wordTitleChunk(item)], key);
+    }
+}
+
+/** Download one note or word, both passes. */
+async function saveItem(item) {
+    await saveExtras(item, await saveText(item));
+}
+
+// Downloads under way ("notebook:<name>" or "items"), so one isn't started
+// twice (e.g. resumed while still running).
+const running = new Set();
+
+/**
+ * Download items in two passes, counting progress under `target`:
+ *   { phase: 'text' | 'audio', done, total }
+ * Shown only if `show`; a quiet refresh doesn't show progress.
+ *
+ * @returns {Promise<boolean>} whether everything arrived
+ */
+async function saveItems(items, target, { show = true } = {}) {
+    const set = (value) => { if (show) { progress[target] = value; publishProgress(); } };
+    const contents = new Map();
     try {
-        for (const item of items) {
-            await saveItem(item);
-            progress[target] = { done: progress[target].done + 1, total: items.length };
-            publishProgress();
+        set({ phase: 'text', done: 0, total: items.length });
+        for (let i = 0; i < items.length; i++) {
+            contents.set(keyOf(items[i]), await saveText(items[i]));
+            set({ phase: 'text', done: i + 1, total: items.length });
         }
-        delete progress[target];
-        publishProgress();
+        set({ phase: 'audio', done: 0, total: items.length });
+        for (let i = 0; i < items.length; i++) {
+            await saveExtras(items[i], contents.get(keyOf(items[i])));
+            set({ phase: 'audio', done: i + 1, total: items.length });
+        }
+        if (show) { delete progress[target]; publishProgress(); }
         return true;
     } catch (err) {
-        progress[target] = { ...progress[target], error: "The download didn't finish. Try again when you're online." };
-        publishProgress();
+        if (show) {
+            progress[target] = { ...(progress[target] || {}), error: "The download didn't finish. It continues when you're online." };
+            publishProgress();
+        }
         return false;
     }
 }
@@ -163,26 +208,40 @@ const saveItemsQuietly = (items) => {
 };
 
 /**
- * Download a whole notebook. Marked as downloaded at the start, so notes
- * opened meanwhile are saved too; if it doesn't finish, the menu offers to
- * try again.
+ * Download a whole notebook (or resume one that didn't finish). Recorded at
+ * the start (so notes opened meanwhile are kept too) but only `complete`
+ * once both passes are done.
  *
  * @param {string} name
+ * @param {{ show?: boolean }} [opts] show progress (not for a quiet refresh)
  */
-export async function downloadNotebook(name) {
-    updateRegistry((draft) => { draft.notebooks[name] = { at: Date.now() }; });
+export async function downloadNotebook(name, { show = true } = {}) {
     const target = `notebook:${name}`;
-    progress[target] = { done: 0, total: 0 };
-    publishProgress();
-    let items;
+    if (running.has(target)) return;
+    running.add(target);
+    const wasComplete = !!(getRegistry().notebooks[name] || {}).complete;
+    updateRegistry((draft) => {
+        draft.notebooks[name] = { at: (draft.notebooks[name] || {}).at || Date.now(), complete: wasComplete && !show };
+    });
+    if (show) { progress[target] = { phase: 'text', done: 0, total: 0 }; publishProgress(); }
     try {
-        items = (await api.post('/wordbook/words', { wordbook: name }, { ...JSON_HEADERS, ...SAVE })).data || [];
-    } catch (err) {
-        progress[target] = { done: 0, total: 0, error: "The download didn't start. Check your connection." };
-        publishProgress();
-        return;
+        let items;
+        try {
+            items = (await api.post('/wordbook/words', { wordbook: name }, { ...JSON_HEADERS, ...SAVE })).data || [];
+        } catch (err) {
+            if (show) {
+                progress[target] = { done: 0, total: 0, error: "The download didn't start. Check your connection." };
+                publishProgress();
+            }
+            return;
+        }
+        const ok = await saveItems(items, target, { show });
+        if (ok && getRegistry().notebooks[name]) {
+            updateRegistry((draft) => { draft.notebooks[name] = { ...draft.notebooks[name], complete: true }; });
+        }
+    } finally {
+        running.delete(target);
     }
-    await saveItems(items, target);
 }
 
 /**
@@ -193,8 +252,18 @@ export async function downloadNotebook(name) {
  * @param {object[]} items
  */
 export async function downloadItems(items) {
-    updateRegistry((draft) => { items.forEach((item) => { draft.items[keyOf(item)] = { at: Date.now() }; }); });
-    await saveItems(items, 'items');
+    updateRegistry((draft) => {
+        items.forEach((item) => { draft.items[keyOf(item)] = { at: Date.now(), complete: false }; });
+    });
+    const ok = await saveItems(items, 'items');
+    if (ok) {
+        updateRegistry((draft) => {
+            items.forEach((item) => {
+                const key = keyOf(item);
+                if (draft.items[key]) draft.items[key] = { ...draft.items[key], complete: true };
+            });
+        });
+    }
     learnAllNotebookLists();
 }
 
@@ -237,12 +306,45 @@ async function collectGarbage() {
     pendingKeys().forEach((key) => covered.add(key)); // changes not yet sent
     const unused = (record) => Array.isArray(record.items) && record.items.length > 0
         && !record.items.some((key) => covered.has(key));
+    // Items no download needs any more aren't "on the device" either.
+    if (Object.keys(getRegistry().saved || {}).some((key) => !covered.has(key))) {
+        updateRegistry((draft) => {
+            Object.keys(draft.saved).forEach((key) => { if (!covered.has(key)) delete draft.saved[key]; });
+        });
+    }
     await Promise.all(['responses', 'audio', 'images'].map((store) => dbDeleteWhere(store, unused).catch(() => 0)));
 }
 
 /**
- * Fetch every download again (see "Keeping up to date" above). Runs at
- * start-up and when the connection returns, at most every 15 minutes.
+ * Carry on with downloads that didn't finish (the app was closed, the phone
+ * slept, the connection went). Runs at start-up and whenever the connection
+ * returns, with progress showing as when they started.
+ */
+export async function resumeDownloads() {
+    if (!api || !isOnline()) return;
+    const reg = getRegistry();
+    for (const name of Object.keys(reg.notebooks)) {
+        if (!reg.notebooks[name].complete) await downloadNotebook(name);
+    }
+    // Not marked complete (including downloads from before completion was
+    // tracked); notes written offline (`local`) aren't downloads.
+    const unfinished = Object.keys(reg.items).filter((key) => reg.items[key].complete !== true && !reg.items[key].local);
+    if (unfinished.length && !running.has('items')) {
+        running.add('items');
+        try {
+            await downloadItems(unfinished.map((key) => {
+                const [type, ...rest] = key.split(':');
+                return { type, id: rest.join(':') };
+            }));
+        } finally {
+            running.delete('items');
+        }
+    }
+}
+
+/**
+ * Fetch finished downloads again (see "Keeping up to date" above), quietly.
+ * Runs at start-up and when the connection returns, at most every 15 minutes.
  */
 export async function refreshDownloads({ force = false } = {}) {
     if (!api || !isOnline() || (!force && Date.now() - lastRefresh < REFRESH_EVERY_MS)) return;
@@ -253,6 +355,7 @@ export async function refreshDownloads({ force = false } = {}) {
         // Whole notebooks: their current list (new items are picked up by
         // onNotebookList), then each item again.
         for (const name of Object.keys(reg.notebooks)) {
+            if (!reg.notebooks[name].complete || running.has(`notebook:${name}`)) continue; // resumeDownloads' job
             const items = (await api.post('/wordbook/words', { wordbook: name }, { ...JSON_HEADERS, ...SAVE })).data || [];
             for (const item of items) {
                 if (done.has(keyOf(item))) continue;
@@ -262,7 +365,7 @@ export async function refreshDownloads({ force = false } = {}) {
         }
         // Notes and words downloaded on their own.
         for (const key of Object.keys(reg.items)) {
-            if (done.has(key)) continue;
+            if (done.has(key) || reg.items[key].complete !== true) continue; // resumeDownloads' job (or written offline)
             const [type, ...rest] = key.split(':');
             await saveItem({ type, id: rest.join(':') });
         }
@@ -289,7 +392,7 @@ export function notebookDeleted(name) {
 /** A note was deleted: forget its download. */
 export function itemDeleted(key) {
     if (!offlineEnabled()) return;
-    updateRegistry((draft) => { delete draft.items[key]; });
+    updateRegistry((draft) => { delete draft.items[key]; delete draft.saved[key]; });
     collectGarbage();
 }
 
@@ -302,6 +405,7 @@ export function removeAllDownloads() {
     updateRegistry((draft) => {
         draft.notebooks = {};
         Object.keys(draft.items).forEach((key) => { if (!pending.has(key)) delete draft.items[key]; });
+        Object.keys(draft.saved).forEach((key) => { if (!pending.has(key)) delete draft.saved[key]; });
     });
     Object.keys(progress).forEach((target) => { delete progress[target]; });
     publishProgress();

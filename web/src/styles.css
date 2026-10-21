@@ -2536,7 +2536,15 @@ nav-button-as-link {
    My Cardbooks (page 3)
    =========================================================================== */
 .cb-account { padding: 24px 20px 44px; max-width: 1040px; }
-.cb-account__head { margin-bottom: 16px; }
+.cb-account__head { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cb-account__head .cb-page-title { margin: 0; }
+.new-notebook__btn { flex-shrink: 0; }
+.new-notebook__btn i.icon { margin: 0 4px 0 0; }
+.new-notebook__input {
+  display: block; width: 100%; margin: 4px 0 12px; padding: 10px 12px;
+  border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
+  font-size: 1rem; color: var(--cb-ink); background: var(--cb-bg);
+}
 .cb-page-title { font-size: 1.6rem; font-weight: 600; color: var(--cb-ink); margin: 0; }
 .cb-page-sub { font-size: 0.85rem; color: var(--cb-ink-3); margin-top: 2px; }
 

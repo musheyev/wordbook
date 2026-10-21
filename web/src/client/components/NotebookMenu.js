@@ -7,7 +7,7 @@ import ConfirmDialog from './ConfirmDialog';
 import ShareDialog from './ShareDialog';
 import { notebookPath } from '../utils/notebookPaths';
 import { NotebookBadge, useOffline } from './DownloadBadge';
-import { downloadNotebook, removeNotebookDownload, dismissDownloadError } from '../offline/downloads';
+import { NotebookDownloadItems } from './DownloadButtons';
 
 // The notebook title with its menu: rename, share, go to all notebooks, or
 // delete — and, in the iPhone app, Download / Remove download (offline/
@@ -27,8 +27,6 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const offline = useOffline();
     const noConnection = offline.enabled && !offline.online;
-    const downloaded = offline.enabled && !!offline.registry.notebooks[name];
-    const progress = offline.progress[`notebook:${name}`];
     const needsConnection = noConnection ? 'Needs a connection' : undefined;
 
     // Keep whatever item is open (/wordbook/<old>/card/x -> /wordbook/<new>/card/x).
@@ -69,27 +67,7 @@ function NotebookMenu({ name, className = '', nameLink, deleteWordbook }) {
                 <>
                     <div className="cb-menu__backdrop" onMouseDown={() => setMenuOpen(false)} />
                     <div className="cb-menu__list nb-menu__list" role="menu">
-                        {offline.enabled && (progress && !progress.error ? (
-                            <button role="menuitem" disabled>
-                                <i className="spinner loading icon"></i>
-                                Downloading…{progress.total ? ` ${progress.done} of ${progress.total}` : ''}
-                            </button>
-                        ) : progress && progress.error ? (
-                            <button role="menuitem" disabled={noConnection} title={progress.error}
-                                onClick={() => { setMenuOpen(false); dismissDownloadError(`notebook:${name}`); downloadNotebook(name); }}>
-                                <i className="redo icon"></i>Download didn’t finish — try again
-                            </button>
-                        ) : downloaded ? (
-                            <button role="menuitem" title="Removes only this device’s copy; the notebook stays"
-                                onClick={() => { setMenuOpen(false); removeNotebookDownload(name); }}>
-                                <i className="arrow alternate circle down outline icon"></i>Remove download
-                            </button>
-                        ) : (
-                            <button role="menuitem" disabled={noConnection} title={needsConnection}
-                                onClick={() => { setMenuOpen(false); downloadNotebook(name); }}>
-                                <i className="arrow alternate circle down outline icon"></i>Download
-                            </button>
-                        ))}
+                        <NotebookDownloadItems name={name} onPick={() => setMenuOpen(false)} />
                         <button role="menuitem" disabled={noConnection} title={needsConnection}
                             onClick={() => { setMenuOpen(false); setRenaming(true); }}>
                             <i className="pencil alternate icon"></i>Rename notebook

@@ -86,6 +86,12 @@ export async function saveChunksAudio(chunks, owner) {
     const queue = [...todo];
     const worker = async () => {
         while (queue.length) {
+            // The connection went: stop (the download resumes later).
+            if (!isOnline()) {
+                const err = new Error("You're offline.");
+                err.isOffline = true;
+                throw err;
+            }
             const chunk = queue.shift();
             const key = audioKey(chunk);
             const existing = await dbGet('audio', key).catch(() => null);

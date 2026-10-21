@@ -102,6 +102,11 @@ export function showApiImages(root, owner) {
 export async function saveNoteImages(html, owner) {
     const paths = [...(html || '').matchAll(/<img[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]).filter(isApiImage);
     for (const path of new Set(paths)) {
+        if (!isOnline()) { // the connection went: stop (the download resumes later)
+            const err = new Error("You're offline.");
+            err.isOffline = true;
+            throw err;
+        }
         const existing = await dbGet('images', path).catch(() => null);
         if (existing && existing.blob) {
             if (!(existing.items || []).includes(owner)) await save(path, null, owner);
