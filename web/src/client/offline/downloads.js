@@ -97,12 +97,14 @@ export async function installOffline(store, axiosInstance) {
 
 /**
  * Online (again): send changes made offline, then refresh downloads. Also
- * saves My Notebooks' list (names and previews), so it shows offline even
- * if My Notebooks wasn't opened since (offline/apiCache.js keeps the answers).
+ * saves My Notebooks' list (names, previews, and which are wordbooks), so it
+ * and My Wordbooks show offline even if they weren't opened since
+ * (offline/apiCache.js keeps the answers).
  */
 async function catchUp() {
     await syncOutbox().catch(() => {});
-    await Promise.all([api.get('/wordbook/list'), api.get('/wordbook/list?preview=y')]).catch(() => {});
+    await Promise.all([api.get('/wordbook/list'), api.get('/wordbook/list?preview=y'),
+        api.get('/wordbook/list?meta=y')]).catch(() => {});
     await resumeDownloads().catch(() => {});
     refreshDownloads();
 }

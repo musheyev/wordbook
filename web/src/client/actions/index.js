@@ -429,12 +429,13 @@ export const ADD_WORDBOOK = 'add_wordbook';
 export const ADD_WORDBOOK_ERROR_MESSAGE = 'add_wordbook_error_message';
 export const ADD_WORDBOOK_CLEAR_ERROR_MESSAGE = 'add_wordbook_clear_error_message';
 
-export const addWordbook = (name) => async (dispatch, getState, api) => {
+// kind: "wordbook" (My Wordbooks' New) or "notebook" (everywhere else).
+export const addWordbook = (name, kind = 'notebook') => async (dispatch, getState, api) => {
   try {
     console.log("addWordbook called 1");
 
     const res = await api.post('/wordbook/add',
-      { name },
+      { name, ...(kind === 'wordbook' ? { kind } : {}) },
       {
         headers: {
           'content-type': 'application/json'
@@ -449,6 +450,8 @@ export const addWordbook = (name) => async (dispatch, getState, api) => {
       type: ADD_WORDBOOK,
       payload: res
     });
+    // Known at once, so the new one opens with the right list to go back to.
+    dispatch({ type: SET_WORDBOOK_KIND, payload: { name: name.trim(), kind } });
     return true;
 
   }
@@ -563,13 +566,31 @@ export const fetchWordbookPreviews = () => async (dispatch, getState, api) => {
 // ---------------------------------------------------------------------------
 
 // When each notebook was last updated (a note added or edited), for the
-// "Recently updated" sort: { [name]: ISO time | null }.
+// "Recently updated" sort: { [name]: ISO time | null }. The same answer says
+// each one's kind, which decides whether My Wordbooks or My Notebooks lists
+// it: { [name]: "wordbook" | "notebook" }.
 export const FETCH_WORDBOOK_UPDATED = 'fetch_wordbook_updated';
+export const FETCH_WORDBOOK_KINDS = 'fetch_wordbook_kinds';
+export const SET_WORDBOOK_KIND = 'set_wordbook_kind';
+export const WORDBOOK_KIND_RENAMED = 'wordbook_kind_renamed';
 export const fetchWordbookUpdated = () => async (dispatch, getState, api) => {
-  const res = await api.get('/wordbook/list?meta=y');
+  let rows;
+  try {
+    rows = (await api.get('/wordbook/list?meta=y')).data;
+  } catch (err) {
+    // Without kinds, everything counts as a notebook, so My Notebooks still
+    // shows rather than waiting forever.
+    if (getState().wordbookKinds === null) dispatch({ type: FETCH_WORDBOOK_KINDS, payload: {} });
+    return;
+  }
   const updated = {};
-  (Array.isArray(res.data) ? res.data : []).forEach(({ name, updated: time }) => { updated[name] = time; });
+  const kinds = {};
+  (Array.isArray(rows) ? rows : []).forEach(({ name, updated: time, kind }) => {
+    updated[name] = time;
+    kinds[name] = kind === 'wordbook' ? 'wordbook' : 'notebook';
+  });
   dispatch({ type: FETCH_WORDBOOK_UPDATED, payload: updated });
+  dispatch({ type: FETCH_WORDBOOK_KINDS, payload: kinds });
 };
 
 // How My Notebooks is sorted ("az" | "updated" | "custom"), saved on the
@@ -667,6 +688,7 @@ export const renameWordbook = (wordbook, name) => async (dispatch, getState, api
   }
 
   notebookRenamed(wordbook, name.trim()); // its download follows (offline/downloads.js)
+  dispatch({ type: WORDBOOK_KIND_RENAMED, payload: { from: wordbook, to: name.trim() } });
   if (getState().currentWordbook === wordbook) {
     dispatch({ type: SET_CURRENT_WORDBOOK, payload: name.trim() });
   }

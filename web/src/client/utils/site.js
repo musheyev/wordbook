@@ -20,7 +20,7 @@ const SITES = {
         name: 'Make Your Wordbook',
         icon: 'book',
         // The side panel's main links, in order (components/Header.js).
-        nav: ['words', 'notebooks', 'tags', 'inbox'],
+        nav: ['words', 'wordbooks', 'notebooks', 'tags', 'inbox'],
         wordsPath: '/',
         homePath: '/',
         // The address people write to, shown on /support and /privacy.
@@ -31,7 +31,7 @@ const SITES = {
         key: 'remembrancer',
         name: 'Remembrancer',
         icon: 'bookmark',
-        nav: ['notebooks', 'words', 'tags', 'inbox'],
+        nav: ['notebooks', 'wordbooks', 'words', 'tags', 'inbox'],
         wordsPath: '/words',
         homePath: '/account',
         // One inbox for both sites (each keeps its own setting, so they can

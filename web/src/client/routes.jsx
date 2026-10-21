@@ -58,6 +58,9 @@ const SiteHome = () => {
   return <HomePage />;
 };
 
+// My Wordbooks: My Notebooks' page, listing wordbooks (pages/AccountPage.js).
+const WordbooksPage = () => <AccountPage kind="wordbook" />;
+
 const LoginRedirect = () => <ExternalRedirect to={COGNITO_LOGIN} />;
 const SignupRedirect = () => <ExternalRedirect to={COGNITO_SIGNUP} />;
 
@@ -69,6 +72,7 @@ export const routes = [
       { index: true, Component: SiteHome },
       { path: 'words', Component: HomePage },
       { path: 'account', Component: AccountPage },
+      { path: 'wordbooks', Component: WordbooksPage },
       { path: 'wordbook/:name', Component: WordbookPage },
       { path: 'wordbook/:name/:type/:id', Component: WordbookPage },
       { path: 'inbox', Component: InboxPage },

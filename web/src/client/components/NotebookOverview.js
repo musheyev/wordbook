@@ -67,6 +67,8 @@ export default function NotebookOverview({
     const isAdmin = useSelector((state) => state.isAdmin);
     // "Open notes in windows" (the rail's ▭): a note's card opens a window.
     const noteWindowMode = useSelector((state) => state.noteWindows.mode);
+    const wordbookKinds = useSelector((state) => state.wordbookKinds);
+    const one = wordbookKinds && wordbookKinds[name] === 'wordbook' ? 'wordbook' : 'notebook';
     const [type, setType] = useState('all');
 
     const notes = items.filter((item) => item.type === 'card').length;
@@ -221,7 +223,7 @@ export default function NotebookOverview({
 
             {empty && !missing && (
                 <div className="nb-overview__empty">
-                    This notebook is empty. Click <strong>Add</strong> to look up a word or write a note.
+                    This {one} is empty. Click <strong>Add</strong> to look up a word or write a note.
                 </div>
             )}
             {!empty && (

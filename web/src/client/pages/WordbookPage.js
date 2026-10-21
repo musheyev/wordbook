@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { connect } from 'react-redux';
+import { connect, useSelector } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
 import {
     SET_CURRENT_WORDBOOK, fetchWordbookWords, fetchCardData, fetchWordData,
     clearCurrentSelection, closeCardEditor, getCardContent, fetchItemSorts, saveItemSort, fetchItemColors,
+    fetchWordbookUpdated,
 } from '../actions';
 import SearchResult from '../components/SearchResult';
 import CardEditorInline from '../components/CardEditorInline';
@@ -15,7 +16,7 @@ import ReadAloud from '../components/ReadAloud';
 import NotebookOverview from '../components/NotebookOverview';
 import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
-import { itemPath, notebookPath } from '../utils/notebookPaths';
+import { itemPath, notebookPath, listPathFor } from '../utils/notebookPaths';
 import { cardChunks, wordTitleChunk } from '../utils/tts';
 import { highlightFirstMatch } from '../utils/highlightMatch';
 import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
@@ -42,6 +43,14 @@ function WordbookPage({
     itemSorts, itemColors, fetchWordbookWords, fetchCardData, fetchWordData, clearCurrentSelection, closeCardEditor,
 }) {
     const { name, type, id } = useParams();
+    // The phone's back arrow returns to the list this one is on.
+    const wordbookKinds = useSelector((state) => state.wordbookKinds);
+    const backPath = listPathFor(name, wordbookKinds);
+    const backLabel = backPath === '/wordbooks' ? 'My wordbooks' : 'My notebooks';
+    // Opened directly (a link, a refresh): learn the kinds here.
+    useEffect(() => {
+        if (wordbookKinds === null) dispatch(fetchWordbookUpdated());
+    }, [wordbookKinds, dispatch]);
     const navigate = useNavigate();
     const location = useLocation();
     // Opened from a notebook search result: ?q=<what was searched>.
@@ -238,7 +247,7 @@ function WordbookPage({
             <>
                 <div className="cb-mbar">
                     <div className="cb-mbar__head">
-                        <Link className="cb-mbar__back" to="/account" aria-label="My notebooks" title="My notebooks">
+                        <Link className="cb-mbar__back" to={backPath} aria-label={backLabel} title={backLabel}>
                             <i className="chevron left icon" aria-hidden="true"></i>
                         </Link>
                         <NotebookMenu name={name} />
