@@ -23,6 +23,9 @@ const SITES = {
         nav: ['words', 'notebooks', 'tags', 'inbox'],
         wordsPath: '/',
         homePath: '/',
+        // The address people write to, shown on /support and /privacy.
+        email: 'makeyourwordbook@gmail.com',
+        domain: 'makeyourwordbook.com',
     },
     remembrancer: {
         key: 'remembrancer',
@@ -31,6 +34,8 @@ const SITES = {
         nav: ['notebooks', 'words', 'tags', 'inbox'],
         wordsPath: '/words',
         homePath: '/account',
+        email: 'myremembrancer@gmail.com',
+        domain: 'myremembrancer.com',
     },
 };
 
@@ -60,7 +65,7 @@ function detect() {
 }
 
 /**
- * This site: { key, name, icon, nav, wordsPath, homePath }.
+ * This site: { key, name, icon, nav, wordsPath, homePath, email, domain }.
  * Decided once, when the page loads.
  */
 export const site = detect();

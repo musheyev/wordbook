@@ -3541,3 +3541,23 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
 }
 .pending-deletion--kept span, .pending-deletion--notice span { flex: 1; }
 .pending-deletion--kept i.icon, .pending-deletion--notice i.icon { margin: 0; color: var(--cb-accent); }
+
+/* Privacy policy and Support pages (pages/PrivacyPage.js, SupportPage.js),
+   and the "Privacy · Support" links (components/LegalLinks.js). */
+.legal-page {
+  max-width: 720px; margin: 0 auto; padding: 24px 20px 48px;
+  color: var(--cb-ink); line-height: 1.65; font-size: 1rem;
+}
+.legal-page h1 { font-size: 1.75rem; margin: 0 0 4px; }
+.legal-page h2 { font-size: 1.2rem; margin: 28px 0 8px; }
+.legal-page h3 { font-size: 1.02rem; margin: 20px 0 4px; }
+.legal-page ul { padding-left: 1.2em; }
+.legal-page li { margin: 6px 0; }
+.legal-page a { color: var(--cb-accent); }
+.legal-page__updated { color: var(--cb-ink-3); font-size: 0.9rem; margin: 0 0 20px; }
+.legal-page__links { margin-top: 32px; }
+.legal-links { display: flex; gap: 8px; align-items: center; font-size: 0.85rem; color: var(--cb-ink-3); }
+.legal-links a { color: var(--cb-ink-2); text-decoration: none; }
+.legal-links a:hover { color: var(--cb-accent); text-decoration: underline; }
+.cb-landing__legal { justify-content: center; margin: 28px 0 8px; order: 99; } /* last, also where phones reorder the start page */
+.account-section__legal { margin-top: 4px; }

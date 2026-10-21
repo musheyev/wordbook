@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { deleteAccount } from '../actions';
 import { useIsOffline } from './DownloadBadge';
+import LegalLinks from './LegalLinks';
 import { isNativeApp } from '../native/platform';
 import { nativeReauth } from '../native/auth';
 import { reauthUrl } from '../utils/cognito';
@@ -116,6 +117,7 @@ export default function DeleteAccount() {
             <div className="account-section__text">
                 <strong>Account</strong>
                 <span className="account-section__sub">Signed in as {username}</span>
+                <LegalLinks className="account-section__legal" />
             </div>
             <button type="button" className="cb-btn cb-btn--ghost account-section__delete"
                 disabled={noConnection} title={noConnection ? 'Needs a connection' : undefined}

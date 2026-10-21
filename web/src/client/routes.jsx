@@ -8,6 +8,8 @@ import WordbookPage from './pages/WordbookPage';
 import InboxPage from './pages/InboxPage';
 import TagsPage from './pages/TagsPage';
 import MorePage from './pages/MorePage';
+import PrivacyPage from './pages/PrivacyPage';
+import SupportPage from './pages/SupportPage';
 import NotFoundPage from './pages/NotFoundPage';
 import Spinner from './components/Spinner';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from './utils/cognito';
@@ -73,6 +75,9 @@ export const routes = [
       { path: 'inbox/:id', Component: InboxPage },
       { path: 'tags', Component: TagsPage },
       { path: 'more', Component: MorePage },
+      // Open to everyone, signed in or not (App Store requirements).
+      { path: 'privacy', Component: PrivacyPage },
+      { path: 'support', Component: SupportPage },
       { path: 'admin', Component: AdminPage },
       { path: 'admin/images', Component: AdminImagesPage },
       { path: 'admin/image-cleanup', Component: AdminImageCleanupPage },
