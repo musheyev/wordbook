@@ -2549,6 +2549,13 @@ nav-button-as-link {
   border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
   font-size: 1rem; color: var(--cb-ink); background: var(--cb-bg);
 }
+/* Phones: 16px, like the other sheets' fields (.cb-sheet__input). Below
+   16px, iPhones zoom the page in when the field is tapped and may stay
+   zoomed after the window closes; the base size here is 14px, so 1rem is
+   too small. */
+@media (max-width: 768px) {
+  .new-notebook__input { font-size: 16px; }
+}
 .cb-page-title { font-size: 1.6rem; font-weight: 600; color: var(--cb-ink); margin: 0; }
 .cb-page-sub { font-size: 0.85rem; color: var(--cb-ink-3); margin-top: 2px; }
 
