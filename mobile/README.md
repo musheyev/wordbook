@@ -20,6 +20,14 @@ Decided for the App Store (2026-10-21):
 - app name: Remembrancer
 - app ID (bundle ID): com.myremembrancer — permanent once uploaded to Apple
 
+Settings in `capacitor.config.json` (JSON has no comments, so they're
+explained here):
+
+- `ios.contentInset: "never"` — the page itself keeps clear of the status
+  bar and home indicator.
+- `ios.zoomEnabled: true` — pinch with two fingers to zoom, as in Safari
+  (Capacitor turns it off by default). Added 2026-10-23.
+
 ## Everyday commands (from `mobile/`)
 
 - `npm run sync` — build the web app and copy it into the iPhone project

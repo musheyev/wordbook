@@ -3,6 +3,7 @@
   "appName": "Remembrancer",
   "webDir": "../web/dist",
   "ios": {
-    "contentInset": "never"
+    "contentInset": "never",
+    "zoomEnabled": true
   }
 }
