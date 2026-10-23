@@ -4,6 +4,7 @@ import { closeCardEditor, createCard, updateCard, deleteCard, requestErrorMessag
 import RichTextEditor from './LazyRichTextEditor';
 import AddToCardbook from './AddToCardbook';
 import useDraft from '../utils/useDraft';
+import { useNoteZoom } from '../utils/noteZoom';
 import { reportNoteAudio } from '../utils/ttsPlayer';
 import { timeAgo } from '../utils/timeAgo';
 
@@ -43,6 +44,8 @@ function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, 
     }, []);
 
     const isEdit = cardEditor.mode === 'edit';
+    // Text size, carried over from reading the note (utils/noteZoom.js).
+    const [zoom, setZoom] = useNoteZoom(isEdit && cardEditor.card ? cardEditor.card.card_id : 'new');
     const card = cardEditor.card;
 
     const savedTitle = isEdit && card ? card.title : '';
@@ -211,7 +214,8 @@ function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, 
                 </div>
             )}
 
-            <RichTextEditor key={editorKey} value={content} onChange={setContent} />
+            <RichTextEditor key={editorKey} value={content} onChange={setContent}
+                zoom={zoom} onZoom={setZoom} />
         </div>
     );
 }

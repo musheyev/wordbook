@@ -29,6 +29,7 @@ import { apiFetch } from '../native/auth';
 import { apiImageUrl, isApiImage, loadsImagesItself } from '../offline/images';
 import shrinkImage from '../utils/shrinkImage';
 import { FontSize } from './editor/fontSize';
+import { NoteZoomControls } from './NoteZoomButton';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
@@ -158,7 +159,12 @@ function cleanPastedHtml(html) {
     return doc.body.innerHTML;
 }
 
-const RichTextEditor = ({ value, onChange }) => {
+// `zoom` / `onZoom`: a note's text size and its setter, for the Text size
+// button at the end of the toolbar (utils/noteZoom.js; CardEditorInline keeps
+// it, so it's there before this editor's code has loaded). Without onZoom (a
+// word's note), no button.
+const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
+    const [showZoom, setShowZoom] = React.useState(false);
     // Toggles the formula help/examples reference without inserting anything.
     const [showHelp, setShowHelp] = React.useState(false);
     // "M↓" toggle: while on, plain-text pastes are parsed as Markdown.
@@ -755,6 +761,18 @@ const RichTextEditor = ({ value, onChange }) => {
                     {SIZES.map((s) => <option key={s} value={String(s)}>{s}</option>)}
                 </select>
                 <span className="rte-toolbar__spacer" />
+                {onZoom && (
+                    <span className="rte-hl rte-zoom">
+                        <Btn label={<i className="text height icon" aria-hidden="true"></i>}
+                            title="Text size (only how it looks here; the note doesn't change)"
+                            active={showZoom || zoom !== 1} onClick={() => setShowZoom((v) => !v)} />
+                        {showZoom && (
+                            <ToolbarPop className="rte-hl__pop rte-zoom__pop" onClose={() => setShowZoom(false)}>
+                                <NoteZoomControls level={zoom} onChange={onZoom} />
+                            </ToolbarPop>
+                        )}
+                    </span>
+                )}
                 <Btn label="↶" title="Undo" onClick={() => editor.chain().focus().undo().run()} />
                 <Btn label="↷" title="Redo" onClick={() => editor.chain().focus().redo().run()} />
             </div>
@@ -762,7 +780,7 @@ const RichTextEditor = ({ value, onChange }) => {
                 style={{ display: 'none' }}
                 onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) insertImageFile(f); e.target.value = ''; }} />
             {find && <FindBar editor={editor} open={find} onClose={closeFind} />}
-            <EditorContent editor={editor} className="rte-content" />
+            <EditorContent editor={editor} className="rte-content" style={{ '--note-zoom': zoom }} />
             <VoicePickerDialog
                 open={voicePick}
                 initialLang={editor.getAttributes('ttsLang').lang || null}

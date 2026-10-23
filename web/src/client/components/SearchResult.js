@@ -10,6 +10,8 @@ import { timeAgo } from '../utils/timeAgo';
 import AddToCardbook from './AddToCardbook';
 import ReadAloud from './ReadAloud';
 import RichTextEditor from './LazyRichTextEditor';
+import NoteZoomButton from './NoteZoomButton';
+import { useNoteZoom } from '../utils/noteZoom';
 import ItemTags from './ItemTags';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { showApiImages } from '../offline/images';
@@ -161,6 +163,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     // Render any KaTeX math in the card body after the HTML is in the DOM,
     // and, in the iPhone app, load its images (offline/images.js).
     const cardRef = React.useRef(null);
+    // Text size of the open note, while it's open (utils/noteZoom.js).
+    const [noteZoom, setNoteZoom] = useNoteZoom(currentCard ? currentCard.card_id : null);
     React.useEffect(() => {
         renderMathIn(cardRef.current);
         if (currentCard) showApiImages(cardRef.current, `card:${currentCard.card_id}`);
@@ -260,6 +264,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             <i className="trash alternate outline icon"></i>
                         </button>
                         <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title} />
+                        <NoteZoomButton level={noteZoom} onChange={setNoteZoom} />
                         <NoteDownloadButton notebook={currentWordbook}
                             item={{ type: 'card', id: currentCard.card_id, title: currentCard.title }} />
                         {addToWordbookControl}
@@ -287,10 +292,17 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                 )}
 
                 {/* Scrollbar lives on the card content so the header/toolbar stays put. */}
+                {/* The text sits in .note-zoom-text, so Text size enlarges it
+                    inside the scrolling box (styles.css). */}
                 <div className="card-content card-content--scroll" ref={cardRef}
-                    style={noteColor ? { borderLeftColor: noteColor.ink, '--note-tint': noteColor.tint } : undefined}
-                    data-color={noteColor ? noteColor.key : undefined}
-                    dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(currentCard.content) }} />
+                    style={{
+                        ...(noteColor ? { borderLeftColor: noteColor.ink, '--note-tint': noteColor.tint } : {}),
+                        '--note-zoom': noteZoom,
+                    }}
+                    data-color={noteColor ? noteColor.key : undefined}>
+                    <div className="note-zoom-text"
+                        dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(currentCard.content) }} />
+                </div>
                 <SelectionPlayButton rootRef={cardRef} title={currentCard.title} />
             </div>
         );

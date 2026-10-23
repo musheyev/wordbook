@@ -3580,3 +3580,34 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
 .legal-links a:hover { color: var(--cb-accent); text-decoration: underline; }
 .cb-landing__legal { justify-content: center; margin: 28px 0 8px; order: 99; } /* last, also where phones reorder the start page */
 .account-section__legal { margin-top: 4px; }
+
+/* --- Text size for a note (NoteZoomButton, utils/noteZoom.js) ---
+   The button and its small bar: [A−] 130% [A+] [Reset]. The size itself is
+   CSS zoom on the note's text: the reading view's inner .note-zoom-text, and
+   the editor's .ProseMirror (through --note-zoom on .rte-content), never the
+   box that scrolls, so the box keeps its size and only the text grows. */
+.note-zoom { position: relative; display: inline-flex; }
+.note-zoom__pop {
+  /* Centred under the button, so it stays on a phone's screen. */
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; z-index: 31;
+  padding: 6px; background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm); box-shadow: 0 8px 24px rgba(15, 20, 35, 0.14);
+}
+.note-zoom__controls { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.note-zoom__step,
+.note-zoom__reset {
+  height: 32px; min-width: 36px; padding: 0 8px;
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius-sm);
+  background: var(--cb-surface-2); color: var(--cb-accent); font-weight: 600; cursor: pointer;
+}
+.note-zoom__step--up { font-size: 1.15em; }
+.note-zoom__reset { font-weight: 400; color: var(--cb-ink-2); }
+.note-zoom__step:disabled,
+.note-zoom__reset:disabled { opacity: 0.4; cursor: default; }
+.note-zoom__level { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; color: var(--cb-ink); }
+/* In the editor's toolbar it opens like the other toolbar menus (on phones,
+   as a sheet: ToolbarPop), but leftwards: the button is at the toolbar's
+   right end. */
+.rte-hl__pop.rte-zoom__pop { display: block; left: auto; right: 0; }
+.note-zoom-text { zoom: var(--note-zoom, 1); }
+.rte-content .ProseMirror { zoom: var(--note-zoom, 1); }
