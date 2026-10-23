@@ -2773,27 +2773,8 @@ ul.cb-grid { list-style: none; padding: 0; }
   .inbox-head .cb-mbar__back i.icon { margin: 0; }
 }
 
-/* Pinned Inbox card on My Notebooks */
-.inbox-card {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 14px; padding: 14px 16px;
-  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
-  border-radius: var(--cb-radius); color: var(--cb-ink); text-decoration: none;
-}
-.inbox-card:hover { border-color: var(--cb-border-strong); color: var(--cb-ink); }
-.inbox-card__icon {
-  flex-shrink: 0; width: 38px; height: 38px; border-radius: var(--cb-radius-sm);
-  background: var(--cb-accent-weak); color: var(--cb-accent);
-  display: flex; align-items: center; justify-content: center;
-}
-.inbox-card__icon i.icon { margin: 0; }
-.inbox-card__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.inbox-card__title { font-size: 1.05rem; font-weight: 600; }
-.inbox-card__sub { font-size: 0.85rem; color: var(--cb-ink-2); }
-.inbox-card__chev { margin: 0 !important; color: var(--cb-ink-3); font-size: 0.8rem !important; }
-
-/* Count badges: on the Inbox card, and on the nav icon */
-.inbox-badge, .nav-badge {
+/* Count badge on the Inbox's nav icon */
+.nav-badge {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
   background: var(--cb-accent); color: var(--cb-accent-ink);

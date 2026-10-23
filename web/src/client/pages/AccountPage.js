@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
 import {
-    fetchWordbooks, fetchWordbookPreviews, fetchInbox,
+    fetchWordbooks, fetchWordbookPreviews,
     fetchWordbookUpdated, fetchNotebookSort, saveNotebookSort, reorderWordbooks, requestErrorMessage,
 } from '../actions';
 import NewNotebookButton from '../components/NewNotebookButton';
@@ -17,8 +16,9 @@ import DeleteAccount from '../components/DeleteAccount';
 // My Notebooks, and My Wordbooks (`kind="wordbook"`, /wordbooks): the same
 // page, each listing only its own kind (state.wordbookKinds; see api
 // wordbook.js). Wordbooks and notebooks hold and show the same things; the
-// kind only decides which of the two pages lists them. The Inbox card,
-// downloads and the Account section are on My Notebooks only.
+// kind only decides which of the two pages lists them. Downloads and the
+// Account section are on My Notebooks only. (The Inbox is in the side panel
+// and the phone's tab bar, so this page doesn't repeat it.)
 //
 // Above the list: a search box (filters by name as you type)
 // and the sort button, which opens a sheet with three choices:
@@ -82,8 +82,8 @@ function mergeOrder(all, reordered) {
 
 function AccountPage({
     kind = 'notebook',
-    wordbooks, wordbookKinds, inbox, notebookSort, wordbookUpdated,
-    fetchWordbooks, fetchWordbookPreviews, fetchInbox,
+    wordbooks, wordbookKinds, notebookSort, wordbookUpdated,
+    fetchWordbooks, fetchWordbookPreviews,
     fetchWordbookUpdated, fetchNotebookSort, saveNotebookSort, reorderWordbooks,
 }) {
     const [query, setQuery] = useState('');
@@ -115,9 +115,8 @@ function AccountPage({
     useEffect(() => {
         loadList();
         fetchWordbookPreviews();
-        fetchInbox();
         fetchNotebookSort();
-    }, [fetchWordbooks, fetchWordbookPreviews, fetchInbox, fetchNotebookSort]);
+    }, [fetchWordbooks, fetchWordbookPreviews, fetchNotebookSort]);
 
     // Updated times and kinds: on arrival, and again when notebooks are
     // added, deleted or renamed, so every card has one.
@@ -134,7 +133,6 @@ function AccountPage({
 
     const hasBooks = names && names.length > 0;
     const ready = listLoaded && names !== null;
-    const inboxCount = Array.isArray(inbox) ? inbox.length : 0;
     const sort = notebookSort; // null until the saved choice has loaded
     const sortInfo = SORTS.find((s) => s.key === sort) || SORTS[0];
 
@@ -164,23 +162,6 @@ function AccountPage({
                 <NewNotebookButton kind={kind} />
             </div>
 
-            {/* The Inbox is pinned above the notebooks. It isn't a notebook
-                (it lives in its own table; see api/inbox.js), so it can't be
-                renamed, deleted or reordered. */}
-            {isNotebooks && <Link to="/inbox" className="inbox-card">
-                <span className="inbox-card__icon" aria-hidden="true">
-                    <i className="inbox icon"></i>
-                </span>
-                <span className="inbox-card__text">
-                    <span className="inbox-card__title">Inbox</span>
-                    <span className="inbox-card__sub">
-                        {inboxCount === 0 ? 'Words and notes shared with you'
-                            : `${inboxCount} shared with you`}
-                    </span>
-                </span>
-                {inboxCount > 0 && <span className="inbox-badge">{inboxCount}</span>}
-                <i className="chevron right icon inbox-card__chev" aria-hidden="true"></i>
-            </Link>}
 
 
             {ready && hasBooks && (
@@ -249,11 +230,11 @@ function AccountPage({
     );
 }
 
-function mapStatetoProps({ wordbooks, wordbookKinds, inbox, notebookSort, wordbookUpdated }) {
-    return { wordbooks, wordbookKinds, inbox, notebookSort, wordbookUpdated };
+function mapStatetoProps({ wordbooks, wordbookKinds, notebookSort, wordbookUpdated }) {
+    return { wordbooks, wordbookKinds, notebookSort, wordbookUpdated };
 }
 
 export default connect(mapStatetoProps, {
-    fetchWordbooks, fetchWordbookPreviews, fetchInbox,
+    fetchWordbooks, fetchWordbookPreviews,
     fetchWordbookUpdated, fetchNotebookSort, saveNotebookSort, reorderWordbooks,
 })(requireAuth(AccountPage));
