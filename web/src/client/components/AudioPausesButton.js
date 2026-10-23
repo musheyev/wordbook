@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { TTS_PAUSES } from '../utils/tts';
 import {
-    setAllPauses, addSpanishPauses, removeSpanishPauses, removeAllPauses, countPauses,
+    setAllPauses, addForeignPauses, removeForeignPauses, removeAllPauses, countPauses,
 } from '../utils/pauseMarkup';
 import useNoteChange from '../utils/useNoteChange';
 import NoteChangeToast from './NoteChangeToast';
@@ -11,10 +11,13 @@ import NoteChangeToast from './NoteChangeToast';
 // change the note's read-aloud pauses all at once, without opening the
 // editor (utils/pauseMarkup.js):
 //
-//   All pauses (12)         [1s] [2s] [3s] [5s]
-//   Between Spanish lines   [1s] [2s] [3s] [5s]
-//   Remove pauses between Spanish lines
+//   Set all pauses (12)                    [1s] [2s] [3s] [5s]
+//   Add between foreign language lines     [1s] [2s] [3s] [5s]
+//   Remove pauses between foreign language lines
 //   Remove all pauses
+//
+// Foreign = not English: Hebrew, and text marked as Spanish, French, Italian
+// or German (see utils/pauseMarkup.js).
 //
 // Saved straight away, with Undo (utils/useNoteChange.js).
 export default function AudioPausesButton({ card }) {
@@ -59,18 +62,18 @@ export default function AudioPausesButton({ card }) {
                         </div>
                         <div className="pause-menu__row">
                             <span className="pause-menu__label">
-                                Add between Spanish lines
-                                <span className="pause-menu__hint">after a line with Spanish, before the next</span>
+                                Add between foreign language lines
+                                <span className="pause-menu__hint">after a line not in English, before the next</span>
                             </span>
-                            {lengths((s) => run((h) => addSpanishPauses(h, s),
-                                (n) => `Added ${pauses(n)} of ${s}s between Spanish lines.`,
-                                'No Spanish lines without a pause between them.'))}
+                            {lengths((s) => run((h) => addForeignPauses(h, s),
+                                (n) => `Added ${pauses(n)} of ${s}s between foreign language lines.`,
+                                'No foreign language lines without a pause between them.'))}
                         </div>
                         <div className="pause-menu__sep" role="separator" />
                         <button type="button" role="menuitem"
-                            onClick={() => run(removeSpanishPauses, (n) => `Removed ${pauses(n)} between Spanish lines.`,
-                                'No pauses between Spanish lines.')}>
-                            Remove pauses between Spanish lines
+                            onClick={() => run(removeForeignPauses, (n) => `Removed ${pauses(n)} between foreign language lines.`,
+                                'No pauses between foreign language lines.')}>
+                            Remove pauses between foreign language lines
                         </button>
                         <button type="button" role="menuitem" className="cb-menu__danger"
                             onClick={() => run(removeAllPauses, (n) => `Removed ${pauses(n)}.`, 'This note has no pauses.')}>
