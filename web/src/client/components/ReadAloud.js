@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ttsPlayer from '../utils/ttsPlayer';
-import { getChosenVoices, setChosenVoice, TTS_LANGUAGES, TTS_SPEEDS, getChosenSpeeds, setChosenSpeed } from '../utils/tts';
+import {
+    getChosenVoices, setChosenVoice, TTS_LANGUAGES, TTS_SPEEDS, getChosenSpeeds, setChosenSpeed,
+    getFirstSentenceOnly, setFirstSentenceOnly,
+} from '../utils/tts';
 import { loadVoices } from '../utils/ttsVoices';
 import { getShowTtsMarks, setShowTtsMarks } from '../utils/ttsMarks';
 
@@ -10,8 +13,9 @@ let uid = 0;
 // voice picker. `getChunks` returns the chunks to read (may be async, e.g. a
 // whole notebook). Playback is shared across the app via ttsPlayer.
 // `voices={false}` leaves out the voice picker (e.g. Play selected, next to
-// Play all which has one).
-function ReadAloud({ getChunks, title, label, voices: withVoices = true }) {
+// Play all which has one). `firstSentence` adds "First sentence of each
+// note only" to the menu (Play all; Play selected follows it too).
+function ReadAloud({ getChunks, title, label, voices: withVoices = true, firstSentence = false }) {
     const idRef = useRef(`ra${++uid}`);
     const [state, setState] = useState(ttsPlayer.snapshot());
     const [error, setError] = useState('');
@@ -24,6 +28,7 @@ function ReadAloud({ getChunks, title, label, voices: withVoices = true }) {
     const [chosen, setChosen] = useState(getChosenVoices());
     const [speeds, setSpeeds] = useState(getChosenSpeeds());
     const [showMarks, setShowMarks] = useState(getShowTtsMarks);
+    const [firstOnly, setFirstOnly] = useState(getFirstSentenceOnly);
 
     useEffect(() => ttsPlayer.subscribe(setState), []);
 
@@ -92,6 +97,15 @@ function ReadAloud({ getChunks, title, label, voices: withVoices = true }) {
                     <>
                         <div className="cb-menu__backdrop" onMouseDown={() => setMenuOpen(false)} />
                         <div className="cb-menu__list read-aloud__menu" role="menu">
+                            {/* Takes effect the next time Play all or Play
+                                selected starts. */}
+                            {firstSentence && (
+                                <label className="read-aloud__first">
+                                    <input type="checkbox" checked={firstOnly}
+                                        onChange={(e) => { setFirstSentenceOnly(e.target.checked); setFirstOnly(e.target.checked); }} />
+                                    First sentence of each note only
+                                </label>
+                            )}
                             <label className="read-aloud__lang-pick">
                                 Voice for
                                 <select value={pickerLang} onChange={(e) => showLang(e.target.value)}>

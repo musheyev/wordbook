@@ -89,11 +89,12 @@ export function reportItemAudio(item, chunks) {
 // After saving a note (or a word's own note): its audio list as of now.
 export const reportNoteAudio = (item, html) => reportItemAudio(item, htmlToChunks(html));
 
-// Report every item a reading covers (chunks tagged with tagItem).
+// Report every item a reading covers (chunks tagged with tagItem). Items
+// read only in part (Play all's first sentence only) aren't reported.
 function reportItems(chunks) {
     const byItem = new Map();
     chunks.forEach((c) => {
-        if (!c.item) return;
+        if (!c.item || c.partial) return;
         if (!byItem.has(c.item)) byItem.set(c.item, []);
         byItem.get(c.item).push(c);
     });

@@ -1082,6 +1082,12 @@ nav-button-as-link {
   background: var(--cb-surface-2); font-size: 0.82rem; color: var(--cb-ink-2); cursor: pointer;
 }
 .read-aloud__marks input { margin: 0; }
+/* "First sentence of each note only", at the top of Play all's menu. */
+.read-aloud__first {
+  display: flex; align-items: center; gap: 8px; padding: 2px 2px 10px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--cb-border); font-size: 0.82rem; color: var(--cb-ink-2); cursor: pointer;
+}
+.read-aloud__first input { margin: 0; }
 /* Reading speed for the language shown in the voice picker (ReadAloud.js). */
 .read-aloud__speed { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 2px 0 8px; border-bottom: 1px solid var(--cb-border); margin-bottom: 4px; }
 .read-aloud__speed-label { flex-basis: 100%; font-size: 0.75rem; color: var(--cb-ink-3); padding: 0 2px 2px; }
