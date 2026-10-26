@@ -12,12 +12,14 @@ import CardEditorInline from '../components/CardEditorInline';
 import NotebookMenu from '../components/NotebookMenu';
 import NotebookItemList from '../components/NotebookItemList';
 import AddItemSheet from '../components/AddItemSheet';
+import NotebookQuiz from '../components/NotebookQuiz';
 import ReadAloud from '../components/ReadAloud';
 import NotebookOverview from '../components/NotebookOverview';
 import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
 import { itemPath, notebookPath, listPathFor } from '../utils/notebookPaths';
 import { cardChunks, wordTitleChunk, firstSentenceChunks, getFirstSentenceOnly } from '../utils/tts';
+import { quizCardsOf } from '../utils/quizCards';
 import { highlightFirstMatch } from '../utils/highlightMatch';
 import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
 import useNotebookSearch from '../utils/useNotebookSearch';
@@ -58,6 +60,8 @@ function WordbookPage({
     // Opened from a notebook search result: ?q=<what was searched>.
     const searchedFor = new URLSearchParams(location.search).get('q');
     const [addOpen, setAddOpen] = useState(false);
+    const [quizItems, setQuizItems] = useState(null); // the quiz is open on these
+    const isAdmin = useSelector((state) => state.isAdmin);
 
     useEffect(() => {
         dispatch({ type: SET_CURRENT_WORDBOOK, payload: name });
@@ -212,6 +216,18 @@ function WordbookPage({
         return out;
     };
 
+    // The quiz's cards (admins; NotebookQuiz): from the notes Play all would
+    // read, in the same order. Notes that can't be loaded (offline, not
+    // downloaded) are counted and left out.
+    const quizCards = async (list) => {
+        const cards = [];
+        let missing = 0;
+        for (const item of list.filter((i) => i.type === 'card')) {
+            try { cards.push(...quizCardsOf(await dispatch(getCardContent(item.id)))); } catch (e) { missing += 1; }
+        }
+        return { cards, missing };
+    };
+
     // Phones (the desktop overview shows its own, under its toolbar).
     const emptyMessage = listReady && items.length === 0 && !missing ? (
         <div className="cb-detail__empty cb-detail__empty--phone">
@@ -265,6 +281,11 @@ function WordbookPage({
                         <button type="button" className="cb-mbar__add" onClick={() => setAddOpen(true)}>
                             <i className="plus icon" aria-hidden="true"></i>Add
                         </button>
+                        {isAdmin && items.length > 0 && (
+                            <button type="button" className="cb-mbar__add" onClick={() => setQuizItems(shownItems)}>
+                                <i className="question circle outline icon" aria-hidden="true"></i>Quiz
+                            </button>
+                        )}
                         {items.length > 0 && (
                             <ReadAloud getChunks={() => notebookChunks(shownItems)} title={name} label="Play all" firstSentence />
                         )}
@@ -287,7 +308,7 @@ function WordbookPage({
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
                         selection={selection} playSelected={() => notebookChunks(pickedItems)}
                         lastKey={getLastVisited(name)} colors={itemColors} missing={missing}
-                        onAdd={() => setAddOpen(true)} getReadAloudChunks={notebookChunks} />
+                        onAdd={() => setAddOpen(true)} onQuiz={setQuizItems} getReadAloudChunks={notebookChunks} />
                 ) : (
                     <div className="nb-overview-loading">
                         {loadError
@@ -303,6 +324,7 @@ function WordbookPage({
         <div className={`cb-detail${cardEditorOpen ? ' cb-detail--editing' : ''}${id ? ' cb-detail--item' : ''}`}>
             {body}
             <AddItemSheet open={addOpen} wordbook={name} onClose={() => setAddOpen(false)} />
+            <NotebookQuiz open={!!quizItems} name={name} getCards={() => quizCards(quizItems)} onClose={() => setQuizItems(null)} />
         </div>
     );
 }
