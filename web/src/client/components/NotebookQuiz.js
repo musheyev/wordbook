@@ -11,7 +11,7 @@ import Spinner from './Spinner';
 //                Yo estoy                    read aloud when it opens
 //              tap to flip                   flipped: "I am", read in English
 //
-//                                 Next →     (Done on the last card)
+//   ← Previous                      Next →     (Done on the last card)
 //
 // The cards come from the notes' "foreign — English" lines
 // (utils/quizCards.js), in the notebook's order. Everything it needs is
@@ -88,11 +88,15 @@ function NotebookQuiz({ open, name, getCards, onClose }) {
         setFlipped(!flipped);
         say(sideOf(cards[index], !flipped));
     };
+    // Go to card i, front side up, and read it.
+    const goTo = (i) => {
+        setIndex(i);
+        setFlipped(false);
+        say(sideOf(cards[i], false));
+    };
     const next = () => {
         if (index + 1 >= cards.length) { close(); return; }
-        setIndex(index + 1);
-        setFlipped(false);
-        say(sideOf(cards[index + 1], false));
+        goTo(index + 1);
     };
 
     if (index < 0) {
@@ -156,6 +160,10 @@ function NotebookQuiz({ open, name, getCards, onClose }) {
                 </button>
                 {audioError && <div className="quiz__error">{audioError}</div>}
                 <div className="quiz__foot">
+                    <button type="button" className="cb-btn cb-btn--ghost" onClick={() => goTo(index - 1)}
+                        disabled={index === 0}>
+                        <i className="arrow left icon" aria-hidden="true"></i>Previous
+                    </button>
                     <button type="button" className="cb-btn cb-btn--accent" onClick={next}>
                         {last ? 'Done' : <>Next<i className="arrow right icon" aria-hidden="true"></i></>}
                     </button>
