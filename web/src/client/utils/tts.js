@@ -218,6 +218,49 @@ export function setChosenSpeed(lang, speed) {
     try { localStorage.setItem(SPEED_KEY, JSON.stringify(v)); } catch (e) { /* ignore */ }
 }
 
+// Play all / Play selected: read only the first sentence of each note,
+// persisted per viewer (the ⌄ menu next to Play all, ReadAloud.js).
+const FIRST_SENTENCE_KEY = 'tts-first-sentence';
+export function getFirstSentenceOnly() {
+    try { return localStorage.getItem(FIRST_SENTENCE_KEY) === '1'; } catch (e) { return false; }
+}
+export function setFirstSentenceOnly(on) {
+    try { localStorage.setItem(FIRST_SENTENCE_KEY, on ? '1' : '0'); } catch (e) { /* this visit only */ }
+}
+
+// Letters and digits only, to compare text however it was cut and spaced.
+const bare = (s) => (String(s).match(/[\p{L}\p{N}]/gu) || []).join('');
+
+/**
+ * The chunks that read a note's first sentence: its text up to the first
+ * . ! ? or line break, so a title line counts as the first sentence. A
+ * sentence can be several chunks (English and Hebrew, a Spanish phrase in
+ * it): chunks are taken while their text still matches the sentence. Pauses
+ * inside it are left out.
+ *
+ * The chunks are marked `partial`, so the server isn't told they're all the
+ * audio the note uses (ttsPlayer's reportItems skips them) — otherwise the
+ * rest of the note's audio would be released for cleanup.
+ *
+ * @param {Array} chunks the note's chunks (cardChunks)
+ * @param {string} html the note's content
+ * @returns {Array}
+ */
+export function firstSentenceChunks(chunks, html) {
+    const sentence = bare(sentencesOf(htmlToPlainText(html)).find(speakable) || '');
+    const out = [];
+    let read = '';
+    for (const c of chunks) {
+        if (c.pause) continue;
+        const next = read + bare(c.text);
+        if (out.length && !sentence.startsWith(next)) break;
+        out.push({ ...c, partial: true });
+        read = next;
+        if (read.length >= sentence.length) break;
+    }
+    return out;
+}
+
 // Which item a chunk belongs to, so the server can track the audio each item
 // uses and an admin can clean up audio no item uses any more (api/tts-refs.js).
 //   card:<card_id>   a note              wordnote:<word>   your note on a word

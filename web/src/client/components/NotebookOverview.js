@@ -201,7 +201,7 @@ export default function NotebookOverview({
                         <i className="plus icon" aria-hidden="true"></i>Add
                     </button>
                     {!empty && (
-                        <ReadAloud getChunks={() => getReadAloudChunks(shownItems)} title={name} label="Play all" />
+                        <ReadAloud getChunks={() => getReadAloudChunks(shownItems)} title={name} label="Play all" firstSentence />
                     )}
                     <button type="button" className={`cb-btn cb-btn--ghost nb-overview__windows${noteWindowMode ? ' on' : ''}`}
                         aria-pressed={noteWindowMode} aria-label="Open notes in windows"

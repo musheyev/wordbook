@@ -17,7 +17,7 @@ import NotebookOverview from '../components/NotebookOverview';
 import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
 import { itemPath, notebookPath, listPathFor } from '../utils/notebookPaths';
-import { cardChunks, wordTitleChunk } from '../utils/tts';
+import { cardChunks, wordTitleChunk, firstSentenceChunks, getFirstSentenceOnly } from '../utils/tts';
 import { highlightFirstMatch } from '../utils/highlightMatch';
 import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
 import useNotebookSearch from '../utils/useNotebookSearch';
@@ -25,6 +25,8 @@ import { keyOf } from '../components/NotebookSelect';
 import { getLastVisited, setLastVisited } from '../utils/lastVisited';
 import { MissingLine, useAvailableItems } from '../components/DownloadBadge';
 
+// Play all / Play selected: seconds of silence before the next note or word.
+const NOTE_GAP = 2;
 
 // A notebook. With no item in the URL it shows the notebook: on phones its
 // item list; on desktop (where the list also lives in the left rail) an
@@ -187,16 +189,25 @@ function WordbookPage({
 
     // Build the read-aloud queue for the whole notebook: each note's body (its
     // first chunk tagged with the title so the lock screen updates per item) and
-    // each word read on its own.
+    // each word read on its own, with a pause (NOTE_GAP seconds) between them.
+    // "First sentence only" (the ⌄ menu next to Play all) reads just that of
+    // each note.
     const notebookChunks = async (list = shownItems) => {
+        const firstOnly = getFirstSentenceOnly();
         const out = [];
         for (const item of list) {
+            let chunks;
             if (item.type === 'card') {
                 const content = await dispatch(getCardContent(item.id));
-                cardChunks({ card_id: item.id, content }).forEach((c, i) => out.push({ ...c, title: i === 0 ? item.title : undefined }));
+                chunks = cardChunks({ card_id: item.id, content });
+                if (firstOnly) chunks = firstSentenceChunks(chunks, content);
+                chunks = chunks.map((c, i) => ({ ...c, title: i === 0 ? item.title : undefined }));
             } else {
-                out.push(wordTitleChunk(item));
+                chunks = [wordTitleChunk(item)];
             }
+            if (chunks.length === 0) continue;
+            if (out.length) out.push({ pause: NOTE_GAP });
+            out.push(...chunks);
         }
         return out;
     };
@@ -255,7 +266,7 @@ function WordbookPage({
                             <i className="plus icon" aria-hidden="true"></i>Add
                         </button>
                         {items.length > 0 && (
-                            <ReadAloud getChunks={() => notebookChunks(shownItems)} title={name} label="Play all" />
+                            <ReadAloud getChunks={() => notebookChunks(shownItems)} title={name} label="Play all" firstSentence />
                         )}
                     </div>
                     {listReady ? (
