@@ -954,7 +954,8 @@ nav-button-as-link {
   border-radius: var(--cb-radius); box-shadow: 0 16px 40px rgba(15, 20, 35, 0.24); padding: 16px 18px 18px;
 }
 .quiz__head, .quiz__foot { display: flex; align-items: center; justify-content: space-between; }
-.quiz__foot { justify-content: flex-end; }
+.quiz__foot { gap: 10px; }
+.quiz__foot .cb-btn:disabled { opacity: 0.45; cursor: default; }
 .quiz__count { font-size: 0.9rem; color: var(--cb-ink-3); }
 .quiz__card {
   min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
@@ -967,6 +968,7 @@ nav-button-as-link {
 .quiz__error { font-size: 0.85rem; color: var(--cb-danger); text-align: center; }
 .quiz__foot .cb-btn { padding: 10px 20px; font-size: 1rem; }
 .quiz__foot .cb-btn i.icon { margin: 0 0 0 6px; }
+.quiz__foot .cb-btn i.arrow.left.icon { margin: 0 6px 0 0; }
 @media (max-width: 768px) {
   .quiz__overlay { padding: 0; background: var(--cb-surface-2); }
   .quiz {
