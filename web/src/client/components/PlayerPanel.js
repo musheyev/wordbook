@@ -25,7 +25,7 @@ import ttsPlayer, { SKIP_CHOICES } from '../utils/ttsPlayer';
 // Hide shrinks it to a small "Controls" button; this device remembers that,
 // so the next reading starts hidden too. It goes away when the reading ends.
 // The small read-aloud buttons (ReadAloud) still work as before. Voice
-// previews (VoicePickerDialog) don't bring it up.
+// previews (VoicePickerDialog) and the quiz (NotebookQuiz) don't bring it up.
 const HIDDEN_KEY = 'player-panel-hidden';
 
 const readHidden = () => { try { return localStorage.getItem(HIDDEN_KEY) === '1'; } catch (e) { return false; } };
@@ -43,7 +43,7 @@ export default function PlayerPanel() {
     useEffect(() => ttsPlayer.subscribe(setState), []);
     useEffect(() => { if (state.status === 'idle') setPos(null); }, [state.status]);
 
-    const active = state.status !== 'idle' && state.sourceId !== 'voice-preview';
+    const active = state.status !== 'idle' && state.sourceId !== 'voice-preview' && state.sourceId !== 'quiz';
     if (!active) return null;
 
     const hide = (v) => { setHidden(v); saveHidden(v); };

@@ -37,7 +37,7 @@ import { DownloadSelectedButton } from './DownloadButtons';
 // (on hover) sets it without opening the card. By color groups by colour.
 // Select ticks cards (clicking a card ticks it instead
 // of opening it) for Play selected (`selection`, NotebookSelect.js). Admins
-// also get Copy (what's shown) and Copy selected (CopyNotesButton). Clicking a card opens the item, at the match when it
+// also get Quiz (on what's shown, NotebookQuiz) and Copy (what's shown) and Copy selected (CopyNotesButton). Clicking a card opens the item, at the match when it
 // was found in the text. Phones show their own list instead
 // (NotebookItemList), so this is hidden there (styles.css).
 const TYPES = [
@@ -50,7 +50,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const keyOf = (item) => `${item.type}:${item.id}`;
 
 export default function NotebookOverview({
-    name, items, search, sort, onSort, selection, playSelected, onAdd, getReadAloudChunks, lastKey, colors, missing,
+    name, items, search, sort, onSort, selection, playSelected, onAdd, onQuiz, getReadAloudChunks, lastKey, colors, missing,
 }) {
     const dispatch = useDispatch();
     const rootRef = useRef(null);
@@ -200,6 +200,11 @@ export default function NotebookOverview({
                     <button type="button" className="cb-btn cb-btn--accent" onClick={onAdd}>
                         <i className="plus icon" aria-hidden="true"></i>Add
                     </button>
+                    {!empty && isAdmin && (
+                        <button type="button" className="cb-btn cb-btn--ghost" onClick={() => onQuiz(shownItems)}>
+                            <i className="question circle outline icon" aria-hidden="true"></i>Quiz
+                        </button>
+                    )}
                     {!empty && (
                         <ReadAloud getChunks={() => getReadAloudChunks(shownItems)} title={name} label="Play all" firstSentence />
                     )}

@@ -174,8 +174,42 @@ export function htmlToChunks(html) {
     return out;
 }
 
+/**
+ * A note's lines (a paragraph, heading or list item, or each part of one
+ * split with line breaks), each as its stretches of text marked the same
+ * way: [[{ text, reading }, …], …], the way htmlToChunks cuts them. Text
+ * that isn't read (don't-read, math) is left out; empty lines are dropped.
+ * Pass a stretch to chunksOfStretch for the chunks Play all reads for it —
+ * the same audio, so what a download saved plays offline (the quiz).
+ *
+ * @param {string} html a note's content
+ * @returns {Array<Array<{text: string, reading: object|null}>>}
+ */
+export function htmlToLines(html) {
+    if (!html) return [];
+    const doc = readableDoc(html);
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    const lines = [];
+    let line = [];
+    const add = (text, reading) => {
+        if (!text) return;
+        const last = line[line.length - 1];
+        if (last && sameReading(last.reading, reading)) last.text += text;
+        else line.push({ text, reading });
+    };
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const reading = markedReading(node);
+        node.textContent.split('\n').forEach((part, i) => {
+            if (i > 0) { lines.push(line); line = []; }
+            add(part, reading);
+        });
+    }
+    lines.push(line);
+    return lines.filter((l) => l.some((s) => speakable(s.text)));
+}
+
 // One stretch's chunks: a pause, or its text read as marked.
-function chunksOfStretch(s) {
+export function chunksOfStretch(s) {
     if (s.pause) return [{ pause: s.pause }];
     const r = s.reading;
     const chunks = chunksOf(tidy(s.text), r ? r.lang : null);
