@@ -5,7 +5,7 @@ import requireAuth from '../components/hocs/requireAuth';
 import {
     SET_CURRENT_WORDBOOK, fetchWordbookWords, fetchCardData, fetchWordData,
     clearCurrentSelection, closeCardEditor, getCardContent, fetchItemSorts, saveItemSort, fetchItemColors,
-    fetchWordbookUpdated,
+    fetchWordbookUpdated, quizCardsForItems,
 } from '../actions';
 import SearchResult from '../components/SearchResult';
 import CardEditorInline from '../components/CardEditorInline';
@@ -18,7 +18,6 @@ import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
 import { itemPath, notebookPath, listPathFor } from '../utils/notebookPaths';
 import { cardChunks, wordTitleChunk, firstSentenceChunks, getFirstSentenceOnly } from '../utils/tts';
-import { quizCardsOf } from '../utils/quizCards';
 import { openQuiz } from '../utils/quizLauncher';
 import { highlightFirstMatch } from '../utils/highlightMatch';
 import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
@@ -219,17 +218,7 @@ function WordbookPage({
     // read, in the same order. Each card remembers its note (the quiz's
     // "From" link). Notes that can't be loaded (offline, not downloaded) are
     // counted and left out.
-    const quizCards = async (list) => {
-        const cards = [];
-        let missing = 0;
-        for (const item of list.filter((i) => i.type === 'card')) {
-            try {
-                const source = { type: 'card', id: item.id, title: item.title || '' };
-                cards.push(...quizCardsOf(await dispatch(getCardContent(item.id))).map((c) => ({ ...c, source })));
-            } catch (e) { missing += 1; }
-        }
-        return { cards, missing };
-    };
+    const quizCards = (list) => dispatch(quizCardsForItems(list.filter((i) => i.type === 'card')));
     const startQuiz = (list) => openQuiz({ title: name, notebook: name, load: () => quizCards(list) });
     // Quiz selected (admins), next to Play selected: the quiz on the ticked items.
     const quizSelected = isAdmin ? () => startQuiz(pickedItems) : null;

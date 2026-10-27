@@ -5,10 +5,12 @@ import ttsPlayer from '../utils/ttsPlayer';
 import { quizLanguage } from '../utils/quizCards';
 import { onOpenQuiz, quizzesChanged, newQuizId } from '../utils/quizLauncher';
 import { itemPath } from '../utils/notebookPaths';
+import { noteLinkHref } from '../utils/noteLinks';
 import { saveQuiz } from '../actions';
 import Spinner from './Spinner';
 
-// The quiz (admins): started by the Quiz buttons of a notebook, or from My
+// The quiz (admins): started by the Quiz buttons of a notebook, of a note
+// (the note and the notes it links to), of a tag (Tags), or from My
 // Quizzes. First a sheet to pick the direction, then one flash card at a time:
 //
 //   3 of 24                    Save    Stop     (✓ Saved once saved)
@@ -162,7 +164,10 @@ function NotebookQuiz() {
     const openSource = (source) => {
         stopAudio();
         setAway(true);
-        navigate(itemPath(quiz.notebook, source));
+        // A quiz from one notebook opens the note there; one across
+        // notebooks (a note and its links, a tag) through the note's own
+        // address, which finds a notebook that has it (pages/NoteLinkPage.js).
+        navigate(quiz.notebook ? itemPath(quiz.notebook, source) : noteLinkHref(source.type, source.id));
     };
     const comeBack = () => {
         setAway(false);
@@ -205,7 +210,8 @@ function NotebookQuiz() {
                         <div className="cb-sheet__error">Couldn't load the notes. Check your connection and try again.</div>
                     ) : cards.length === 0 ? (
                         <div className="add-sheet__hint">
-                            {saved ? 'This quiz has no cards left.' : 'No foreign phrases with English found in this notebook.'}
+                            {saved ? 'This quiz has no cards left.'
+                                : `No foreign phrases with English found in ${quiz.notebook ? 'this notebook' : 'these notes'}.`}
                         </div>
                     ) : (
                         <div className="quiz-sheet__choices">

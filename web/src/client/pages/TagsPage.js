@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { connect } from 'react-redux';
+import { connect, useDispatch, useSelector } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
-import { fetchAllTags, fetchWordData, fetchItemNotebooks } from '../actions';
+import { fetchAllTags, fetchWordData, fetchItemNotebooks, quizCardsForItems } from '../actions';
+import { openQuiz } from '../utils/quizLauncher';
 import { itemPath } from '../utils/notebookPaths';
 import { site } from '../utils/site';
 
 // Browse your tagged items by tag. Words open on the Words page; notes open in
-// the first notebook that contains them.
+// the first notebook that contains them. Admins get a Quiz on each tag: its
+// notes and words' notes, whichever notebooks they're in.
 function TagsPage({ allTags, fetchAllTags, fetchWordData, fetchItemNotebooks }) {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
+    const isAdmin = useSelector((state) => state.isAdmin);
     const [active, setActive] = useState(null); // selected tag, or null = all
     const [error, setError] = useState('');
 
@@ -65,7 +69,20 @@ function TagsPage({ allTags, fetchAllTags, fetchWordData, fetchItemNotebooks }) 
                     <div className="tags-sections">
                         {(active ? [active] : tagNames).map((t) => (
                             <div key={t} className="tags-section">
-                                <div className="tags-section__label">{t}</div>
+                                <div className="tags-section__head">
+                                    <div className="tags-section__label">{t}</div>
+                                    {isAdmin && (
+                                        <button type="button" className="tags-section__quiz"
+                                            title={`Quiz on the notes tagged “${t}”`}
+                                            onClick={() => openQuiz({
+                                                title: t,
+                                                notebook: '',
+                                                load: () => dispatch(quizCardsForItems(byTag[t])),
+                                            })}>
+                                            <i className="question circle outline icon" aria-hidden="true"></i>Quiz
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="tags-section__items">
                                     {byTag[t].map((it) => (
                                         <button key={`${it.type}#${it.id}`} type="button"
