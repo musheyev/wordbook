@@ -18,12 +18,14 @@ import './styles.css';
 
 // iPhones and iPads zoom in when a text box with text smaller than 16px is
 // tapped, and stay zoomed afterwards, so the screen looks cut off on the
-// right (the app's text is 14px). maximum-scale=1 stops that automatic zoom;
-// on iOS people can still pinch to zoom in Safari. Only there: on Android it
-// would stop pinch-zoom too. (Text boxes on phones are 16px as well.)
+// right (the app's text is 14px). maximum-scale=1 stops that automatic zoom
+// in Safari, where people can still pinch to zoom. Not on Android (it would
+// stop pinch-zoom there), and not in the iPhone app: there it would stop
+// pinch-zoom too (mobile/README.md), so in the app every text box and the
+// note editor are 16px on phones instead (styles.css, "is-native-app").
 const isAppleTouch = /iPhone|iPad|iPod/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-if (isAppleTouch) {
+if (isAppleTouch && !isNativeApp()) {
   const viewport = document.querySelector('meta[name="viewport"]');
   if (viewport) viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1');
 }

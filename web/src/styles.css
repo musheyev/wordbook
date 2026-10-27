@@ -3696,6 +3696,16 @@ html.is-native-app body::before {
   content: ''; position: fixed; top: 0; left: 0; right: 0; height: var(--safe-top);
   background: var(--cb-bg); z-index: 1000; pointer-events: none;
 }
+/* Pinch-zoom is on in the app (mobile/README.md), so iOS also zooms in when
+   a text box with text under 16px is tapped, and stays zoomed. On phones in
+   the app, every text box and the note editor are 16px. (Safari is kept
+   from zooming by the viewport instead: main.jsx.) */
+@media (max-width: 768px) {
+  html.is-native-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  html.is-native-app textarea,
+  html.is-native-app select,
+  html.is-native-app .rte-content .ProseMirror { font-size: 16px; }
+}
 html.is-native-app .offline-bar,
 html.is-native-app .nb-selectbar { top: var(--safe-top); }
 @media (max-width: 768px) {
