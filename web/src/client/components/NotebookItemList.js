@@ -25,7 +25,7 @@ import { DownloadSelectedButton } from './DownloadButtons';
 // row ticks it) for Play selected (`selection`, NotebookSelect.js). The item
 // last opened in this notebook (this session, `lastKey`) is highlighted and
 // scrolled into view when you come back.
-function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, lastKey, colors, reorderWordbookItems }) {
+function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, quizSelected, lastKey, colors, reorderWordbookItems }) {
     const rootRef = useRef(null);
     useEffect(() => {
         // A moment later: going Back, the browser first puts the page back
@@ -75,6 +75,7 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
             <TagPicker search={search} items={items} />
             {ticking && (
                 <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={wordbook}
+                    onQuiz={quizSelected}
                     extra={selection.picked.size > 0 && (
                         <>
                             <ItemColorButton items={items.filter((item) => selection.isPicked(item))} />
