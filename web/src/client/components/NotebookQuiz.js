@@ -8,8 +8,8 @@ import Spinner from './Spinner';
 //
 //   3 of 24                         Stop
 //
-//                Yo estoy                    read aloud when it opens
-//              tap to flip                   flipped: "I am", read in English
+//                Yo estoy               🔊   read aloud when it opens; 🔊 reads
+//              tap to flip                   it again. Flipped: "I am", in English
 //
 //   ← Previous                      Next →     (Done on the last card)
 //
@@ -153,11 +153,18 @@ function NotebookQuiz({ open, name, getCards, onClose }) {
                         <i className="stop icon" aria-hidden="true"></i>Stop
                     </button>
                 </div>
-                <button type="button" className={`quiz__card${flipped ? ' quiz__card--back' : ''}`} onClick={flip}
-                    aria-label={`${side.text}. Tap to flip`}>
-                    <span className="quiz__text" lang={side.lang}>{side.text}</span>
-                    <span className="quiz__hint">tap to flip</span>
-                </button>
+                <div className="quiz__cardwrap">
+                    <button type="button" className={`quiz__card${flipped ? ' quiz__card--back' : ''}`} onClick={flip}
+                        aria-label={`${side.text}. Tap to flip`}>
+                        <span className="quiz__text" lang={side.lang}>{side.text}</span>
+                        <span className="quiz__hint">tap to flip</span>
+                    </button>
+                    {/* Beside the card, not in it: tapping the card flips it. */}
+                    <button type="button" className="quiz__again" aria-label="Read again" title="Read again"
+                        onClick={() => say(side)}>
+                        <i className="volume up icon" aria-hidden="true"></i>
+                    </button>
+                </div>
                 {audioError && <div className="quiz__error">{audioError}</div>}
                 <div className="quiz__foot">
                     <button type="button" className="cb-btn cb-btn--ghost" onClick={() => goTo(index - 1)}
