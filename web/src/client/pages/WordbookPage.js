@@ -284,6 +284,10 @@ function WordbookPage({
                             <i className="chevron left icon" aria-hidden="true"></i>
                         </Link>
                         <NotebookMenu name={name} />
+                    </div>
+                    {/* The buttons get a row of their own, so the notebook's
+                        name above has the whole width. */}
+                    <div className="cb-mbar__actions">
                         <button type="button" className="cb-mbar__add" onClick={() => setAddOpen(true)}>
                             <i className="plus icon" aria-hidden="true"></i>Add
                         </button>

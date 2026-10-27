@@ -774,6 +774,7 @@ nav-button-as-link {
   .cb-mbar { display: block; }
   .cb-mbar__head { display: flex; align-items: center; gap: 4px; padding: 14px 16px 4px 6px; }
   .cb-mbar__head .nb-menu { margin-left: 0; margin-right: auto; }
+  .cb-mbar__actions { display: flex; align-items: center; gap: 8px; padding: 2px 16px 6px; }
   .cb-mbar__back {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     width: 36px; height: 36px; border-radius: var(--cb-radius-sm); color: var(--cb-accent);
@@ -1152,13 +1153,13 @@ nav-button-as-link {
 /* The voice menu anchors to the toolbar ROW (not the tiny chevron), so it drops
    below the row and its right edge sits at the row's right edge -- it can't run
    off either side regardless of where the chevron falls. */
-.card-header-actions, .cb-mbar__head { position: relative; }
+.card-header-actions, .cb-mbar__head, .cb-mbar__actions { position: relative; }
 .read-aloud__voices { width: 26px; }
 .read-aloud__labelled { gap: 6px; }
 .read-aloud__labelled i.icon { margin: 0; }
 /* Higher specificity than .cb-menu__list so this wins the shared props (both
    carry that class). Anchored to the toolbar row (see .card-header-actions /
-   .cb-mbar__head above): right-aligned to the row and width-clamped to the
+   .cb-mbar__actions above): right-aligned to the row and width-clamped to the
    viewport so it stays fully visible on narrow screens. */
 .read-aloud__voices-wrap .read-aloud__menu {
   position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 41;
