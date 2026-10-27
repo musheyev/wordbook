@@ -966,10 +966,10 @@ nav-button-as-link {
 .quiz__card--back { background: var(--cb-accent-weak); }
 .quiz__cardwrap { position: relative; display: flex; flex-direction: column; }
 .quiz__again {
-  position: absolute; top: 10px; right: 10px; width: 44px; height: 44px;
+  position: absolute; top: 12px; right: 12px; width: 60px; height: 60px;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--cb-border-strong); border-radius: 999px; background: var(--cb-surface-2);
-  color: var(--cb-accent); font-size: 1.1rem; cursor: pointer;
+  border: 1.5px solid var(--cb-border-strong); border-radius: 999px; background: var(--cb-surface-2);
+  color: var(--cb-accent); font-size: 1.7rem; cursor: pointer;
 }
 .quiz__again:hover { border-color: var(--cb-accent); }
 .quiz__again i.icon { margin: 0; }
@@ -1046,6 +1046,8 @@ nav-button-as-link {
   }
   .quiz__cardwrap, .quiz__card { flex: 1; }
   .quiz__foot .cb-btn { flex: 1; justify-content: center; padding: 13px 16px; }
+  /* 16px, or tapping it makes iPhones zoom in (and stay zoomed). */
+  .quiz__nameinput, .link-pick__search input { font-size: 16px; }
 }
 
 /* Note links: a link to another note or word (utils/noteLinks.js), drawn
