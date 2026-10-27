@@ -130,7 +130,7 @@ function onNotebookList(name, items) {
 const markSaved = (keys) => updateRegistry((draft) => { keys.forEach((key) => { draft.saved[key] = true; }); });
 
 /**
- * First pass for one note or word: its text and tags (quick).
+ * First pass for one note or word: its text, tags and note links (quick).
  * @returns {Promise<string>} a note's content (for the second pass), '' for a word
  */
 async function saveText(item) {
@@ -143,6 +143,9 @@ async function saveText(item) {
     }
     await api.get(`/tags?type=${encodeURIComponent(item.type)}&id=${encodeURIComponent(item.id)}`, SAVE)
         .catch(() => { /* tags are a nicety */ });
+    // "Links to" / "Linked from" (components/NoteLinkLists.js): a nicety too.
+    await api.get(`/note-links?type=${encodeURIComponent(item.type)}&id=${encodeURIComponent(item.id)}`, SAVE)
+        .catch(() => {});
     markSaved([keyOf(item)]);
     return content;
 }

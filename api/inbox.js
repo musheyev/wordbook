@@ -49,6 +49,7 @@
 const crypto = require("crypto");
 const database = require("./dynamoDb");
 const cards = require("./cards");
+const noteLinks = require("./note-links");
 const wordbook = require("./wordbook");
 const userImages = require("./user-word-images");
 const { findUsername } = require("./cognitoUsers");
@@ -171,6 +172,9 @@ async function snapshotItem(sender, item) {
             throw new InboxError(404, "That notebook doesn't exist.");
         }
         const notebook = await wordbook._notebookItemsForUser(sender, name);
+        // Links to the sender's other notes would lead nowhere for the
+        // recipient: they become plain text (note-links.js).
+        notebook.cards = notebook.cards.map((c) => ({ ...c, content: noteLinks.unlinkNotes(c.content) }));
         // The sender's own images for its words: { word: [url, …] }.
         const wordImages = {};
         for (const word of notebook.words) {
@@ -202,11 +206,13 @@ async function snapshotItem(sender, item) {
     if (Buffer.byteLength(card.content, "utf8") > MAX_CONTENT_BYTES) {
         throw new InboxError(413, "This note is too large to share.");
     }
+    // Links to the sender's other notes become plain text (note-links.js).
+    const content = noteLinks.unlinkNotes(card.content);
     return {
         item_type: "card",
         title: card.title,
-        content: card.content,
-        preview: cards._previewText(card.content),
+        content,
+        preview: cards._previewText(content),
     };
 }
 

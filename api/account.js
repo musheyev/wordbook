@@ -49,6 +49,7 @@ const USER_TABLES = [
     ["dictionary_word_notes", ["user_name", "word"]],
     ["dictionary_item_tags", ["user_name", "item_key"]],
     ["dictionary_quizzes", ["user_name", "quiz_id"]],
+    ["dictionary_note_links", ["user_name", "link_key"]],
     ["dictionary_user_word_history", ["user_name", "search_datetime"]],
     ["dictionary_word_source_votes", ["user_name", "word"]],
     ["dictionary_user_settings", ["user_name"]],

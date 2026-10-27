@@ -24,7 +24,7 @@ import { isOnline, offlineEnabled } from './network';
 //   always    small lists that make the app work at all offline: who's
 //             signed in, the notebook names, each notebook's item list
 //             (titles), sorts, colours, tags, saved quizzes.
-//   per item  a note's or word's content, only when that note or word is
+//   per item  a note's or word's content (and its tags and note links), only when that note or word is
 //             downloaded (offline/downloads.js decides, through `isCovered`).
 //             The download itself sends its requests with `offlineSave: true`.
 
@@ -44,6 +44,7 @@ function classify(method, path, query, body) {
     if (method === 'get' && path === 'dictionary' && query.search && query.json === 'y') return { item: `word:${query.search}` };
     if (method === 'get' && path === 'dictionary/note' && query.word) return { item: `word:${query.word}` };
     if (method === 'get' && path === 'tags' && query.type && query.id) return { item: `${query.type}:${query.id}` };
+    if (method === 'get' && path === 'note-links' && query.type && query.id) return { item: `${query.type}:${query.id}` };
     return null;
 }
 

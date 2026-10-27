@@ -24,6 +24,7 @@ const tagsRouter = require("./routes/tagsRouter");
 const ttsRouter = require("./routes/ttsRouter");
 const imagesRouter = require("./routes/imagesRouter");
 const quizzesRouter = require("./routes/quizzesRouter");
+const noteLinksRouter = require("./routes/noteLinksRouter");
 const wordImagesRouter = require("./routes/wordImagesRouter");
 const { adminRouter } = require("./routes/adminRouter");
 
@@ -59,6 +60,7 @@ app.use("/tags", tagsRouter);
 app.use("/tts", ttsRouter);
 app.use("/images", imagesRouter);
 app.use("/quizzes", quizzesRouter);
+app.use("/note-links", noteLinksRouter);
 app.use("/word-images", wordImagesRouter);
 app.use("/admin", adminRouter);
 

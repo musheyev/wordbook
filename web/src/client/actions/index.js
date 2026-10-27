@@ -1229,6 +1229,20 @@ export const fetchAllNotebookItems = () => async (dispatch, getState, api) => {
 };
 
 /**
+ * A note's or word's links both ways: { linksTo, linkedFrom }, each
+ * [{ type, id, title, missing? }] (api/note-links.js). Kept on the phone
+ * with the note when it's downloaded (offline/apiCache.js).
+ */
+export const fetchNoteLinks = (type, id) => async (dispatch, getState, api) => {
+  const res = await api.get(`/note-links?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`);
+  const data = res.data || {};
+  return {
+    linksTo: Array.isArray(data.linksTo) ? data.linksTo : [],
+    linkedFrom: Array.isArray(data.linkedFrom) ? data.linkedFrom : [],
+  };
+};
+
+/**
  * The notebook to open a linked note or word in: the open notebook when it
  * has it, else the first one that does. null when none does (deleted, or
  * never in a notebook). Offline, where the server can't be asked, the saved
