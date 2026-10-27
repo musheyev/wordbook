@@ -219,6 +219,8 @@ function WordbookPage({
     // The quiz's cards (admins; NotebookQuiz): from the notes Play all would
     // read, in the same order. Notes that can't be loaded (offline, not
     // downloaded) are counted and left out.
+    // Quiz selected (admins), next to Play selected: the quiz on the ticked items.
+    const quizSelected = isAdmin ? () => setQuizItems(pickedItems) : null;
     const quizCards = async (list) => {
         const cards = [];
         let missing = 0;
@@ -293,7 +295,7 @@ function WordbookPage({
                     {listReady ? (
                         items.length > 0 && (
                             <NotebookItemList wordbook={name} items={items} search={search} sort={sort} onSort={setSort}
-                                selection={selection} playSelected={() => notebookChunks(pickedItems)}
+                                selection={selection} playSelected={() => notebookChunks(pickedItems)} quizSelected={quizSelected}
                                 lastKey={getLastVisited(name)} colors={itemColors} />
                         )
                     ) : loadError ? (
@@ -306,7 +308,7 @@ function WordbookPage({
                 {listReady && <div className="nb-missing--phone"><MissingLine text={missing} /></div>}
                 {listReady ? (
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
-                        selection={selection} playSelected={() => notebookChunks(pickedItems)}
+                        selection={selection} playSelected={() => notebookChunks(pickedItems)} quizSelected={quizSelected}
                         lastKey={getLastVisited(name)} colors={itemColors} missing={missing}
                         onAdd={() => setAddOpen(true)} onQuiz={setQuizItems} getReadAloudChunks={notebookChunks} />
                 ) : (

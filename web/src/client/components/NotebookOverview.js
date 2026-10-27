@@ -50,7 +50,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const keyOf = (item) => `${item.type}:${item.id}`;
 
 export default function NotebookOverview({
-    name, items, search, sort, onSort, selection, playSelected, onAdd, onQuiz, getReadAloudChunks, lastKey, colors, missing,
+    name, items, search, sort, onSort, selection, playSelected, quizSelected, onAdd, onQuiz, getReadAloudChunks, lastKey, colors, missing,
 }) {
     const dispatch = useDispatch();
     const rootRef = useRef(null);
@@ -249,6 +249,7 @@ export default function NotebookOverview({
             <TagPicker search={search} items={items} />
             {selection.selecting && (
                 <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={name}
+                    onQuiz={quizSelected}
                     extra={selection.picked.size > 0 && (
                         <>
                             <ItemColorButton items={items.filter((item) => selection.isPicked(item))} />

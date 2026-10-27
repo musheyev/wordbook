@@ -8,14 +8,18 @@ import ReadAloud from './ReadAloud';
 //   picked         Set of "<type>:<id>"
 //   isPicked(item), toggle(item), setAll(items), start(), cancel()
 //
-//   3 selected   [▶ Play selected]   [Select all]   [Cancel]
+//   3 selected   [▶ Play selected] [? Quiz selected]   [Select all]   [Cancel]
+//
+// Quiz selected (admins) opens the quiz (NotebookQuiz) on the ticked notes.
 
 export const keyOf = (item) => `${item.type}:${item.id}`;
 
 // The bar shown while selecting. `shownItems`: what's on screen (Select all
 // ticks those). `getChunks`: the read-aloud queue for the ticked items.
-// `extra`: more buttons after Play selected (the overview's Copy selected).
-export function SelectBar({ selection, shownItems, getChunks, title, extra = null }) {
+// `onQuiz`: opens the quiz on the ticked items (admins; leave it out and
+// there's no Quiz selected). `extra`: more buttons after those (the
+// overview's Copy selected).
+export function SelectBar({ selection, shownItems, getChunks, title, onQuiz = null, extra = null }) {
     const n = selection.picked.size;
     const allPicked = shownItems.length > 0 && shownItems.every((item) => selection.isPicked(item));
     return (
@@ -26,6 +30,11 @@ export function SelectBar({ selection, shownItems, getChunks, title, extra = nul
             ) : (
                 <button type="button" className="cb-btn cb-btn--ghost" disabled>
                     <i className="volume up icon" aria-hidden="true"></i>Play selected
+                </button>
+            )}
+            {onQuiz && (
+                <button type="button" className="cb-btn cb-btn--ghost" disabled={n === 0} onClick={onQuiz}>
+                    <i className="question circle outline icon" aria-hidden="true"></i>Quiz selected
                 </button>
             )}
             {extra}
