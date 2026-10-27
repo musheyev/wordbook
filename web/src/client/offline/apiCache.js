@@ -23,7 +23,7 @@ import { isOnline, offlineEnabled } from './network';
 // What's kept:
 //   always    small lists that make the app work at all offline: who's
 //             signed in, the notebook names, each notebook's item list
-//             (titles), sorts, colours, tags.
+//             (titles), sorts, colours, tags, saved quizzes.
 //   per item  a note's or word's content, only when that note or word is
 //             downloaded (offline/downloads.js decides, through `isCovered`).
 //             The download itself sends its requests with `offlineSave: true`.
@@ -36,7 +36,7 @@ import { isOnline, offlineEnabled } from './network';
  * bodies as the app's own actions, so both end up under the same key.
  */
 const ALWAYS_GET = new Set(['auth/current_user', 'wordbook/list', 'wordbook/sort', 'wordbook/item-sorts',
-    'wordbook/item-colors', 'tags/all']);
+    'wordbook/item-colors', 'tags/all', 'quizzes']);
 function classify(method, path, query, body) {
     if (method === 'get' && ALWAYS_GET.has(path)) return { always: true };
     if (method === 'post' && path === 'wordbook/words') return { always: true, notebook: body.wordbook };

@@ -37,6 +37,8 @@ const DYNAMO_TABLES = [
   'dictionary_word_notes',
   // Tags a user attaches to items (api/tags.js). PK user_name, SK item_key.
   'dictionary_item_tags',
+  // Saved quizzes, a copy of their cards (api/quizzes.js). PK user_name, SK quiz_id.
+  'dictionary_quizzes',
   // A user's thumbs on dictionary sources (api/source-votes.js). PK user_name, SK word.
   'dictionary_word_source_votes',
   // Per-account preferences (api/user-settings.js). PK user_name.

@@ -23,6 +23,7 @@ const inboxRouter = require("./routes/inboxRouter");
 const tagsRouter = require("./routes/tagsRouter");
 const ttsRouter = require("./routes/ttsRouter");
 const imagesRouter = require("./routes/imagesRouter");
+const quizzesRouter = require("./routes/quizzesRouter");
 const wordImagesRouter = require("./routes/wordImagesRouter");
 const { adminRouter } = require("./routes/adminRouter");
 
@@ -35,7 +36,7 @@ const app = express();
 app.use(helmet());                                // security-related response headers
 app.use(express.static("public"));                // serve files in public/ as-is
 app.use(express.urlencoded({ extended: true }));  // parse HTML form bodies into req.body
-app.use(express.json());                          // parse JSON bodies into req.body
+app.use(express.json({ limit: "1mb" }));          // parse JSON bodies into req.body (a saved quiz can pass 100 KB, the default cap)
 app.use(cookieParser());                          // parse the Cookie header into req.cookies
 app.use(appTokenHeader);                          // the iPhone app's token counts as the cookie (session.js)
 // Renew an expired login from the refresh token before any route reads it.
@@ -57,6 +58,7 @@ app.use("/inbox", inboxRouter);
 app.use("/tags", tagsRouter);
 app.use("/tts", ttsRouter);
 app.use("/images", imagesRouter);
+app.use("/quizzes", quizzesRouter);
 app.use("/word-images", wordImagesRouter);
 app.use("/admin", adminRouter);
 

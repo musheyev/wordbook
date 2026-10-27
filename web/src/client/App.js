@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { connect } from 'react-redux';
 import Header from './components/Header';
 import NoteWindows from './components/NoteWindows';
+import NotebookQuiz from './components/NotebookQuiz';
 import OfflineBar from './components/OfflineBar';
 import { PendingDeletion, DeletionScheduledNotice } from './components/PendingDeletion';
 import PlayerPanel from './components/PlayerPanel';
@@ -90,6 +91,8 @@ const App = ({ auth, accountDeletion, fetchCurrentUser, fetchInbox }) => {
             {/* Floating note windows (desktop) render above everything. */}
             <NoteWindows />
             <PlayerPanel />
+            {/* The quiz, opened from a notebook or My Quizzes (utils/quizLauncher.js). */}
+            {loggedIn && <NotebookQuiz />}
         </div>
     );
 };

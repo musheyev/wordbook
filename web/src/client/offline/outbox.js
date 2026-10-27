@@ -7,7 +7,7 @@ import { getRegistry, updateRegistry } from './registry';
 // connection returns.
 //
 // What can be changed offline: a downloaded note's text and title, a new
-// note, colours and tags. (Deleting, renaming notebooks and adding words
+// note, colours, tags, and saving or deleting a quiz. (Deleting, renaming notebooks and adding words
 // still need a connection: they're harder to undo if something goes wrong.)
 //
 //   1. The change is applied on the phone at once: the saved copies the app
@@ -194,6 +194,32 @@ export async function queueItemTags(type, itemId, tags, title) {
     await saveOutbox();
 }
 
+const quizzesRecord = () => savedKey('get', '/quizzes');
+
+/**
+ * Save a quiz offline: it shows in My Quizzes at once (the saved list is
+ * changed), and is sent later. Only the latest save of a quiz is kept.
+ */
+export async function queueQuizSave(quiz) {
+    const updatedAt = new Date().toISOString();
+    await patchSaved(quizzesRecord(), (list) => {
+        const rest = (Array.isArray(list) ? list : []).filter((q) => q.id !== quiz.id);
+        const before = (Array.isArray(list) ? list : []).find((q) => q.id === quiz.id);
+        return [{ ...quiz, createdAt: (before && before.createdAt) || updatedAt, updatedAt }, ...rest];
+    });
+    outbox = outbox.filter((e) => !(e.kind === 'quiz-save' && e.quiz.id === quiz.id));
+    outbox.push({ id: newId(), kind: 'quiz-save', quiz, title: quiz.name });
+    await saveOutbox();
+}
+
+/** Delete a quiz offline. A save of it still waiting isn't sent. */
+export async function queueQuizDelete(quizId) {
+    await patchSaved(quizzesRecord(), (list) => (Array.isArray(list) ? list.filter((q) => q.id !== quizId) : undefined));
+    outbox = outbox.filter((e) => !(e.kind === 'quiz-save' && e.quiz.id === quizId));
+    outbox.push({ id: newId(), kind: 'quiz-delete', quizId });
+    await saveOutbox();
+}
+
 // --- Sending ---------------------------------------------------------------
 
 /** A new note got its real id: change every reference to the temporary one. */
@@ -240,6 +266,11 @@ async function send(entry) {
         await api.post('/wordbook/item-colors', { items: entry.items, color: entry.color }, JSON_HEADERS);
     } else if (entry.kind === 'tags') {
         await api.post('/tags', { type: entry.type, id: entry.itemId, tags: entry.tags, title: entry.title }, JSON_HEADERS);
+    } else if (entry.kind === 'quiz-save') {
+        const { id, name, notebook, cards } = entry.quiz;
+        await api.put(`/quizzes/${encodeURIComponent(id)}`, { name, notebook, cards }, JSON_HEADERS);
+    } else if (entry.kind === 'quiz-delete') {
+        await api.delete(`/quizzes/${encodeURIComponent(entry.quizId)}`);
     }
 }
 
