@@ -16,6 +16,18 @@ import reducers from './client/reducers';
 import './client/fonts.js';
 import './styles.css';
 
+// iPhones and iPads zoom in when a text box with text smaller than 16px is
+// tapped, and stay zoomed afterwards, so the screen looks cut off on the
+// right (the app's text is 14px). maximum-scale=1 stops that automatic zoom;
+// on iOS people can still pinch to zoom in Safari. Only there: on Android it
+// would stop pinch-zoom too. (Text boxes on phones are 16px as well.)
+const isAppleTouch = /iPhone|iPad|iPod/.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (isAppleTouch) {
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if (viewport) viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1');
+}
+
 // All API calls go through /api, which Vite proxies to the backend on :4000
 // (and CloudFront to the Lambda on the website). Inside the iPhone app it's
 // https://myremembrancer.com/api (client/native/platform.js).
