@@ -3042,6 +3042,14 @@ ul.cb-grid { list-style: none; padding: 0; }
   font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--cb-ink-3); margin-bottom: 8px;
 }
+.tags-section__head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.tags-section__head .tags-section__label { margin-bottom: 0; }
+.tags-section__quiz {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border: 1px solid var(--cb-border);
+  border-radius: 999px; background: var(--cb-surface-2); color: var(--cb-accent); font: inherit; font-size: 0.8rem; cursor: pointer;
+}
+.tags-section__quiz:hover { border-color: var(--cb-accent); }
+.tags-section__quiz i.icon { margin: 0; }
 .tags-section__items { display: flex; flex-wrap: wrap; gap: 8px; }
 .tags-item {
   display: inline-flex; align-items: center; gap: 8px; max-width: 100%;

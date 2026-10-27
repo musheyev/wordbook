@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { connect, useSelector } from 'react-redux';
+import { connect, useDispatch, useSelector } from 'react-redux';
 import { fetchWordbooks, fetchWordWordbooks, openCardEditor, deleteCard, saveWordNote, deleteWordNote, fetchSourceVotes, setSourceVote, fetchWordData, fetchCardData, requestErrorMessage } from '../actions';
 import Definition from './Definition';
 import Spinner from './Spinner';
@@ -14,6 +14,8 @@ import NoteZoomButton from './NoteZoomButton';
 import { useNoteZoom } from '../utils/noteZoom';
 import ItemTags from './ItemTags';
 import NoteLinkLists from './NoteLinkLists';
+import { quizCardsForLinked } from '../actions';
+import { openQuiz } from '../utils/quizLauncher';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { showApiImages } from '../offline/images';
 import { useIsOffline } from './DownloadBadge';
@@ -42,6 +44,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     // Offline (iPhone app, no connection): deleting needs a connection.
     const noConnection = useIsOffline();
     const currentWordbook = useSelector((state) => state.currentWordbook);
+    const isAdmin = useSelector((state) => state.isAdmin);
+    const dispatch = useDispatch();
     const [sharing, setSharing] = useState(false);
     const [editingNote, setEditingNote] = useState(false);
     const [noteDraft, setNoteDraft] = useState('');
@@ -229,6 +233,20 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
         </>
     );
 
+    // Quiz (admins): this note (or this word's note) and the notes and words
+    // it links to, whichever notebooks they're in (actions: quizCardsForLinked).
+    const quizControl = (item) => isAdmin && (
+        <button className="card-tool" title="Quiz: this note and the notes it links to"
+            aria-label="Quiz this note and its links"
+            onClick={() => openQuiz({
+                title: item.title,
+                notebook: '',
+                load: () => dispatch(quizCardsForLinked(item)),
+            })}>
+            <i className="question circle outline icon"></i>
+        </button>
+    );
+
     // The note's colour, if it has one (ItemColorButton): its stripe and tint.
     const noteColor = currentCard && currentCard.card_id ? colorOf(itemColors, { type: 'card', id: currentCard.card_id }) : null;
 
@@ -265,6 +283,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             <i className="trash alternate outline icon"></i>
                         </button>
                         <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title} />
+                        {quizControl({ type: 'card', id: currentCard.card_id, title: currentCard.title })}
                         <NoteZoomButton level={noteZoom} onChange={setNoteZoom} />
                         <NoteDownloadButton notebook={currentWordbook}
                             item={{ type: 'card', id: currentCard.card_id, title: currentCard.title }} />
@@ -340,6 +359,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                                         <i className="sticky note outline icon"></i>
                                     </button>
                                 )}
+                                {hasNote && quizControl({ type: 'word', id: currentWord, title: currentWord })}
                                 {addToWordbookControl}
                                 {shareControl}
                                 {auth != "" && (

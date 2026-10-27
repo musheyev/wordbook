@@ -1,4 +1,5 @@
 import shrinkImage from '../utils/shrinkImage';
+import { quizCardsOf } from '../utils/quizCards';
 import axios from 'axios';
 import { isNativeApp } from '../native/platform';
 import { nativeSignOut } from '../native/auth';
@@ -1226,6 +1227,50 @@ export const fetchAllNotebookItems = () => async (dispatch, getState, api) => {
     else byKey.set(key, { type: item.type, id: item.id, title: item.title || item.id, notebooks: [wordbook] });
   }));
   return [...byKey.values()];
+};
+
+/** A word's note (its HTML, '' when it has none), without showing it. */
+export const getWordNoteContent = (word) => async (dispatch, getState, api) => {
+  const res = await api.get(`/dictionary/note?word=${encodeURIComponent(word)}`);
+  return (res.data && res.data.content) || '';
+};
+
+/**
+ * Quiz cards (utils/quizCards.js) from notes and words' notes, in the order
+ * given. Each card remembers where it came from (the quiz's "From" link).
+ * Ones that can't be loaded (offline, not downloaded) are counted in
+ * `missing` and left out; a word with no note just has no cards.
+ *
+ * @param {Array<{type: 'card'|'word', id: string, title?: string}>} items
+ * @returns {Promise<{cards: object[], missing: number}>}
+ */
+export const quizCardsForItems = (items) => async (dispatch) => {
+  const cards = [];
+  let missing = 0;
+  for (const item of items) {
+    try {
+      const html = item.type === 'card'
+        ? await dispatch(getCardContent(item.id))
+        : await dispatch(getWordNoteContent(item.id));
+      const source = { type: item.type, id: item.id, title: item.title || item.id };
+      cards.push(...quizCardsOf(html).map((c) => ({ ...c, source })));
+    } catch (e) { missing += 1; }
+  }
+  return { cards, missing };
+};
+
+/**
+ * A quiz on a note (or a word's note) and the notes and words it links to
+ * (step 3 of note links; the Quiz button on a note).
+ *
+ * @param {{type: 'card'|'word', id: string, title: string}} item
+ */
+export const quizCardsForLinked = (item) => async (dispatch) => {
+  let linked = [];
+  try {
+    linked = (await dispatch(fetchNoteLinks(item.type, item.id))).linksTo.filter((l) => !l.missing);
+  } catch (e) { /* offline and not saved: just this note */ }
+  return dispatch(quizCardsForItems([item, ...linked]));
 };
 
 /**
