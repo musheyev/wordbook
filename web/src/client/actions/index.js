@@ -5,7 +5,7 @@ import { nativeSignOut } from '../native/auth';
 import { rememberScheduledNotice } from '../utils/deletionDate';
 import { clearOfflineData, itemDeleted, notebookDeleted, notebookRenamed } from '../offline/downloads';
 import {
-  isQueueing, queueCardCreate, queueCardUpdate, queueItemColors, queueItemTags,
+  isQueueing, queueCardCreate, queueCardUpdate, queueItemColors, queueItemTags, queueQuizSave, queueQuizDelete,
 } from '../offline/outbox';
 
 export const FETCH_USERS = 'fetch_users';
@@ -1195,6 +1195,36 @@ export const fetchAllTags = () => async (dispatch, getState, api) => {
 export const fetchItemNotebooks = (id) => async (dispatch, getState, api) => {
   const res = await api.post('/wordbook/word/wordbooks', { word: id }, JSON_HEADERS);
   return Array.isArray(res.data) ? res.data : [];
+};
+
+// ---------------------------------------------------------------------------
+// Saved quizzes (My Quizzes; api/quizzes.js). A quiz is a copy of its cards.
+// No Redux state: the quiz and the My Quizzes page keep what they show.
+// Offline on the iPhone, saving and deleting wait in the outbox, and the
+// list comes from the saved copy of GET /quizzes (offline/apiCache.js).
+// ---------------------------------------------------------------------------
+
+/** Every saved quiz, cards included, newest change first. */
+export const fetchQuizzes = () => async (dispatch, getState, api) => {
+  const res = await api.get('/quizzes');
+  return Array.isArray(res.data) ? res.data : [];
+};
+
+/**
+ * Save a quiz (new, or all of it again after a change).
+ * @param {{id: string, name: string, notebook: string, cards: object[]}} quiz
+ */
+export const saveQuiz = (quiz) => async (dispatch, getState, api) => {
+  if (isQueueing()) { await queueQuizSave(quiz); return; } // sent later (offline/outbox.js)
+  await api.put(`/quizzes/${encodeURIComponent(quiz.id)}`,
+    { name: quiz.name, notebook: quiz.notebook, cards: quiz.cards }, JSON_HEADERS);
+  api.get('/quizzes').catch(() => {}); // keeps the phone's saved list current
+};
+
+export const deleteQuiz = (id) => async (dispatch, getState, api) => {
+  if (isQueueing()) { await queueQuizDelete(id); return; }
+  await api.delete(`/quizzes/${encodeURIComponent(id)}`);
+  api.get('/quizzes').catch(() => {});
 };
 
 
