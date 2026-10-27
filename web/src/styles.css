@@ -1110,6 +1110,21 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .link-pick__where { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82rem; color: var(--cb-ink-3); }
 .link-pick__note { padding: 14px 8px; color: var(--cb-ink-3); font-size: 0.92rem; }
 .rte-link__remove { color: var(--cb-danger) !important; }
+/* "Links to" / "Linked from" under a note or word (components/NoteLinkLists.js). */
+.note-links {
+  display: flex; flex-direction: column; gap: 8px; margin-top: 22px; padding-top: 12px;
+  border-top: 1px solid var(--cb-border); font-size: 0.92rem;
+}
+.word-note + .note-links, .search-result > .note-links { margin: 4px 0 14px; padding-top: 10px; }
+.note-links__row { display: flex; align-items: baseline; gap: 10px; }
+.note-links__label { flex: none; width: 84px; color: var(--cb-ink-3); font-size: 0.82rem; }
+.note-links__items { display: flex; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
+.note-links__items a { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-links__missing { color: var(--cb-ink-3); font-style: italic; }
+@media (max-width: 768px) {
+  .note-links__row { flex-direction: column; gap: 4px; }
+  .note-links__label { width: auto; }
+}
 
 /* Add sheet: look up a word, or write a note */
 .cb-search--sheet { max-width: none; }

@@ -4,6 +4,7 @@ const cards = require("../cards.js");
 const userSettings = require("../user-settings.js");
 const ttsRefs = require("../tts-refs.js");
 const notebookSearch = require("../notebook-search.js");
+const noteLinks = require("../note-links.js");
 
 let wordbookRouter = express.Router();
 
@@ -410,6 +411,9 @@ wordbookRouter.post("/card/create", function (req, res) {
     const { id_token: token } = req.cookies;
 
     cards.createCard(token, title, content)
+        // Its links to other notes, for their "Linked from" (note-links.js).
+        .then((card) => noteLinks.recordLinksForToken(token, { type: "card", id: card.card_id, title: card.title }, content)
+            .then(() => card))
         .then((card) => {
             if (wordbooks.length === 0) {
                 return res.send(card);
@@ -441,6 +445,10 @@ wordbookRouter.post("/card/update", function (req, res) {
     const { id_token: token } = req.cookies;
 
     cards.updateCard(token, card_id, title, content)
+        // Its links to other notes, for their "Linked from" (note-links.js).
+        // Never fails the save.
+        .then((card) => noteLinks.recordLinksForToken(token, { type: "card", id: card_id, title }, content)
+            .then(() => card))
         // Editing a note updates every notebook it's in ("Recently updated"
         // sort). That bookkeeping never fails the save.
         .then((card) => wordbook.touchWordbooksForCard(token, card_id)
@@ -484,6 +492,8 @@ wordbookRouter.post("/card/delete", function (req, res) {
         // admin later; see tts-refs.js). Never fails the delete.
         .then(() => ttsRefs.removeItem(`card:${card_id}`)
             .catch((err) => console.log(`tts refs cleanup error: ${err.name}`)))
+        // Its links are gone too (note-links.js; never fails).
+        .then(() => noteLinks.recordLinksForToken(token, { type: "card", id: card_id }, ""))
         .then(() => res.status(200).send("Done"))
         .catch((err) => {
             console.log(`card/delete error: ${err.name}`);

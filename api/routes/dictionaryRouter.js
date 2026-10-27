@@ -4,6 +4,7 @@ const wp = require("../word-pictures");
 const ex = require("../word-examples");
 const uh = require("../user-history");
 const wn = require("../word-notes");
+const noteLinks = require("../note-links");
 const sv = require("../source-votes");
 const userImages = require("../user-word-images");
 const ttsRefs = require("../tts-refs");
@@ -225,7 +226,9 @@ dictionaryRouter.post("/note", function (req, res) {
     const word = req.body.word;
     if (!word) return res.status(400).json({ error: "word is required" });
     wn.saveWordNote(token, word, req.body.content)
-        .then((content) => res.json({ content }))
+        // Its links to other notes, for their "Linked from" (note-links.js).
+        .then((content) => noteLinks.recordLinksForToken(token, { type: "word", id: word }, content)
+            .then(() => res.json({ content })))
         .catch((error) => {
             log("word note save error: " + error);
             res.status(500).json({ error: "Could not save note" });
@@ -241,6 +244,7 @@ dictionaryRouter.post("/note/delete", function (req, res) {
         .then(() => getCurentUserFromToken(token)
             .then((userName) => ttsRefs.removeUserItem(userName, `wordnote:${word}`))
             .catch((err) => log("tts refs cleanup error: " + err)))
+        .then(() => noteLinks.recordLinksForToken(token, { type: "word", id: word }, ""))
         .then(() => res.json({ content: null }))
         .catch((error) => {
             log("word note delete error: " + error);

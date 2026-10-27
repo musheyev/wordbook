@@ -13,6 +13,7 @@ import RichTextEditor from './LazyRichTextEditor';
 import NoteZoomButton from './NoteZoomButton';
 import { useNoteZoom } from '../utils/noteZoom';
 import ItemTags from './ItemTags';
+import NoteLinkLists from './NoteLinkLists';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { showApiImages } from '../offline/images';
 import { useIsOffline } from './DownloadBadge';
@@ -302,6 +303,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     data-color={noteColor ? noteColor.key : undefined}>
                     <div className="note-zoom-text"
                         dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(currentCard.content) }} />
+                    {/* Links to / Linked from (reloaded when the note is saved). */}
+                    <NoteLinkLists type="card" id={currentCard.card_id} version={currentCard.content} />
                 </div>
                 <SelectionPlayButton rootRef={cardRef} title={currentCard.title} />
             </div>
@@ -402,6 +405,11 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(noteContent) }} />
                     </div>
                 ) : null}
+
+                {/* Links to (from your note) / Linked from, under the note. */}
+                {currentWord != "" && auth != "" && !editingNote && (
+                    <NoteLinkLists type="word" id={currentWord} version={noteContent || ''} />
+                )}
 
                 {currentWord == "" ? null : !wordData ? (
                     <Spinner label={`Looking up “${currentWord}”…`} />
