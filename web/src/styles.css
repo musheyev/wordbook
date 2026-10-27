@@ -1048,6 +1048,67 @@ nav-button-as-link {
   .quiz__foot .cb-btn { flex: 1; justify-content: center; padding: 13px 16px; }
 }
 
+/* Note links: a link to another note or word (utils/noteLinks.js), drawn
+   as a small tag so it reads differently from a web link: 📝 for a note,
+   Aa for a word. The marker is drawn, not text, so it isn't read aloud. */
+a[href^="/note/"],
+.card-content a[href^="/note/"],
+.rte-content .ProseMirror a[href^="/note/"] {
+  color: #5b3cc4; background: #f1edff; border-radius: 6px; padding: 0 4px 0 3px;
+  text-decoration: none; box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
+a[href^="/note/"]:hover { background: #e4dcff; }
+a[href^="/note/card/"]::before { content: "📝"; font-size: 0.8em; margin-right: 3px; }
+a[href^="/note/word/"]::before {
+  content: "Aa"; font-size: 0.72em; font-weight: 700; margin-right: 4px; letter-spacing: -0.02em; opacity: 0.8;
+}
+/* "‹ Back to …" after following a note link (components/NoteLinks.js): the
+   same dark pill as the quiz's "Back to quiz", above it when both show. */
+.link-back {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px; z-index: 264;
+  display: flex; align-items: center; max-width: calc(100vw - 24px); border-radius: 999px; background: #1f2430;
+  box-shadow: 0 8px 24px rgba(15, 20, 35, 0.3);
+}
+body:has(.quiz-back) .link-back { bottom: 80px; }
+.link-back button {
+  display: inline-flex; align-items: center; gap: 6px; height: 44px; border: none; background: none;
+  color: #fff; font: inherit; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+}
+.link-back__go { min-width: 0; padding: 0 8px 0 14px; }
+.link-back__label { display: flex; min-width: 0; white-space: nowrap; }
+.link-back__title { display: inline-block; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.link-back__close { flex: none; padding: 0 14px 0 10px; color: #aab3c5 !important; border-left: 1px solid #3a4152 !important; }
+.link-back i.icon { margin: 0; height: auto; }
+.link-back--message { padding: 12px 18px; color: #fff; font-size: 0.92rem; border-radius: 14px; }
+@media (max-width: 768px) {
+  .link-back { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); left: 12px; transform: none; }
+  body:has(.quiz-back) .link-back { bottom: calc(132px + env(safe-area-inset-bottom, 0px)); }
+  .link-back__title { max-width: 50vw; }
+}
+/* "Link to another note" (components/NoteLinkPicker.js). */
+.link-pick { display: flex; flex-direction: column; max-height: min(640px, calc(100vh - 32px)); }
+.link-pick__search {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px; margin-bottom: 8px;
+  border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm); background: var(--cb-surface-2);
+}
+.link-pick__search i.icon { margin: 0; color: var(--cb-ink-3); }
+.link-pick__search input {
+  flex: 1; min-width: 0; height: 42px; border: none; outline: none; background: none; font: inherit; font-size: 1rem; color: var(--cb-ink);
+}
+/* A steady height, so the box doesn't jump as the matches change. */
+.link-pick__list { flex: 0 1 auto; height: 340px; min-height: 120px; overflow-y: auto; margin: 0 -8px; }
+.link-pick__row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 8px; border: none; border-radius: var(--cb-radius-sm);
+  background: none; color: var(--cb-ink); font: inherit; text-align: left; cursor: pointer;
+}
+.link-pick__row:hover, .link-pick__row:focus-visible { background: var(--cb-surface); }
+.link-pick__kind { flex: none; width: 24px; text-align: center; font-size: 0.95rem; }
+.link-pick__kind--word { font-size: 0.78rem; font-weight: 700; color: #5b3cc4; }
+.link-pick__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-pick__where { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82rem; color: var(--cb-ink-3); }
+.link-pick__note { padding: 14px 8px; color: var(--cb-ink-3); font-size: 0.92rem; }
+.rte-link__remove { color: var(--cb-danger) !important; }
+
 /* Add sheet: look up a word, or write a note */
 .cb-search--sheet { max-width: none; }
 .add-sheet__result { min-height: 8px; margin: 10px 0 4px; }

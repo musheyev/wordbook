@@ -6,8 +6,12 @@ import { siteUrl } from '../native/platform';
 import { isApiImage, loadsImagesItself } from '../offline/images';
 
 // Make all links open in a new tab with a safe rel. Registered once at module load.
+// Except links to another note ("/note/…", utils/noteLinks.js): those open
+// in the app (components/NoteLinks.js), so they stay in this tab.
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-    if (node.tagName === 'A') {
+    if (node.tagName === 'A' && /^\/note\//.test(node.getAttribute('href') || '')) {
+        node.removeAttribute('target');
+    } else if (node.tagName === 'A') {
         node.setAttribute('target', '_blank');
         node.setAttribute('rel', 'noopener noreferrer');
     }

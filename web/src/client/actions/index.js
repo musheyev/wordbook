@@ -1198,6 +1198,64 @@ export const fetchItemNotebooks = (id) => async (dispatch, getState, api) => {
 };
 
 // ---------------------------------------------------------------------------
+// Note links: links from one note to another (utils/noteLinks.js).
+// ---------------------------------------------------------------------------
+
+/**
+ * Every note and word in every notebook, once each, with the notebooks it's
+ * in: what the "Link to another note" picker searches. Made from the same
+ * lists the notebooks load (/wordbook/list, then /wordbook/words for each),
+ * which the iPhone app keeps, so it works offline too. A notebook that can't
+ * be loaded is left out.
+ *
+ * @returns {Promise<Array<{type: 'card'|'word', id: string, title: string, notebooks: string[]}>>}
+ */
+export const fetchAllNotebookItems = () => async (dispatch, getState, api) => {
+  const listRes = await api.get('/wordbook/list');
+  const names = Array.isArray(listRes.data) ? listRes.data.filter((n) => typeof n === 'string') : [];
+  const lists = await Promise.all(names.map((wordbook) =>
+    api.post('/wordbook/words', { wordbook }, JSON_HEADERS)
+      .then((res) => ({ wordbook, items: Array.isArray(res.data) ? res.data : [] }))
+      .catch(() => ({ wordbook, items: [] }))));
+  const byKey = new Map();
+  lists.forEach(({ wordbook, items }) => items.forEach((item) => {
+    if (!item || (item.type !== 'card' && item.type !== 'word') || !item.id) return;
+    const key = `${item.type}:${item.id}`;
+    const seen = byKey.get(key);
+    if (seen) seen.notebooks.push(wordbook);
+    else byKey.set(key, { type: item.type, id: item.id, title: item.title || item.id, notebooks: [wordbook] });
+  }));
+  return [...byKey.values()];
+};
+
+/**
+ * The notebook to open a linked note or word in: the open notebook when it
+ * has it, else the first one that does. null when none does (deleted, or
+ * never in a notebook). Offline, where the server can't be asked, the saved
+ * notebook lists are searched instead.
+ *
+ * @param {{type: 'card'|'word', id: string}} target
+ * @returns {Promise<string|null>}
+ */
+export const findNoteLinkNotebook = ({ type, id }) => async (dispatch, getState) => {
+  const { currentWordbook, wordbookWordsFor, wordbookWords } = getState();
+  if (currentWordbook && wordbookWordsFor === currentWordbook && Array.isArray(wordbookWords)
+    && wordbookWords.some((item) => item.type === type && item.id === id)) {
+    return currentWordbook;
+  }
+  let notebooks;
+  try {
+    notebooks = await dispatch(fetchItemNotebooks(id));
+  } catch (err) {
+    const all = await dispatch(fetchAllNotebookItems());
+    const found = all.find((item) => item.type === type && item.id === id);
+    notebooks = found ? found.notebooks : [];
+  }
+  if (currentWordbook && notebooks.includes(currentWordbook)) return currentWordbook;
+  return notebooks[0] || null;
+};
+
+// ---------------------------------------------------------------------------
 // Saved quizzes (My Quizzes; api/quizzes.js). A quiz is a copy of its cards.
 // No Redux state: the quiz and the My Quizzes page keep what they show.
 // Offline on the iPhone, saving and deleting wait in the outbox, and the
