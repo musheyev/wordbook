@@ -8,6 +8,7 @@ import WordbookPage from './pages/WordbookPage';
 import InboxPage from './pages/InboxPage';
 import TagsPage from './pages/TagsPage';
 import QuizzesPage from './pages/QuizzesPage';
+import NoteLinkPage from './pages/NoteLinkPage';
 import MorePage from './pages/MorePage';
 import PrivacyPage from './pages/PrivacyPage';
 import SupportPage from './pages/SupportPage';
@@ -80,6 +81,8 @@ export const routes = [
       { path: 'inbox/:id', Component: InboxPage },
       { path: 'tags', Component: TagsPage },
       { path: 'quizzes', Component: QuizzesPage },
+      // A note link's address (utils/noteLinks.js): opens the note in a notebook.
+      { path: 'note/:type/:id', Component: NoteLinkPage },
       { path: 'more', Component: MorePage },
       // Open to everyone, signed in or not (App Store requirements).
       { path: 'privacy', Component: PrivacyPage },

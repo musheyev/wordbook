@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import Header from './components/Header';
 import NoteWindows from './components/NoteWindows';
 import NotebookQuiz from './components/NotebookQuiz';
+import NoteLinks from './components/NoteLinks';
 import OfflineBar from './components/OfflineBar';
 import { PendingDeletion, DeletionScheduledNotice } from './components/PendingDeletion';
 import PlayerPanel from './components/PlayerPanel';
@@ -93,6 +94,8 @@ const App = ({ auth, accountDeletion, fetchCurrentUser, fetchInbox }) => {
             <PlayerPanel />
             {/* The quiz, opened from a notebook or My Quizzes (utils/quizLauncher.js). */}
             {loggedIn && <NotebookQuiz />}
+            {/* Following links between notes, and "Back to …" (utils/noteLinks.js). */}
+            {loggedIn && <NoteLinks />}
         </div>
     );
 };

@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { useSelector } from 'react-redux';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension, nodeInputRule, getMarkRange } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -17,6 +18,8 @@ import { TtsPause } from './editor/ttsPause';
 import { TtsBookmark } from './editor/ttsBookmark';
 import { MARKABLE_LANGUAGES, TTS_PAUSES, TTS_SPEEDS, htmlToChunks, languageLabel, voiceLabel } from '../utils/tts';
 import VoicePickerDialog from './VoicePickerDialog';
+import NoteLinkPicker from './NoteLinkPicker';
+import { noteLinkHref } from '../utils/noteLinks';
 
 import { Indent } from './editor/indent';
 import { FindReplace, findReplaceKey } from './editor/findReplace';
@@ -178,6 +181,10 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
     const [showPause, setShowPause] = React.useState(false);
     // H ▾ menu: normal text / heading levels.
     const [showHeading, setShowHeading] = React.useState(false);
+    // 🔗 menu (admins for now): a web address, or another note (NoteLinkPicker).
+    const isAdmin = useSelector((state) => state.isAdmin);
+    const [showLink, setShowLink] = React.useState(false);
+    const [pickingNote, setPickingNote] = React.useState(false);
     // Kept current so the paste/drop handlers (defined at editor-config time) can
     // reach the editor instance, which only exists after useEditor returns.
     const editorRef = React.useRef(null);
@@ -480,6 +487,28 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
         editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     };
 
+    // Link to another note (utils/noteLinks.js). Selected text, or the link
+    // the cursor is in, becomes the link; with neither, the note's title is
+    // typed in as the link (and a space after it, so what's typed next isn't
+    // part of the link).
+    const linkToNote = (item) => {
+        setPickingNote(false);
+        const href = noteLinkHref(item.type, item.id);
+        const chain = editor.chain().focus();
+        if (!editor.state.selection.empty || editor.isActive('link')) {
+            chain.extendMarkRange('link').setLink({ href }).run();
+        } else {
+            // Right after a word or "here.", a space first.
+            const { $from } = editor.state.selection;
+            const before = $from.parent.textBetween(Math.max(0, $from.parentOffset - 1), $from.parentOffset);
+            chain.insertContent([
+                ...(before && !/\s/.test(before) ? [{ type: 'text', text: ' ' }] : []),
+                { type: 'text', text: item.title, marks: [{ type: 'link', attrs: { href } }] },
+                { type: 'text', text: ' ' },
+            ]).run();
+        }
+    };
+
     const toggleMarkdownPaste = () => {
         const next = !markdownPaste;
         editor.storage.markdownPaste.enabled = next;
@@ -726,7 +755,38 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
                 <Btn label="⇥" title="Increase indent (move right)" onClick={indentMore} />
                 <Btn label="Code block" title="Code block" active={editor.isActive('codeBlock')}
                     onClick={() => editor.chain().focus().toggleCodeBlock().run()} />
-                <Btn label="🔗" title="Link" active={editor.isActive('link')} onClick={setLink} />
+                {isAdmin ? (
+                    <span className="rte-hl">
+                        <Btn label="🔗" title="Link" active={editor.isActive('link') || showLink}
+                            onClick={() => setShowLink((v) => !v)} />
+                        {showLink && (
+                            <ToolbarPop className="rte-hl__pop rte-lang__pop rte-link__pop" onClose={() => setShowLink(false)}>
+                                <button type="button" role="menuitem" className="rte-lang__item"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => { setShowLink(false); setPickingNote(true); }}>
+                                    📝 Another note…
+                                </button>
+                                <button type="button" role="menuitem" className="rte-lang__item"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => { setShowLink(false); setLink(); }}>
+                                    🌐 Web address…
+                                </button>
+                                {editor.isActive('link') && (
+                                    <button type="button" role="menuitem" className="rte-lang__item rte-link__remove"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                            setShowLink(false);
+                                            editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                                        }}>
+                                        Remove link
+                                    </button>
+                                )}
+                            </ToolbarPop>
+                        )}
+                    </span>
+                ) : (
+                    <Btn label="🔗" title="Link" active={editor.isActive('link')} onClick={setLink} />
+                )}
                 <Btn label="🖼" title="Insert image (or paste / drag one in)"
                     onClick={() => fileInputRef.current && fileInputRef.current.click()} />
                 <Btn label="fx" active={!!mathType}
@@ -781,6 +841,7 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
                 onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) insertImageFile(f); e.target.value = ''; }} />
             {find && <FindBar editor={editor} open={find} onClose={closeFind} />}
             <EditorContent editor={editor} className="rte-content" style={{ '--note-zoom': zoom }} />
+            <NoteLinkPicker open={pickingNote} onClose={() => setPickingNote(false)} onPick={linkToNote} />
             <VoicePickerDialog
                 open={voicePick}
                 initialLang={editor.getAttributes('ttsLang').lang || null}
