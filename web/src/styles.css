@@ -3678,7 +3678,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   .player-pill { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 }
 
-/* "▶ Play" under text selected in a note (SelectionPlayButton). */
+/* "▶ Play" for text selected in a note (SelectionPlayButton): under the selection with a mouse. */
 .sel-play {
   position: fixed; z-index: 270; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   width: 96px; height: 40px; border: none; border-radius: 999px; background: #1f2430; color: #fff;
@@ -3686,6 +3686,15 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   box-shadow: 0 6px 18px rgba(15, 20, 35, 0.3); touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .sel-play .icon { margin: 0; height: auto; }
+/* On touch screens, away from the system's Copy / Look Up menu: bottom left,
+   level with the Controls pill (.player-pill), or top left when the
+   selection is down in that corner. */
+.sel-play--pinned { left: 24px; bottom: 24px; }
+.sel-play--top { left: 24px; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 768px) {
+  .sel-play--pinned { left: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .sel-play--top { left: 12px; }
+}
 
 /* A toolbar menu on a phone while editing (RichTextEditor ToolbarPop): drawn
    on the page, outside the sideways-scrolling toolbar, as a sheet just above

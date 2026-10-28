@@ -976,11 +976,42 @@ const audioOn = (ed) => !!(ed && ed.storage.audioSelect && ed.storage.audioSelec
 // keyboard), it's drawn on the page itself — outside the toolbar, because
 // iPhone Safari cuts off anything inside a scrolling row — as a sheet just
 // above the toolbar (.rte-sheet in styles.css).
+//
+// On a phone it also puts the keyboard away while it's open. With text
+// selected, the iPhone shows its own Cut / Copy / Paste menu over the page,
+// on top of everything — often right over this menu's items, which then
+// can't be tapped — and that menu only goes when the editor loses focus.
+// The selection itself isn't lost: the editor keeps it, so choosing an item
+// (editor.chain().focus()…) still applies to the selected text, and brings
+// the keyboard back. Closing the menu without choosing brings it back too.
 const phoneEditing = () => typeof window !== 'undefined'
     && window.matchMedia('(max-width: 768px)').matches
     && document.documentElement.classList.contains('editing-note');
 function ToolbarPop({ className, onClose, children }) {
-    if (!phoneEditing()) {
+    const phone = phoneEditing();
+    const blurred = React.useRef(null); // the editor it took the focus from
+
+    React.useEffect(() => {
+        if (!phone) return;
+        const el = document.activeElement;
+        if (el && el.closest && el.closest('.ProseMirror')) {
+            blurred.current = el.closest('.ProseMirror');
+            el.blur();
+            // The page's selection too (the editor's own copy of it stays).
+            const sel = window.getSelection();
+            if (sel) sel.removeAllRanges();
+        }
+    }, []);
+
+    const closeFromBackdrop = () => {
+        onClose();
+        // Tiptap keeps its editor on the editable element; focus() puts back
+        // the selection it kept.
+        const dom = blurred.current;
+        if (dom && dom.isConnected && dom.editor && !dom.editor.isDestroyed) dom.editor.commands.focus();
+    };
+
+    if (!phone) {
         return (
             <>
                 <div className="rte-hl__backdrop" onMouseDown={onClose} />
@@ -990,7 +1021,7 @@ function ToolbarPop({ className, onClose, children }) {
     }
     return createPortal(
         <>
-            <div className="rte-sheet__backdrop" onMouseDown={onClose} />
+            <div className="rte-sheet__backdrop" onMouseDown={closeFromBackdrop} />
             <div className={`${className} rte-sheet`} role="menu">{children}</div>
         </>,
         document.body,
