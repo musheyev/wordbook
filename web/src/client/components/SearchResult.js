@@ -15,6 +15,7 @@ import { useNoteZoom } from '../utils/noteZoom';
 import ItemTags from './ItemTags';
 import NoteLinkLists from './NoteLinkLists';
 import BookmarkButton from './BookmarkButton';
+import CopyNoteButton from './CopyNoteButton';
 import { quizCardsForLinked } from '../actions';
 import { openQuiz } from '../utils/quizLauncher';
 import { sanitizeCardHtml } from '../utils/sanitize';
@@ -284,6 +285,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             <i className="trash alternate outline icon"></i>
                         </button>
                         <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title} />
+                        <CopyNoteButton title={currentCard.title}
+                            getShown={() => cardRef.current && cardRef.current.querySelector('.note-zoom-text')} />
                         <BookmarkButton item={{ type: 'card', id: currentCard.card_id, title: currentCard.title }} />
                         {quizControl({ type: 'card', id: currentCard.card_id, title: currentCard.title })}
                         <NoteZoomButton level={noteZoom} onChange={setNoteZoom} />
