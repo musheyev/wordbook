@@ -1013,6 +1013,42 @@ nav-button-as-link {
 .quiz__card[data-color] { border-width: 2px; }
 .quiz__hint { font-size: 0.8rem; color: var(--cb-ink-3); }
 .quiz__error { font-size: 0.85rem; color: var(--cb-danger); text-align: center; }
+/* Spoken answers (iPhone app): 🎤 Say it under the card, what was heard,
+   Again / Check, then ✓ Correct or ✗ Not quite. */
+.quiz__answer { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.quiz__mic {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; padding: 0 26px;
+  border: 2px solid var(--cb-accent); border-radius: 14px; background: var(--cb-surface); color: var(--cb-accent);
+  font: inherit; font-size: 1.1rem; font-weight: 600; cursor: pointer; touch-action: manipulation;
+}
+.quiz__mic i.icon { margin: 0; height: auto; }
+.quiz__mic--on { background: var(--cb-danger); border-color: var(--cb-danger); color: #fff; animation: quiz-mic-pulse 1.2s ease-in-out infinite; }
+@keyframes quiz-mic-pulse { 50% { opacity: 0.75; } }
+.quiz__mic--small { min-height: 48px; padding: 0 18px; font-size: 1rem; }
+.quiz__answerbtns { display: flex; gap: 10px; }
+.quiz__check { min-height: 48px; padding: 0 22px; font-size: 1rem; border-radius: 14px; }
+.quiz__check:disabled { opacity: 0.45; cursor: default; }
+.quiz__check i.icon { margin: 0 6px 0 0; }
+.quiz__heard { font-size: 1.05rem; color: var(--cb-ink-2, var(--cb-ink)); overflow-wrap: anywhere; }
+.quiz__heard--none { color: var(--cb-ink-3); }
+.quiz__result { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; }
+.quiz__mark { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 1.1rem; }
+.quiz__mark i.icon { margin: 0; }
+.quiz__mark--right { color: #15803d; }
+.quiz__mark--wrong { color: var(--cb-danger); }
+.quiz__solution { font-size: 1rem; color: var(--cb-ink); }
+.quiz__practice { font-size: 0.95rem; color: var(--cb-ink-3); }
+.quiz__practice .quiz__mark { font-size: 0.95rem; }
+/* Score: only when asked. Above the quiz. */
+.quiz-score__overlay { z-index: 310; }
+.quiz-score { text-align: center; }
+.quiz-score__big { font-size: 3.4rem; font-weight: 700; line-height: 1.1; color: var(--cb-ink); margin: 8px 0 4px; }
+.quiz-score__of { font-size: 1.4rem; font-weight: 600; color: var(--cb-ink-3); }
+.quiz-score__line { font-size: 1.05rem; color: var(--cb-ink); margin: 4px 0; }
+.quiz-score__total { color: var(--cb-ink-3); font-size: 0.95rem; }
+.quiz-score__btns { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+.quiz-score__btns .cb-btn { min-height: 48px; padding: 0 22px; font-size: 1rem; }
+.quiz-score__btns .cb-btn:disabled { opacity: 0.45; cursor: default; }
 .quiz__foot .cb-btn { padding: 10px 20px; font-size: 1rem; }
 .quiz__foot .cb-btn i.icon { margin: 0 0 0 6px; }
 .quiz__foot .cb-btn i.arrow.left.icon { margin: 0 6px 0 0; }

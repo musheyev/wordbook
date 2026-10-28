@@ -9,6 +9,9 @@ import { noteLinkHref } from '../utils/noteLinks';
 import { saveQuiz } from '../actions';
 import Spinner from './Spinner';
 import { ITEM_COLORS } from '../utils/itemColors';
+import { canAnswerBySpeech, listenForAnswer, stopListening, sayReply } from '../native/speech';
+import { isRightAnswer } from '../utils/answerCheck';
+import { runKey, cardKey, loadRun, saveRun, scoreOf } from '../utils/quizResults';
 
 // The quiz (admins): started by the Quiz buttons of a notebook, of a note
 // (the note and the notes it links to), of a tag (Tags), or from My
@@ -36,6 +39,19 @@ import { ITEM_COLORS } from '../utils/itemColors';
 // Drawn once at the app's root (App.js) and opened with openQuiz()
 // (utils/quizLauncher.js), so "See note" can leave for the note and a "Back to
 // quiz" button brings back the same card.
+//
+// Spoken answers (iPhone app only, native/speech.js). Under the front of a
+// card, "🎤 Say it": say the hidden side; it stops listening when you pause.
+// Nothing is marked yet — you see what it heard, then
+//
+//   Heard: “I'm”            [🎤 Again]  [✓ Check]
+//
+// Again replaces the answer; Check marks it (utils/answerCheck.js), says
+// "Correct" or "Not quite", and that's what the score counts: one answer per
+// card per run, so retrying until it says Correct isn't possible. After
+// Check, 🎤 is only practice. Skipping a card (Next without Check) leaves it
+// unanswered. "Score" in the header shows correct ÷ answered × 100 only when
+// asked, with Start over (utils/quizResults.js keeps a saved quiz's run).
 const SOURCE = 'quiz';
 
 /**
@@ -74,7 +90,13 @@ function NotebookQuiz() {
     const [away, setAway] = useState(false); // at a card's note; "Back to quiz" shows
     const [copied, setCopied] = useState(''); // '' | 'done' | 'failed': the Copy button's tick
     const [coloring, setColoring] = useState(false); // the card's colour choices are open
+    const [run, setRun] = useState({}); // this run's checked answers, by card (utils/quizResults.js)
+    // The card's spoken answer before Check (or a practice one after it):
+    // { status: 'listening'|'heard'|'error', text, practice?, correct?, error? }
+    const [answer, setAnswer] = useState(null);
+    const [showScore, setShowScore] = useState(false);
     const latest = useRef(null); // the quiz being loaded (a newer one wins)
+    const listeningFor = useRef(null); // the card key being listened for, while listening
 
     // openQuiz(): start afresh with the new cards.
     useEffect(() => onOpenQuiz((next) => {
@@ -88,6 +110,9 @@ function NotebookQuiz() {
         setNaming(null);
         setSaveError('');
         setAway(false);
+        setRun({});
+        setAnswer(null);
+        setShowScore(false);
         latest.current = next;
         Promise.resolve(next.load())
             .then((r) => { if (latest.current === next) setLoaded(r); })
@@ -102,8 +127,15 @@ function NotebookQuiz() {
     const stopAudio = () => {
         if (ttsPlayer.snapshot().sourceId === SOURCE) ttsPlayer.stop();
     };
+    // Stop hearing an answer that's no longer wanted (its result is ignored).
+    const stopHearing = () => {
+        if (!listeningFor.current) return;
+        listeningFor.current = null;
+        stopListening().catch(() => {});
+    };
     const close = () => {
         stopAudio();
+        stopHearing();
         latest.current = null;
         setQuiz(null);
     };
@@ -111,14 +143,24 @@ function NotebookQuiz() {
     const showing = !!quiz && !away;
     useEffect(() => {
         if (!showing) return undefined;
-        const onKey = (e) => { if (e.key === 'Escape' && naming === null) close(); };
+        const onKey = (e) => {
+            if (e.key !== 'Escape' || naming !== null) return;
+            if (showScore) setShowScore(false);
+            else close();
+        };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }); // eslint-disable-line react-hooks/exhaustive-deps
 
     // The tick goes back to the copy icon, and the colour choices close, on
-    // another card or side.
-    useEffect(() => { setCopied(''); setColoring(false); }, [index, flipped]);
+    // another card or side. An answer not yet checked is dropped (and
+    // listening stops): it belonged to that card's front.
+    useEffect(() => {
+        setCopied('');
+        setColoring(false);
+        setAnswer(null);
+        stopHearing();
+    }, [index, flipped]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!quiz) return null;
 
@@ -136,6 +178,7 @@ function NotebookQuiz() {
 
     const start = (english) => {
         setToEnglish(english);
+        setRun(loadRun(runKey(saved, english)));
         setIndex(0);
         setFlipped(false);
         say(sideOf(cards[0], false, english));
@@ -160,6 +203,70 @@ function NotebookQuiz() {
         goTo(index + 1);
     };
 
+    // ---- Spoken answers (iPhone app) ----
+    // The answer to the card's front is its other side.
+    const answerTo = (c) => sideOf(c, true);
+    const runStore = () => runKey(saved, toEnglish);
+
+    // 🎤: hear an answer for this card (tapping it while listening stops).
+    // Before Check it's only shown; after Check it's practice, marked at once.
+    const listen = async () => {
+        if (listeningFor.current) { stopListening().catch(() => {}); return; }
+        const c = cards[index];
+        const key = cardKey(c);
+        const target = answerTo(c);
+        const practice = !!run[key];
+        stopAudio(); // so the card's own audio isn't heard as the answer
+        listeningFor.current = key;
+        setAnswer({ status: 'listening', text: '', practice });
+        try {
+            const text = await listenForAnswer(target.lang, [target.text], (words) => {
+                if (listeningFor.current === key) setAnswer((a) => (a && a.status === 'listening' ? { ...a, text: words } : a));
+            });
+            if (listeningFor.current !== key) return;
+            if (practice) {
+                const correct = isRightAnswer(text, target.text, target.lang);
+                setAnswer({ status: 'heard', text, practice, correct });
+                if (text) sayReply(correct ? 'Correct' : 'Not quite');
+            } else {
+                setAnswer({ status: 'heard', text });
+            }
+        } catch (err) {
+            if (listeningFor.current !== key) return;
+            const code = err && err.code;
+            setAnswer({
+                status: 'error', text: '', practice,
+                error: code === 'DENIED' ? 'Remembrancer isn’t allowed to use the microphone or speech recognition. You can turn them on in Settings → Remembrancer.'
+                    : code === 'UNAVAILABLE' ? 'Your iPhone can’t recognise this language right now.'
+                        : code === 'UNIMPLEMENTED' ? 'Update the app to answer by speaking.'
+                            : 'Couldn’t listen. Try again.',
+            });
+        } finally {
+            if (listeningFor.current === key) listeningFor.current = null;
+        }
+    };
+
+    // ✓ Check: mark the answer; this is the one the score counts.
+    const check = () => {
+        const c = cards[index];
+        const target = answerTo(c);
+        const correct = isRightAnswer(answer.text, target.text, target.lang);
+        const nextRun = { ...run, [cardKey(c)]: { heard: answer.text, correct } };
+        setRun(nextRun);
+        saveRun(runStore(), nextRun);
+        setAnswer(null);
+        sayReply(correct ? 'Correct' : 'Not quite');
+    };
+
+    // Score › Start over: forget this run's answers and begin at card 1.
+    const startOver = () => {
+        setRun({});
+        saveRun(runStore(), {});
+        setShowScore(false);
+        setAnswer(null);
+        goTo(0);
+    };
+
     // Save to My Quizzes (a copy of these cards). Throws if it couldn't.
     const store = async (entry, list) => {
         await dispatch(saveQuiz({ id: entry.id, name: entry.name, notebook: quiz.notebook, cards: list }));
@@ -174,6 +281,7 @@ function NotebookQuiz() {
         try {
             await store(entry, cards);
             setSaved(entry);
+            saveRun(runKey(entry, toEnglish), run); // the answers so far stay with it
             setNaming(null);
         } catch (err) {
             setSaveError('Couldn’t save the quiz. Check your connection and try again.');
@@ -290,12 +398,117 @@ function NotebookQuiz() {
     const cardColor = card && card.color ? ITEM_COLORS.find((c) => c.key === card.color) || null : null;
     const last = index + 1 >= cards.length;
 
+    // Under the front of the card (iPhone app): 🎤, what was heard, Again /
+    // Check, and once checked, the mark.
+    const answerRow = () => {
+        const target = answerTo(card);
+        const result = run[cardKey(card)];
+        const mic = (label, extra = '') => (
+            <button type="button" className={`quiz__mic${extra}`} onClick={listen}>
+                <i className="microphone icon" aria-hidden="true"></i>{label}
+            </button>
+        );
+        const mark = (correct) => (correct
+            ? <span className="quiz__mark quiz__mark--right"><i className="check icon" aria-hidden="true"></i>Correct</span>
+            : <span className="quiz__mark quiz__mark--wrong"><i className="times icon" aria-hidden="true"></i>Not quite</span>);
+        const heardLine = (text) => (text
+            ? <div className="quiz__heard">Heard: <span lang={target.lang}>“{text}”</span></div>
+            : <div className="quiz__heard quiz__heard--none">Didn’t catch that.</div>);
+
+        if (answer && answer.status === 'listening') {
+            return (
+                <div className="quiz__answer" aria-live="polite">
+                    {mic('Listening… tap to stop', ' quiz__mic--on')}
+                    {answer.text && heardLine(answer.text)}
+                </div>
+            );
+        }
+        if (answer && answer.status === 'error') {
+            return (
+                <div className="quiz__answer">
+                    <div className="quiz__heard quiz__heard--none">{answer.error}</div>
+                    {mic('Try again')}
+                </div>
+            );
+        }
+        if (answer && !answer.practice) {
+            return (
+                <div className="quiz__answer" aria-live="polite">
+                    {heardLine(answer.text)}
+                    <div className="quiz__answerbtns">
+                        {mic('Again', ' quiz__mic--small')}
+                        <button type="button" className="cb-btn cb-btn--accent quiz__check" onClick={check}
+                            disabled={!answer.text}>
+                            <i className="check icon" aria-hidden="true"></i>Check
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        if (result) {
+            const shown = answer && answer.practice ? answer : null; // a practice try after Check
+            return (
+                <div className="quiz__answer" aria-live="polite">
+                    {heardLine(result.heard)}
+                    <div className="quiz__result">
+                        {mark(result.correct)}
+                        {!result.correct && <span className="quiz__solution">Answer: <span lang={target.lang}>{target.text}</span></span>}
+                    </div>
+                    {shown && (
+                        <div className="quiz__practice">
+                            Practice: {shown.text ? <>“<span lang={target.lang}>{shown.text}</span>” {mark(shown.correct)}</> : 'didn’t catch that.'}
+                        </div>
+                    )}
+                    {mic('Practise', ' quiz__mic--small')}
+                </div>
+            );
+        }
+        return <div className="quiz__answer">{mic('Say it')}</div>;
+    };
+
+    const scoreSheet = () => {
+        const s = scoreOf(run, cards);
+        return (
+            <div className="cb-sheet__overlay quiz-score__overlay" onMouseDown={() => setShowScore(false)}>
+                <div className="cb-sheet quiz-score" role="dialog" aria-modal="true" aria-label="Quiz score"
+                    onMouseDown={(e) => e.stopPropagation()}>
+                    <div className="cb-sheet__head">
+                        <h3 className="cb-sheet__title">Quiz score</h3>
+                        <button type="button" className="a2c__close" aria-label="Close" onClick={() => setShowScore(false)}>
+                            <i className="times icon"></i>
+                        </button>
+                    </div>
+                    {s.score === null ? (
+                        <div className="quiz-score__line">No answers checked yet. Tap Say it on a card, then Check.</div>
+                    ) : (
+                        <>
+                            <div className="quiz-score__big">{s.score}<span className="quiz-score__of"> / 100</span></div>
+                            <div className="quiz-score__line">{s.correct} correct of {s.answered} answered</div>
+                        </>
+                    )}
+                    <div className="quiz-score__line quiz-score__total">({s.total} card{s.total === 1 ? '' : 's'} in this quiz)</div>
+                    <div className="quiz-score__btns">
+                        <button type="button" className="cb-btn cb-btn--ghost" onClick={startOver} disabled={!s.answered}>
+                            Start over
+                        </button>
+                        <button type="button" className="cb-btn cb-btn--accent" onClick={() => setShowScore(false)}>Close</button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="quiz__overlay">
             <div className="quiz" role="dialog" aria-modal="true" aria-label={`Quiz on ${title}`}>
                 <div className="quiz__head">
                     <span className="quiz__count">{card ? `${index + 1} of ${cards.length}` : 'No cards left'}</span>
                     <span className="quiz__headbtns">
+                        {card && canAnswerBySpeech() && (
+                            <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setShowScore(true)}>
+                                <i className="chart bar outline icon" aria-hidden="true"></i>Score
+                            </button>
+                        )}
                         {saved ? (
                             <span className="quiz__saved" title={`Saved in My Quizzes as “${saved.name}”`}>
                                 <i className="check icon" aria-hidden="true"></i>Saved
@@ -372,6 +585,7 @@ function NotebookQuiz() {
                 ) : (
                     <div className="quiz__empty">You removed every card.</div>
                 )}
+                {card && canAnswerBySpeech() && !flipped && answerRow()}
                 {card && card.source && (
                     <button type="button" className="quiz__from" onClick={() => openSource(card.source)}>
                         {/* Not the note's title: it could give the answer away. */}
@@ -401,6 +615,7 @@ function NotebookQuiz() {
                     )}
                 </div>
             </div>
+            {showScore && scoreSheet()}
         </div>
     );
 }
