@@ -1056,6 +1056,11 @@ nav-button-as-link {
 .quiz-back__close { padding: 0 14px 0 10px; color: #aab3c5 !important; border-left: 1px solid #3a4152 !important; }
 .quiz-back i.icon { margin: 0; height: auto; }
 /* My Quizzes (pages/QuizzesPage.js). */
+/* Copy on a note (components/CopyNoteButton.js): the copy of the note it
+   selects sits off the edge of the screen while it's copied. */
+.copy-note__box { position: fixed; left: -10000px; top: 0; width: 640px; user-select: text; -webkit-user-select: text; }
+.card-tool.copy-note--done { color: #15803d; }
+.card-tool.copy-note--failed { color: var(--cb-danger); }
 /* The ☆ / ★ bookmark button on a note or word (components/BookmarkButton.js). */
 .card-tool.bookmark-btn--on, .card-tool.bookmark-btn--on:hover { color: #eab308; }
 .card-tool.bookmark-btn--failed { color: var(--cb-danger); }
