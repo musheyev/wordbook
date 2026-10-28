@@ -1045,7 +1045,14 @@ nav-button-as-link {
     padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
   }
   .quiz__cardwrap, .quiz__card { flex: 1; }
-  .quiz__foot .cb-btn { flex: 1; justify-content: center; padding: 13px 16px; }
+  /* Big, and low on the screen, for a thumb with the phone in one hand:
+     🔊 at the bottom of the card, Previous / Next below it. */
+  .quiz__foot .cb-btn { flex: 1; justify-content: center; min-height: 64px; padding: 0 16px; font-size: 1.15rem; }
+  .quiz__again {
+    top: auto; bottom: 16px; right: 50%; transform: translateX(50%);
+    width: 80px; height: 80px; font-size: 2.2rem; border-width: 2px;
+  }
+  .quiz__card { padding-bottom: 112px; } /* text stays clear of 🔊 */
   /* 16px, or tapping it makes iPhones zoom in (and stay zoomed). */
   .quiz__nameinput, .link-pick__search input { font-size: 16px; }
 }

@@ -17,7 +17,7 @@ import Spinner from './Spinner';
 //
 //                Yo estoy               🔊   read aloud when it opens; 🔊 reads
 //              tap to flip                   it again. Flipped: "I am", in English
-//          From: Verbs ›                     opens the note the card came from
+//            See note ›                      opens the note the card came from
 //   🗑 Remove
 //   ← Previous                      Next →     (Done on the last card)
 //
@@ -33,7 +33,7 @@ import Spinner from './Spinner';
 // again.
 //
 // Drawn once at the app's root (App.js) and opened with openQuiz()
-// (utils/quizLauncher.js), so "From" can leave for the note and a "Back to
+// (utils/quizLauncher.js), so "See note" can leave for the note and a "Back to
 // quiz" button brings back the same card.
 const SOURCE = 'quiz';
 
@@ -160,7 +160,7 @@ function NotebookQuiz() {
         goTo(Math.min(index, list.length - 1), list);
     };
 
-    // "From": go to the card's note, keeping the quiz for "Back to quiz".
+    // "See note": go to the card's note, keeping the quiz for "Back to quiz".
     const openSource = (source) => {
         stopAudio();
         setAway(true);
@@ -287,7 +287,8 @@ function NotebookQuiz() {
                 )}
                 {card && card.source && (
                     <button type="button" className="quiz__from" onClick={() => openSource(card.source)}>
-                        From: <span className="quiz__fromname">{card.source.title || 'the note'}</span>
+                        {/* Not the note's title: it could give the answer away. */}
+                        <span className="quiz__fromname">See note</span>
                         <i className="angle right icon" aria-hidden="true"></i>
                     </button>
                 )}
