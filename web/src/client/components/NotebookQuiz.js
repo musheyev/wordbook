@@ -8,6 +8,7 @@ import { itemPath } from '../utils/notebookPaths';
 import { noteLinkHref } from '../utils/noteLinks';
 import { saveQuiz } from '../actions';
 import Spinner from './Spinner';
+import { ITEM_COLORS } from '../utils/itemColors';
 
 // The quiz (admins): started by the Quiz buttons of a notebook, of a note
 // (the note and the notes it links to), of a tag (Tags), or from My
@@ -17,7 +18,7 @@ import Spinner from './Spinner';
 //
 //                Yo estoy               🔊   read aloud when it opens; 🔊 reads
 //              tap to flip                   it again. Flipped: "I am", in English
-//          From: Verbs ›                     opens the note the card came from
+//            See note ›                      opens the note the card came from
 //   🗑 Remove
 //   ← Previous                      Next →     (Done on the last card)
 //
@@ -33,9 +34,30 @@ import Spinner from './Spinner';
 // again.
 //
 // Drawn once at the app's root (App.js) and opened with openQuiz()
-// (utils/quizLauncher.js), so "From" can leave for the note and a "Back to
+// (utils/quizLauncher.js), so "See note" can leave for the note and a "Back to
 // quiz" button brings back the same card.
 const SOURCE = 'quiz';
+
+/**
+ * Put text on the clipboard (the card's Copy button). navigator.clipboard
+ * where it's allowed; otherwise the older way, a hidden text box and the
+ * browser's Copy command (older iPhones).
+ * @param {string} text
+ */
+async function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try { await navigator.clipboard.writeText(text); return; } catch (e) { /* the older way */ }
+    }
+    const box = document.createElement('textarea');
+    box.value = text;
+    box.setAttribute('readonly', '');
+    Object.assign(box.style, { position: 'fixed', top: '0', opacity: '0', fontSize: '16px' });
+    document.body.appendChild(box);
+    box.select();
+    const ok = document.execCommand('copy');
+    box.remove();
+    if (!ok) throw new Error('Copy failed');
+}
 
 function NotebookQuiz() {
     const dispatch = useDispatch();
@@ -50,6 +72,8 @@ function NotebookQuiz() {
     const [naming, setNaming] = useState(null); // the name being typed, while saving
     const [saveError, setSaveError] = useState('');
     const [away, setAway] = useState(false); // at a card's note; "Back to quiz" shows
+    const [copied, setCopied] = useState(''); // '' | 'done' | 'failed': the Copy button's tick
+    const [coloring, setColoring] = useState(false); // the card's colour choices are open
     const latest = useRef(null); // the quiz being loaded (a newer one wins)
 
     // openQuiz(): start afresh with the new cards.
@@ -92,6 +116,10 @@ function NotebookQuiz() {
         return () => window.removeEventListener('keydown', onKey);
     }); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // The tick goes back to the copy icon, and the colour choices close, on
+    // another card or side.
+    useEffect(() => { setCopied(''); setColoring(false); }, [index, flipped]);
+
     if (!quiz) return null;
 
     const cards = loaded ? loaded.cards : [];
@@ -115,6 +143,11 @@ function NotebookQuiz() {
     const flip = () => {
         setFlipped(!flipped);
         say(sideOf(cards[index], !flipped));
+    };
+    // Copy the side showing. Its own tap: the card doesn't flip.
+    const copy = (e, text) => {
+        e.stopPropagation();
+        copyText(text).then(() => setCopied('done'), () => setCopied('failed'));
     };
     // Go to card i, front side up, and read it.
     const goTo = (i, list = cards) => {
@@ -160,7 +193,25 @@ function NotebookQuiz() {
         goTo(Math.min(index, list.length - 1), list);
     };
 
-    // "From": go to the card's note, keeping the quiz for "Back to quiz".
+    // Colour this card (one of the notes' colours, utils/itemColors.js), or
+    // none. It belongs to this quiz's card, not the note: kept in the card,
+    // so a saved quiz saves it (again, like Remove).
+    const setCardColor = (e, key) => {
+        e.stopPropagation();
+        setColoring(false);
+        const list = cards.map((c, i) => {
+            if (i !== index) return c;
+            const { color, ...rest } = c;
+            return key ? { ...rest, color: key } : rest;
+        });
+        setLoaded({ ...loaded, cards: list });
+        if (saved) {
+            setSaveError('');
+            store(saved, list).catch(() => setSaveError('Couldn’t save the change to this quiz. Check your connection.'));
+        }
+    };
+
+    // "See note": go to the card's note, keeping the quiz for "Back to quiz".
     const openSource = (source) => {
         stopAudio();
         setAway(true);
@@ -235,6 +286,8 @@ function NotebookQuiz() {
 
     const card = cards[index];
     const side = card && sideOf(card, flipped);
+    // The card's own colour, if it was given one ({ key, label, tint, ink }).
+    const cardColor = card && card.color ? ITEM_COLORS.find((c) => c.key === card.color) || null : null;
     const last = index + 1 >= cards.length;
 
     return (
@@ -271,11 +324,45 @@ function NotebookQuiz() {
                 )}
                 {card ? (
                     <div className="quiz__cardwrap">
-                        <button type="button" className={`quiz__card${flipped ? ' quiz__card--back' : ''}`} onClick={flip}
-                            aria-label={`${side.text}. Tap to flip`}>
-                            <span className="quiz__text" lang={side.lang}>{side.text}</span>
+                        {/* A tappable box rather than a button, so the Copy
+                            button can sit beside the text (a button can't
+                            hold another one). */}
+                        <div role="button" tabIndex={0} className={`quiz__card${flipped ? ' quiz__card--back' : ''}`}
+                            style={cardColor ? { background: cardColor.tint, borderColor: cardColor.ink } : undefined}
+                            data-color={cardColor ? cardColor.key : undefined}
+                            onClick={flip}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } }}>
+                            <span className="quiz__textrow">
+                                <span className="quiz__text" lang={side.lang}>{side.text}</span>
+                                <button type="button" className={`quiz__copy${copied ? ` quiz__copy--${copied}` : ''}`}
+                                    aria-label="Copy the text" title={copied === 'failed' ? 'Couldn’t copy' : 'Copy the text'}
+                                    onClick={(e) => copy(e, side.text)}>
+                                    <i className={`${copied === 'done' ? 'check' : copied === 'failed' ? 'exclamation' : 'copy outline'} icon`}
+                                        aria-hidden="true"></i>
+                                </button>
+                                <button type="button" className={`quiz__copy quiz__colorbtn${coloring ? ' on' : ''}`}
+                                    aria-label="Colour this card" title="Colour this card" aria-expanded={coloring}
+                                    onClick={(e) => { e.stopPropagation(); setColoring(!coloring); }}>
+                                    <span className="quiz__dot" style={cardColor ? { background: cardColor.ink } : undefined}
+                                        aria-hidden="true" />
+                                </button>
+                            </span>
+                            {coloring && (
+                                <span className="quiz__colors" role="group" aria-label="Card colour">
+                                    {ITEM_COLORS.map((c) => (
+                                        <button type="button" key={c.key} aria-label={c.label} title={c.label}
+                                            aria-pressed={cardColor ? cardColor.key === c.key : false}
+                                            className={`quiz__swatch${cardColor && cardColor.key === c.key ? ' on' : ''}`}
+                                            style={{ background: c.ink }} onClick={(e) => setCardColor(e, c.key)} />
+                                    ))}
+                                    <button type="button" className="quiz__swatch quiz__swatch--none" aria-label="No colour"
+                                        title="No colour" onClick={(e) => setCardColor(e, null)}>
+                                        <i className="ban icon" aria-hidden="true"></i>
+                                    </button>
+                                </span>
+                            )}
                             <span className="quiz__hint">tap to flip</span>
-                        </button>
+                        </div>
                         {/* Beside the card, not in it: tapping the card flips it. */}
                         <button type="button" className="quiz__again" aria-label="Read again" title="Read again"
                             onClick={() => say(side)}>
@@ -287,7 +374,8 @@ function NotebookQuiz() {
                 )}
                 {card && card.source && (
                     <button type="button" className="quiz__from" onClick={() => openSource(card.source)}>
-                        From: <span className="quiz__fromname">{card.source.title || 'the note'}</span>
+                        {/* Not the note's title: it could give the answer away. */}
+                        <span className="quiz__fromname">See note</span>
                         <i className="angle right icon" aria-hidden="true"></i>
                     </button>
                 )}

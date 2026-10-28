@@ -205,4 +205,4 @@ async function linksFor(userName, type, id) {
     };
 }
 
-module.exports = { recordLinks, recordLinksForToken, linksFor, linksIn, unlinkNotes, TABLE };
+module.exports = { recordLinks, recordLinksForToken, linksFor, linksIn, unlinkNotes, noteTitles, TABLE };

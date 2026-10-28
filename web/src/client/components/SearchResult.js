@@ -14,6 +14,7 @@ import NoteZoomButton from './NoteZoomButton';
 import { useNoteZoom } from '../utils/noteZoom';
 import ItemTags from './ItemTags';
 import NoteLinkLists from './NoteLinkLists';
+import BookmarkButton from './BookmarkButton';
 import { quizCardsForLinked } from '../actions';
 import { openQuiz } from '../utils/quizLauncher';
 import { sanitizeCardHtml } from '../utils/sanitize';
@@ -283,6 +284,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             <i className="trash alternate outline icon"></i>
                         </button>
                         <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title} />
+                        <BookmarkButton item={{ type: 'card', id: currentCard.card_id, title: currentCard.title }} />
                         {quizControl({ type: 'card', id: currentCard.card_id, title: currentCard.title })}
                         <NoteZoomButton level={noteZoom} onChange={setNoteZoom} />
                         <NoteDownloadButton notebook={currentWordbook}
@@ -359,6 +361,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                                         <i className="sticky note outline icon"></i>
                                     </button>
                                 )}
+                                {auth != "" && <BookmarkButton item={{ type: 'word', id: currentWord, title: currentWord }} />}
                                 {hasNote && quizControl({ type: 'word', id: currentWord, title: currentWord })}
                                 {addToWordbookControl}
                                 {shareControl}

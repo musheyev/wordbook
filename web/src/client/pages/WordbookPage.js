@@ -5,7 +5,7 @@ import requireAuth from '../components/hocs/requireAuth';
 import {
     SET_CURRENT_WORDBOOK, fetchWordbookWords, fetchCardData, fetchWordData,
     clearCurrentSelection, closeCardEditor, getCardContent, fetchItemSorts, saveItemSort, fetchItemColors,
-    fetchWordbookUpdated, quizCardsForItems,
+    fetchWordbookUpdated, quizCardsForItems, fetchBookmarks,
 } from '../actions';
 import SearchResult from '../components/SearchResult';
 import CardEditorInline from '../components/CardEditorInline';
@@ -25,6 +25,7 @@ import useNotebookSearch from '../utils/useNotebookSearch';
 import { keyOf } from '../components/NotebookSelect';
 import { getLastVisited, setLastVisited } from '../utils/lastVisited';
 import { MissingLine, useAvailableItems } from '../components/DownloadBadge';
+import { bookmarkPath, openedFromBookmarks } from '../utils/bookmarks';
 
 // Play all / Play selected: seconds of silence before the next note or word.
 const NOTE_GAP = 2;
@@ -33,8 +34,9 @@ const NOTE_GAP = 2;
 // item list; on desktop (where the list also lives in the left rail) an
 // overview of every item as a card (NotebookOverview). With an item in the
 // URL (/wordbook/<name>/<type>/<id>) it shows that item, under a back bar
-// that returns to the notebook and steps to the previous/next item. A spinner
-// shows while the list loads.
+// that returns to the notebook and steps to the previous/next item; opened
+// from My Bookmarks (?from=bookmarks), the bar returns there and steps
+// through the bookmarks instead. A spinner shows while the list loads.
 //
 // Everything follows the notebook's chosen sort (utils/itemSort.js): the
 // overview, the phone list, stepping between items and Play all. The search
@@ -58,6 +60,14 @@ function WordbookPage({
     const location = useLocation();
     // Opened from a notebook search result: ?q=<what was searched>.
     const searchedFor = new URLSearchParams(location.search).get('q');
+    // Opened from My Bookmarks (?from=bookmarks, utils/bookmarks.js): the bar
+    // on top steps through the bookmarks instead of this notebook.
+    const fromBookmarks = !!id && openedFromBookmarks(location.search);
+    const bookmarks = useSelector((state) => state.bookmarks);
+    useEffect(() => {
+        if (fromBookmarks && bookmarks === null) dispatch(fetchBookmarks()).catch(() => {});
+    }, [fromBookmarks, bookmarks === null]);
+    const [bookmarkError, setBookmarkError] = useState('');
     const [addOpen, setAddOpen] = useState(false);
     const isAdmin = useSelector((state) => state.isAdmin);
 
@@ -189,6 +199,21 @@ function WordbookPage({
 
     const goTo = (i) => navigate(itemPath(name, items[i]), { replace: true });
 
+    // Previous / Next bookmark: may be in another notebook (utils/bookmarks.js).
+    const bookmarkList = bookmarks || [];
+    const bookmarkIndex = fromBookmarks ? bookmarkList.findIndex((b) => b.type === type && b.id === id) : -1;
+    const goToBookmark = async (i) => {
+        setBookmarkError('');
+        try {
+            const path = await bookmarkPath(dispatch, bookmarkList[i]);
+            if (path) navigate(path, { replace: true });
+            else setBookmarkError(`“${bookmarkList[i].title}” isn’t in any notebook now.`);
+        } catch (err) {
+            setBookmarkError('Couldn’t open that bookmark. Check your connection and try again.');
+        }
+    };
+    useEffect(() => { setBookmarkError(''); }, [type, id]);
+
     // Build the read-aloud queue for the whole notebook: each note's body (its
     // first chunk tagged with the title so the lock screen updates per item) and
     // each word read on its own, with a pause (NOTE_GAP seconds) between them.
@@ -236,6 +261,34 @@ function WordbookPage({
             <section id="worddefinition">
                 <CardEditorInline onCreated={(card) => navigate(itemPath(name, { type: 'card', id: card.card_id }))} />
             </section>
+        );
+    } else if (id && fromBookmarks) {
+        body = (
+            <>
+                <div className="nb-back nb-back--bookmarks">
+                    <Link className="nb-back__link" to="/bookmarks">
+                        <i className="chevron left icon" aria-hidden="true"></i>
+                        <span className="nb-back__name">My Bookmarks</span>
+                    </Link>
+                    {bookmarkIndex !== -1 && bookmarkList.length > 1 && (
+                        <div className="nb-back__nav">
+                            <span className="nb-back__pos">{bookmarkIndex + 1} of {bookmarkList.length}</span>
+                            <button type="button" className="nb-back__textstep" aria-label="Previous bookmark"
+                                disabled={bookmarkIndex === 0} onClick={() => goToBookmark(bookmarkIndex - 1)}>
+                                <i className="chevron left icon" aria-hidden="true"></i>Previous
+                            </button>
+                            <button type="button" className="nb-back__textstep" aria-label="Next bookmark"
+                                disabled={bookmarkIndex === bookmarkList.length - 1} onClick={() => goToBookmark(bookmarkIndex + 1)}>
+                                Next<i className="chevron right icon" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    )}
+                </div>
+                {bookmarkError && <div className="cb-sheet__error nb-back__error">{bookmarkError}</div>}
+                <section id="worddefinition">
+                    <SearchResult />
+                </section>
+            </>
         );
     } else if (id) {
         body = (

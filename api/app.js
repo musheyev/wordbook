@@ -25,6 +25,7 @@ const ttsRouter = require("./routes/ttsRouter");
 const imagesRouter = require("./routes/imagesRouter");
 const quizzesRouter = require("./routes/quizzesRouter");
 const noteLinksRouter = require("./routes/noteLinksRouter");
+const bookmarksRouter = require("./routes/bookmarksRouter");
 const wordImagesRouter = require("./routes/wordImagesRouter");
 const { adminRouter } = require("./routes/adminRouter");
 
@@ -61,6 +62,7 @@ app.use("/tts", ttsRouter);
 app.use("/images", imagesRouter);
 app.use("/quizzes", quizzesRouter);
 app.use("/note-links", noteLinksRouter);
+app.use("/bookmarks", bookmarksRouter);
 app.use("/word-images", wordImagesRouter);
 app.use("/admin", adminRouter);
 
