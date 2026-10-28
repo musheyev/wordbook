@@ -42,7 +42,7 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
     const inAdminArea = ADMIN_PAGES.some((page) => location.pathname.startsWith(page.to))
         || location.pathname === '/admin';
     const inMoreArea = inAdminArea || location.pathname === '/more' || location.pathname === '/tags'
-        || location.pathname === '/quizzes';
+        || location.pathname === '/quizzes' || location.pathname === '/bookmarks';
 
     const [confirmingLogout, setConfirmingLogout] = React.useState(false);
     const [addOpen, setAddOpen] = React.useState(false);
@@ -148,6 +148,14 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
                     }
                 })}
 
+                {/* My Bookmarks: in the desktop rail; on phones, in More. */}
+                {userExists && (
+                    <NavLink to="/bookmarks" className={phoneMore}>
+                        <i className="star outline icon"></i>
+                        <span className="nav-label">My Bookmarks</span>
+                    </NavLink>
+                )}
+
                 {/* My Quizzes (admins for now): in the desktop rail; on phones, in More. */}
                 {userExists && isAdmin && (
                     <NavLink to="/quizzes" className={phoneMore}>
@@ -156,7 +164,7 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
                     </NavLink>
                 )}
 
-                {/* Phones only: Tags, My Quizzes, Admin and Log out, on one page. */}
+                {/* Phones only: Tags, My Bookmarks, My Quizzes, Admin and Log out, on one page. */}
                 <NavLink to="/more" className={() => `nav-item nav-main nav-more-tab${inMoreArea ? ' on' : ''}`}>
                     <i className="ellipsis horizontal icon"></i>
                     <span className="nav-label">More</span>

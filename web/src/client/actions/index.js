@@ -7,6 +7,7 @@ import { rememberScheduledNotice } from '../utils/deletionDate';
 import { clearOfflineData, itemDeleted, notebookDeleted, notebookRenamed } from '../offline/downloads';
 import {
   isQueueing, queueCardCreate, queueCardUpdate, queueItemColors, queueItemTags, queueQuizSave, queueQuizDelete,
+  queueBookmark, queueBookmarksClear,
 } from '../offline/outbox';
 
 export const FETCH_USERS = 'fetch_users';
@@ -1353,3 +1354,62 @@ export const deleteQuiz = (id) => async (dispatch, getState, api) => {
 //       payload: res
 //   });
 // };
+
+// ---------------------------------------------------------------------------
+// Bookmarks (My Bookmarks; api/bookmarks.js): notes and words starred to find
+// again, newest first. state.bookmarks is null until loaded, then
+// [{ type, id, title, at }]. Changes show at once; offline (iPhone app)
+// they're kept and sent later (offline/outbox.js).
+// ---------------------------------------------------------------------------
+export const SET_BOOKMARKS = 'set_bookmarks';
+
+/** Load the bookmarks into the store (and return them). */
+export const fetchBookmarks = () => async (dispatch, getState, api) => {
+  const res = await api.get('/bookmarks');
+  const list = Array.isArray(res.data) ? res.data : [];
+  dispatch({ type: SET_BOOKMARKS, payload: list });
+  return list;
+};
+
+/**
+ * Bookmark a note or word (on), or take the bookmark off. If saving fails,
+ * the list goes back to how it was and the error is thrown.
+ *
+ * @param {{type: 'card'|'word', id: string, title?: string, at?: string}} item
+ *   `at`: when it was first bookmarked (Undo puts it back in its place)
+ * @param {boolean} on
+ */
+export const setBookmark = (item, on) => async (dispatch, getState, api) => {
+  const before = getState().bookmarks || [];
+  const rest = before.filter((b) => !(b.type === item.type && b.id === item.id));
+  if (on && rest.length < before.length) return; // already bookmarked
+  const entry = { type: item.type, id: item.id, title: item.title || item.id, at: item.at || new Date().toISOString() };
+  const next = on
+    ? [...rest, entry].sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    : rest;
+  dispatch({ type: SET_BOOKMARKS, payload: next });
+  if (isQueueing()) { await queueBookmark(entry, on, next); return; }
+  const path = `/bookmarks/${item.type}/${encodeURIComponent(item.id)}`;
+  try {
+    if (on) await api.put(path, { title: entry.title, at: item.at }, JSON_HEADERS);
+    else await api.delete(path);
+  } catch (err) {
+    dispatch({ type: SET_BOOKMARKS, payload: before });
+    throw err;
+  }
+  api.get('/bookmarks').catch(() => {}); // keeps the phone's saved copy current
+};
+
+/** Remove every bookmark (My Bookmarks' Clear all). The notes stay. */
+export const clearBookmarks = () => async (dispatch, getState, api) => {
+  const before = getState().bookmarks || [];
+  dispatch({ type: SET_BOOKMARKS, payload: [] });
+  if (isQueueing()) { await queueBookmarksClear(); return; }
+  try {
+    await api.delete('/bookmarks');
+  } catch (err) {
+    dispatch({ type: SET_BOOKMARKS, payload: before });
+    throw err;
+  }
+  api.get('/bookmarks').catch(() => {});
+};

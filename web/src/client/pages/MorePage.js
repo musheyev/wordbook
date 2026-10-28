@@ -6,9 +6,9 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { logoutCurrentUser } from '../actions';
 
 // More (/more), the last tab of the phone's bottom bar. The bar has room for
-// five tabs, so the links used less often live here: Tags, My Quizzes and
-// Admin (both admins only; the /admin hub lists the admin pages), and the
-// account with Log out.
+// five tabs, so the links used less often live here: Tags, My Bookmarks, My
+// Quizzes and Admin (both admins only; the /admin hub lists the admin
+// pages), and the account with Log out.
 // On desktop the side panel shows these directly and has no More link.
 
 function MorePage({ auth, isAdmin, logoutCurrentUser }) {
@@ -23,6 +23,7 @@ function MorePage({ auth, isAdmin, logoutCurrentUser }) {
 
     const rows = [
         { to: '/tags', icon: 'tags', label: 'Tags', hint: 'Everything you tagged, by tag' },
+        { to: '/bookmarks', icon: 'star outline', label: 'My Bookmarks', hint: 'Notes and words you starred' },
         ...(isAdmin ? [{ to: '/quizzes', icon: 'question circle outline', label: 'My Quizzes', hint: 'Quizzes you saved' }] : []),
         ...(isAdmin ? [{ to: '/admin', icon: 'shield alternate', label: 'Admin', hint: 'Users, images, audio clean-up' }] : []),
     ];

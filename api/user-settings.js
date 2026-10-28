@@ -7,6 +7,8 @@
 //   item_colors     the colour given to a note or word, wherever it appears:
 //                   { "card#<id>": "yellow", "word#hola": "blue", … }
 //                   (ITEM_COLORS; none = no colour)
+//   bookmarks       My Bookmarks: { "card#<id>": { at, title }, … }
+//                   (read and written by bookmarks.js)
 const db = require('./dynamoDb');
 const getCurentUserFromToken = require('./auth').getCurentUserFromToken;
 

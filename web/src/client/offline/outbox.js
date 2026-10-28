@@ -7,7 +7,7 @@ import { getRegistry, updateRegistry } from './registry';
 // connection returns.
 //
 // What can be changed offline: a downloaded note's text and title, a new
-// note, colours, tags, and saving or deleting a quiz. (Deleting, renaming notebooks and adding words
+// note, colours, tags, saving or deleting a quiz, and bookmarks. (Deleting, renaming notebooks and adding words
 // still need a connection: they're harder to undo if something goes wrong.)
 //
 //   1. The change is applied on the phone at once: the saved copies the app
@@ -220,6 +220,31 @@ export async function queueQuizDelete(quizId) {
     await saveOutbox();
 }
 
+const bookmarksRecord = () => savedKey('get', '/bookmarks');
+
+/**
+ * Bookmark or un-bookmark offline (My Bookmarks; actions: setBookmark). The
+ * saved list becomes `list` at once; only the latest change to an item is
+ * kept to send.
+ * @param {{type, id, title}} item
+ * @param {boolean} on
+ * @param {Array} list the whole bookmarks list after the change
+ */
+export async function queueBookmark(item, on, list) {
+    await patchSaved(bookmarksRecord(), () => list);
+    outbox = outbox.filter((e) => !(e.kind === 'bookmark' && e.type === item.type && e.itemId === item.id));
+    outbox.push({ id: newId(), kind: 'bookmark', type: item.type, itemId: item.id, title: item.title, at: item.at, on });
+    await saveOutbox();
+}
+
+/** Remove every bookmark offline. Single changes still waiting aren't sent. */
+export async function queueBookmarksClear() {
+    await patchSaved(bookmarksRecord(), () => []);
+    outbox = outbox.filter((e) => e.kind !== 'bookmark' && e.kind !== 'bookmarks-clear');
+    outbox.push({ id: newId(), kind: 'bookmarks-clear' });
+    await saveOutbox();
+}
+
 // --- Sending ---------------------------------------------------------------
 
 /** A new note got its real id: change every reference to the temporary one. */
@@ -230,6 +255,7 @@ async function replaceId(tempId, realId) {
         if (e.kind === 'card-update' && e.cardId === tempId) e.cardId = realId;
         if (e.kind === 'tags' && e.type === 'card' && e.itemId === tempId) e.itemId = realId;
         if (e.kind === 'colors') e.items = e.items.map((i) => (i.type === 'card' && i.id === tempId ? { ...i, id: realId } : i));
+        if (e.kind === 'bookmark' && e.type === 'card' && e.itemId === tempId) e.itemId = realId;
     });
     updateRegistry((draft) => {
         if (draft.items[from]) { draft.items[to] = { at: Date.now(), complete: true }; delete draft.items[from]; }
@@ -271,6 +297,12 @@ async function send(entry) {
         await api.put(`/quizzes/${encodeURIComponent(id)}`, { name, notebook, cards }, JSON_HEADERS);
     } else if (entry.kind === 'quiz-delete') {
         await api.delete(`/quizzes/${encodeURIComponent(entry.quizId)}`);
+    } else if (entry.kind === 'bookmark') {
+        const path = `/bookmarks/${entry.type}/${encodeURIComponent(entry.itemId)}`;
+        if (entry.on) await api.put(path, { title: entry.title, at: entry.at }, JSON_HEADERS);
+        else await api.delete(path);
+    } else if (entry.kind === 'bookmarks-clear') {
+        await api.delete('/bookmarks');
     }
 }
 

@@ -875,6 +875,16 @@ nav-button-as-link {
   .nb-back__step:hover, .nb-back__step:active { background: var(--cb-border); color: var(--cb-ink); }
   .nb-back__step i.icon { margin: 0; }
   .nb-back__step:disabled { background: transparent; color: var(--cb-ink-3); opacity: 0.45; cursor: default; }
+  /* Opened from My Bookmarks: "‹ Previous" / "Next ›" with words. */
+  .nb-back__textstep {
+    display: inline-flex; align-items: center; gap: 2px; height: 36px; padding: 0 12px; border: none;
+    border-radius: 999px; background: var(--cb-surface); color: var(--cb-accent); font: inherit; font-size: 0.9rem;
+    font-weight: 600; cursor: pointer;
+  }
+  .nb-back__textstep:hover, .nb-back__textstep:active { background: var(--cb-accent-weak); }
+  .nb-back__textstep i.icon { margin: 0; font-size: 0.8rem; height: auto; }
+  .nb-back__textstep:disabled { background: transparent; color: var(--cb-ink-3); opacity: 0.45; cursor: default; }
+  .nb-back__error { margin: 8px 12px 0; }
 }
 @media (min-width: 769px) {
   .nb-back { flex-shrink: 0; padding: 10px 16px; }
@@ -1046,6 +1056,35 @@ nav-button-as-link {
 .quiz-back__close { padding: 0 14px 0 10px; color: #aab3c5 !important; border-left: 1px solid #3a4152 !important; }
 .quiz-back i.icon { margin: 0; height: auto; }
 /* My Quizzes (pages/QuizzesPage.js). */
+/* The ☆ / ★ bookmark button on a note or word (components/BookmarkButton.js). */
+.card-tool.bookmark-btn--on, .card-tool.bookmark-btn--on:hover { color: #eab308; }
+.card-tool.bookmark-btn--failed { color: var(--cb-danger); }
+/* My Bookmarks (pages/BookmarksPage.js). */
+.bookmarks__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 640px; }
+.bookmarks { list-style: none; margin: 0; padding: 0; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
+.bookmarks__row {
+  display: flex; align-items: center; border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+  background: var(--cb-surface);
+}
+.bookmarks__open {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border: none; background: none; color: var(--cb-ink); font: inherit; text-align: left; cursor: pointer;
+}
+.bookmarks__kind { flex: none; width: 26px; text-align: center; font-size: 1rem; }
+.bookmarks__kind--word { font-size: 0.8rem; font-weight: 700; color: var(--cb-accent); }
+.bookmarks__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bookmarks__title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bookmarks__meta { font-size: 0.85rem; color: var(--cb-ink-3); }
+.bookmarks__remove {
+  flex: none; width: 52px; align-self: stretch; border: none; background: none; color: var(--cb-ink-3); cursor: pointer;
+}
+.bookmarks__remove:hover { color: var(--cb-danger); }
+.bookmarks__remove i.icon { margin: 0; }
+.bookmarks__undo {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 640px;
+  margin-bottom: 10px; padding: 10px 14px; border-radius: var(--cb-radius-sm); background: #1f2430; color: #fff; font-size: 0.92rem;
+}
+.bookmarks__undobtn { border: none; background: none; color: #93c5fd; font: inherit; font-weight: 700; cursor: pointer; padding: 4px 6px; }
 .quiz-list { list-style: none; margin: 0; padding: 0; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
 .quiz-list__row {
   display: flex; align-items: center; border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
