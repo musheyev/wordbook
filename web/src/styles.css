@@ -974,6 +974,18 @@ nav-button-as-link {
 .quiz__again:hover { border-color: var(--cb-accent); }
 .quiz__again i.icon { margin: 0; }
 .quiz__text { font-size: 1.6rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+/* The text and its small Copy button beside it. */
+.quiz__textrow { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; }
+.quiz__textrow .quiz__text { min-width: 0; }
+.quiz__copy {
+  flex: none; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--cb-border); border-radius: 10px; background: var(--cb-surface-2);
+  color: var(--cb-ink-3); font-size: 0.95rem; cursor: pointer;
+}
+.quiz__copy:hover { color: var(--cb-accent); border-color: var(--cb-accent); }
+.quiz__copy--done { color: #15803d; border-color: #15803d; }
+.quiz__copy--failed { color: var(--cb-danger); border-color: var(--cb-danger); }
+.quiz__copy i.icon { margin: 0; height: auto; }
 .quiz__hint { font-size: 0.8rem; color: var(--cb-ink-3); }
 .quiz__error { font-size: 0.85rem; color: var(--cb-danger); text-align: center; }
 .quiz__foot .cb-btn { padding: 10px 20px; font-size: 1rem; }

@@ -37,6 +37,27 @@ import Spinner from './Spinner';
 // quiz" button brings back the same card.
 const SOURCE = 'quiz';
 
+/**
+ * Put text on the clipboard (the card's Copy button). navigator.clipboard
+ * where it's allowed; otherwise the older way, a hidden text box and the
+ * browser's Copy command (older iPhones).
+ * @param {string} text
+ */
+async function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try { await navigator.clipboard.writeText(text); return; } catch (e) { /* the older way */ }
+    }
+    const box = document.createElement('textarea');
+    box.value = text;
+    box.setAttribute('readonly', '');
+    Object.assign(box.style, { position: 'fixed', top: '0', opacity: '0', fontSize: '16px' });
+    document.body.appendChild(box);
+    box.select();
+    const ok = document.execCommand('copy');
+    box.remove();
+    if (!ok) throw new Error('Copy failed');
+}
+
 function NotebookQuiz() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -50,6 +71,7 @@ function NotebookQuiz() {
     const [naming, setNaming] = useState(null); // the name being typed, while saving
     const [saveError, setSaveError] = useState('');
     const [away, setAway] = useState(false); // at a card's note; "Back to quiz" shows
+    const [copied, setCopied] = useState(''); // '' | 'done' | 'failed': the Copy button's tick
     const latest = useRef(null); // the quiz being loaded (a newer one wins)
 
     // openQuiz(): start afresh with the new cards.
@@ -92,6 +114,9 @@ function NotebookQuiz() {
         return () => window.removeEventListener('keydown', onKey);
     }); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // The tick goes back to the copy icon on another card or side.
+    useEffect(() => { setCopied(''); }, [index, flipped]);
+
     if (!quiz) return null;
 
     const cards = loaded ? loaded.cards : [];
@@ -115,6 +140,11 @@ function NotebookQuiz() {
     const flip = () => {
         setFlipped(!flipped);
         say(sideOf(cards[index], !flipped));
+    };
+    // Copy the side showing. Its own tap: the card doesn't flip.
+    const copy = (e, text) => {
+        e.stopPropagation();
+        copyText(text).then(() => setCopied('done'), () => setCopied('failed'));
     };
     // Go to card i, front side up, and read it.
     const goTo = (i, list = cards) => {
@@ -271,11 +301,23 @@ function NotebookQuiz() {
                 )}
                 {card ? (
                     <div className="quiz__cardwrap">
-                        <button type="button" className={`quiz__card${flipped ? ' quiz__card--back' : ''}`} onClick={flip}
-                            aria-label={`${side.text}. Tap to flip`}>
-                            <span className="quiz__text" lang={side.lang}>{side.text}</span>
+                        {/* A tappable box rather than a button, so the Copy
+                            button can sit beside the text (a button can't
+                            hold another one). */}
+                        <div role="button" tabIndex={0} className={`quiz__card${flipped ? ' quiz__card--back' : ''}`}
+                            onClick={flip}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } }}>
+                            <span className="quiz__textrow">
+                                <span className="quiz__text" lang={side.lang}>{side.text}</span>
+                                <button type="button" className={`quiz__copy${copied ? ` quiz__copy--${copied}` : ''}`}
+                                    aria-label="Copy the text" title={copied === 'failed' ? 'Couldn’t copy' : 'Copy the text'}
+                                    onClick={(e) => copy(e, side.text)}>
+                                    <i className={`${copied === 'done' ? 'check' : copied === 'failed' ? 'exclamation' : 'copy outline'} icon`}
+                                        aria-hidden="true"></i>
+                                </button>
+                            </span>
                             <span className="quiz__hint">tap to flip</span>
-                        </button>
+                        </div>
                         {/* Beside the card, not in it: tapping the card flips it. */}
                         <button type="button" className="quiz__again" aria-label="Read again" title="Read again"
                             onClick={() => say(side)}>
