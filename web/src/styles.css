@@ -968,7 +968,7 @@ nav-button-as-link {
 .quiz__again {
   position: absolute; top: 12px; right: 12px; width: 60px; height: 60px;
   display: flex; align-items: center; justify-content: center;
-  border: 1.5px solid var(--cb-border-strong); border-radius: 999px; background: var(--cb-surface-2);
+  border: 1.5px solid var(--cb-border-strong); border-radius: 16px; background: var(--cb-surface-2);
   color: var(--cb-accent); font-size: 1.7rem; cursor: pointer;
 }
 .quiz__again:hover { border-color: var(--cb-accent); }
@@ -1047,10 +1047,10 @@ nav-button-as-link {
   .quiz__cardwrap, .quiz__card { flex: 1; }
   /* Big, and low on the screen, for a thumb with the phone in one hand:
      🔊 at the bottom of the card, Previous / Next below it. */
-  .quiz__foot .cb-btn { flex: 1; justify-content: center; min-height: 64px; padding: 0 16px; font-size: 1.15rem; }
+  .quiz__foot .cb-btn { flex: 1; justify-content: center; min-height: 76px; padding: 0 16px; font-size: 1.15rem; border-radius: 12px; }
   .quiz__again {
     top: auto; bottom: 16px; right: 50%; transform: translateX(50%);
-    width: 80px; height: 80px; font-size: 2.2rem; border-width: 2px;
+    width: 80px; height: 80px; font-size: 2.2rem; border-width: 2px; border-radius: 20px;
   }
   .quiz__card { padding-bottom: 112px; } /* text stays clear of 🔊 */
   /* 16px, or tapping it makes iPhones zoom in (and stay zoomed). */
