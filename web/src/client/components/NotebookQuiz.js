@@ -8,6 +8,7 @@ import { itemPath } from '../utils/notebookPaths';
 import { noteLinkHref } from '../utils/noteLinks';
 import { saveQuiz } from '../actions';
 import Spinner from './Spinner';
+import { ITEM_COLORS } from '../utils/itemColors';
 
 // The quiz (admins): started by the Quiz buttons of a notebook, of a note
 // (the note and the notes it links to), of a tag (Tags), or from My
@@ -72,6 +73,7 @@ function NotebookQuiz() {
     const [saveError, setSaveError] = useState('');
     const [away, setAway] = useState(false); // at a card's note; "Back to quiz" shows
     const [copied, setCopied] = useState(''); // '' | 'done' | 'failed': the Copy button's tick
+    const [coloring, setColoring] = useState(false); // the card's colour choices are open
     const latest = useRef(null); // the quiz being loaded (a newer one wins)
 
     // openQuiz(): start afresh with the new cards.
@@ -114,8 +116,9 @@ function NotebookQuiz() {
         return () => window.removeEventListener('keydown', onKey);
     }); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // The tick goes back to the copy icon on another card or side.
-    useEffect(() => { setCopied(''); }, [index, flipped]);
+    // The tick goes back to the copy icon, and the colour choices close, on
+    // another card or side.
+    useEffect(() => { setCopied(''); setColoring(false); }, [index, flipped]);
 
     if (!quiz) return null;
 
@@ -188,6 +191,24 @@ function NotebookQuiz() {
         }
         if (!list.length) { stopAudio(); setAudioError(''); return; }
         goTo(Math.min(index, list.length - 1), list);
+    };
+
+    // Colour this card (one of the notes' colours, utils/itemColors.js), or
+    // none. It belongs to this quiz's card, not the note: kept in the card,
+    // so a saved quiz saves it (again, like Remove).
+    const setCardColor = (e, key) => {
+        e.stopPropagation();
+        setColoring(false);
+        const list = cards.map((c, i) => {
+            if (i !== index) return c;
+            const { color, ...rest } = c;
+            return key ? { ...rest, color: key } : rest;
+        });
+        setLoaded({ ...loaded, cards: list });
+        if (saved) {
+            setSaveError('');
+            store(saved, list).catch(() => setSaveError('Couldn’t save the change to this quiz. Check your connection.'));
+        }
     };
 
     // "See note": go to the card's note, keeping the quiz for "Back to quiz".
@@ -265,6 +286,8 @@ function NotebookQuiz() {
 
     const card = cards[index];
     const side = card && sideOf(card, flipped);
+    // The card's own colour, if it was given one ({ key, label, tint, ink }).
+    const cardColor = card && card.color ? ITEM_COLORS.find((c) => c.key === card.color) || null : null;
     const last = index + 1 >= cards.length;
 
     return (
@@ -305,6 +328,8 @@ function NotebookQuiz() {
                             button can sit beside the text (a button can't
                             hold another one). */}
                         <div role="button" tabIndex={0} className={`quiz__card${flipped ? ' quiz__card--back' : ''}`}
+                            style={cardColor ? { background: cardColor.tint, borderColor: cardColor.ink } : undefined}
+                            data-color={cardColor ? cardColor.key : undefined}
                             onClick={flip}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } }}>
                             <span className="quiz__textrow">
@@ -315,7 +340,27 @@ function NotebookQuiz() {
                                     <i className={`${copied === 'done' ? 'check' : copied === 'failed' ? 'exclamation' : 'copy outline'} icon`}
                                         aria-hidden="true"></i>
                                 </button>
+                                <button type="button" className={`quiz__copy quiz__colorbtn${coloring ? ' on' : ''}`}
+                                    aria-label="Colour this card" title="Colour this card" aria-expanded={coloring}
+                                    onClick={(e) => { e.stopPropagation(); setColoring(!coloring); }}>
+                                    <span className="quiz__dot" style={cardColor ? { background: cardColor.ink } : undefined}
+                                        aria-hidden="true" />
+                                </button>
                             </span>
+                            {coloring && (
+                                <span className="quiz__colors" role="group" aria-label="Card colour">
+                                    {ITEM_COLORS.map((c) => (
+                                        <button type="button" key={c.key} aria-label={c.label} title={c.label}
+                                            aria-pressed={cardColor ? cardColor.key === c.key : false}
+                                            className={`quiz__swatch${cardColor && cardColor.key === c.key ? ' on' : ''}`}
+                                            style={{ background: c.ink }} onClick={(e) => setCardColor(e, c.key)} />
+                                    ))}
+                                    <button type="button" className="quiz__swatch quiz__swatch--none" aria-label="No colour"
+                                        title="No colour" onClick={(e) => setCardColor(e, null)}>
+                                        <i className="ban icon" aria-hidden="true"></i>
+                                    </button>
+                                </span>
+                            )}
                             <span className="quiz__hint">tap to flip</span>
                         </div>
                         {/* Beside the card, not in it: tapping the card flips it. */}

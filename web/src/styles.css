@@ -986,6 +986,21 @@ nav-button-as-link {
 .quiz__copy--done { color: #15803d; border-color: #15803d; }
 .quiz__copy--failed { color: var(--cb-danger); border-color: var(--cb-danger); }
 .quiz__copy i.icon { margin: 0; height: auto; }
+/* The card's colour: a dot on its small button, then a row of choices. */
+.quiz__colorbtn.on { border-color: var(--cb-accent); }
+.quiz__dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--cb-border-strong); background: transparent; }
+.quiz__colors {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--cb-border);
+  border-radius: 12px; background: var(--cb-surface-2); box-shadow: 0 4px 14px rgba(15, 20, 35, 0.12);
+}
+.quiz__swatch {
+  width: 32px; height: 32px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.quiz__swatch.on { border-color: var(--cb-ink); }
+.quiz__swatch--none { background: var(--cb-surface); border-color: var(--cb-border-strong); color: var(--cb-ink-3); }
+.quiz__swatch--none i.icon { margin: 0; height: auto; }
+.quiz__card[data-color] { border-width: 2px; }
 .quiz__hint { font-size: 0.8rem; color: var(--cb-ink-3); }
 .quiz__error { font-size: 0.85rem; color: var(--cb-danger); text-align: center; }
 .quiz__foot .cb-btn { padding: 10px 20px; font-size: 1rem; }
