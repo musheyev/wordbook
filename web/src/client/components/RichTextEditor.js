@@ -12,6 +12,7 @@ import { FontFamily } from '@tiptap/extension-font-family';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Image } from '@tiptap/extension-image';
 import { MarkdownPaste } from './editor/markdownPaste';
+import { SafeTableCell, SafeTableHeader } from './editor/tableCells';
 import { TtsSkip } from './editor/ttsSkip';
 import { TtsLang } from './editor/ttsLang';
 import { TtsPause } from './editor/ttsPause';
@@ -266,7 +267,11 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
             MathInputRules,
             // Column resizing is off: widths set by dragging would be saved into
             // the note and fight the reader's screen width on phones.
-            TableKit.configure({ table: { resizable: false } }),
+            // Its cells are swapped for ones that ignore a broken colspan
+            // (pasted from Gemini; editor/tableCells.js).
+            TableKit.configure({ table: { resizable: false }, tableCell: false, tableHeader: false }),
+            SafeTableCell,
+            SafeTableHeader,
             Markdown,
             MarkdownPaste,
             TtsSkip,

@@ -31,6 +31,25 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     }
 });
 
+// Tables pasted from Gemini were saved with cells like colspan="undefined"
+// and the table itself as style="width: 0px" (components/editor/tableCells.js
+// explains how). Shown as is, such a table is 0 pixels wide — a blank gap.
+// So: a colspan / rowspan that isn't a whole number goes (the browser then
+// uses 1), and so does a table's inline width of 0.
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'TD' || node.tagName === 'TH') {
+        ['colspan', 'rowspan'].forEach((name) => {
+            if (node.hasAttribute(name) && !/^\s*[1-9]\d*\s*$/.test(node.getAttribute(name))) {
+                node.removeAttribute(name);
+            }
+        });
+    }
+    if (node.tagName === 'TABLE' && node.style && /^0(px)?$/.test(node.style.width)) {
+        node.style.removeProperty('width');
+        if (!node.getAttribute('style')) node.removeAttribute('style');
+    }
+});
+
 export function sanitizeCardHtml(html) {
     // data-api-src is ours (above); DOMPurify keeps data- attributes anyway.
     return DOMPurify.sanitize(html || '', { USE_PROFILES: { html: true } });
