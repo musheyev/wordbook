@@ -714,6 +714,16 @@ nav-button-as-link {
 }
 .cb-menu__list .pause-menu__len:hover { border-color: var(--cb-accent); color: var(--cb-accent); background: var(--cb-accent-weak); }
 .pause-menu__sep { height: 1px; margin: 6px 4px; background: var(--cb-border); }
+/* Phones: these toolbar buttons can land anywhere in the wrapped row, and a
+   menu pinned to the button's right edge ran off the left of the screen. So
+   anchor the menu to the toolbar ROW instead (.card-header-actions is
+   position: relative): it drops below the row, starts at its left edge and is
+   never wider than the row, so it stays fully on screen. */
+@media (max-width: 768px) {
+  .card-header-actions .es-markup { position: static; }
+  .card-header-actions .es-markup .cb-menu__list { left: 0; right: auto; max-width: 100%; }
+  .card-header-actions .pause-menu { min-width: 0; width: 100%; }
+}
 .copy-notes--failed { color: var(--cb-danger); border-color: var(--cb-danger); }
 .nb-check {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
