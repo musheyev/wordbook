@@ -107,6 +107,16 @@ button.sales-preview__row:hover { background: var(--cb-surface); }
 .sales-preview__item.is-free .sales-preview__title { font-weight: 600; }
 .sales-sample { padding: 0 8px 14px; }
 .sales-sample__note.card-content { margin: 4px 0 10px; }
+/* A sample shows only its first two lines, fading out; Play still reads the
+   whole note (NotebookPreview). */
+.sales-sample__note .note-zoom-text {
+  max-height: 3em; /* two lines at line-height 1.5 */
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+/* No gaps between paragraphs here, so the two lines are whole lines. */
+.sales-sample__note .note-zoom-text > * { margin-top: 0; margin-bottom: 0; }
 .sales-preview__foot {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 14px 20px; border-top: 1px solid var(--cb-border); background: var(--cb-surface);

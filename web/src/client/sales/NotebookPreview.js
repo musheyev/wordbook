@@ -18,7 +18,7 @@ import { formatPrice } from './catalog';
 //   ─────────────────────────────────────────────────
 //   Hola                                          🔒
 //   Where would I be able to get a taxi?      Free ⌄
-//     ┌ the note, as in the app ───────────────┐
+//     ┌ its first two lines, fading out ────────┐
 //     │ ¿Dónde puedo tomar un taxi? …           │
 //     └─────────────────────────────────────────┘
 //     [▶ Play]
@@ -26,8 +26,8 @@ import { formatPrice } from './catalog';
 //   ─────────────────────────────────────────────────
 //   $9.99                                     [Buy]
 //
-// Free samples (sales/catalog.js) open in place with Play; the rest show
-// only their titles, locked. `openSample` opens one sample to begin with
+// Free samples (sales/catalog.js) open in place, showing two lines, with
+// Play for the whole note; the rest show only their titles, locked. `openSample` opens one sample to begin with
 // ("Try a free note").
 export default function NotebookPreview({ product, notebook, openSample, onClose }) {
     const [open, setOpen] = useState(openSample || null);
@@ -106,6 +106,7 @@ export default function NotebookPreview({ product, notebook, openSample, onClose
 }
 
 // One free sample, shown as in the app (the same note styles), with Play.
+// Only its first two lines show (sales.css); Play reads the whole note.
 function SampleNote({ id, title }) {
     const dispatch = useDispatch();
     const [content, setContent] = useState(null);
