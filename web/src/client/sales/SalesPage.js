@@ -9,7 +9,7 @@ import NotebookPreview from './NotebookPreview';
 //
 //   Spanish for real-life situations
 //   [See the notebooks]  [Try a free note]
-//   How it works: Listen · Understand word by word · Quiz yourself
+//   How it works: Listen, then repeat · Understand word by word · Quiz yourself
 //   Spanish notebooks: a card per notebook, with [Preview] and [Buy]
 //   Questions
 //
@@ -32,7 +32,7 @@ export default function SalesPage() {
                     <p className="sales-eyebrow">Spanish notebooks</p>
                     <h1 className="sales-hero__title">Spanish for real-life situations</h1>
                     <p className="sales-hero__lead">
-                        Short phrases you'll actually use, read aloud, explained word by word.
+                        Short phrases you'll actually use, read aloud with time to repeat them, explained word by word.
                     </p>
                     <div className="sales-hero__actions">
                         <button type="button" className="cb-btn cb-btn--accent sales-btn" onClick={seeNotebooks}>
@@ -54,8 +54,9 @@ export default function SalesPage() {
                     <ol className="sales-steps">
                         <li>
                             <span className="sales-steps__icon"><i className="headphones icon" aria-hidden="true"></i></span>
-                            <h3>Listen</h3>
-                            <p>Every phrase is read aloud, so you hear how it really sounds.</p>
+                            <h3>Listen, then repeat</h3>
+                            <p>Each phrase is read aloud, then a short pause gives you time to say it yourself
+                                before the next one. No rushing.</p>
                         </li>
                         <li>
                             <span className="sales-steps__icon"><i className="list icon" aria-hidden="true"></i></span>
