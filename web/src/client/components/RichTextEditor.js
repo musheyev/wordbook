@@ -89,8 +89,8 @@ const renderTex = (tex) => {
 //
 // An editor only understands the kinds of content its *schema* lists; anything
 // else is dropped when you paste. The extensions below build that schema:
-//   StarterKit    bold, italic, underline, code, code block, headings, lists,
-//                 link and undo/redo (TipTap v3 bundles these)
+//   StarterKit    bold, italic, underline, strikethrough, code, code block,
+//                 headings, lists, link and undo/redo (TipTap v3 bundles these)
 //   Mathematics   KaTeX-rendered LaTeX: type $…$ inline or $$…$$ for a block,
 //                 or use the fx button
 //   TableKit      tables (table, row, header cell, cell). Without it a pasted
@@ -590,6 +590,10 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
                 <Btn label={<span style={{ textDecoration: 'underline' }}>U</span>} title="Underline"
                     active={editor.isActive('underline')}
                     onClick={() => editor.chain().focus().toggleUnderline().run()} />
+                {/* Saved as <s>…</s>; also ⌘⇧S / Ctrl+Shift+S, or ~~text~~ as you type. */}
+                <Btn label={<span style={{ textDecoration: 'line-through' }}>S</span>} title="Strikethrough"
+                    active={editor.isActive('strike')}
+                    onClick={() => editor.chain().focus().toggleStrike().run()} />
                 <Btn label="< >" title="Inline code" active={editor.isActive('code')}
                     onClick={() => editor.chain().focus().toggleCode().run()} />
                 <Btn label="🔇" title="Don't read aloud (mute for text-to-speech)" active={editor.isActive('ttsSkip')}
