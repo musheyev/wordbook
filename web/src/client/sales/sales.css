@@ -1,0 +1,199 @@
+/* The Spanish sales page and checkout (sales/SalesRoutes.js). Localhost only
+   for now, so these styles are only loaded there. They use the app's colours
+   (--cb-* in styles.css) and its buttons (.cb-btn). */
+
+.sales {
+  min-height: 100vh;
+  background: var(--cb-bg);
+  color: var(--cb-ink);
+  font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+}
+.sales-wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+.sales-wrap--narrow { max-width: 720px; }
+.sales-btn { height: 44px; padding: 0 20px; font-size: 1rem; font-weight: 600; gap: 8px; }
+.sales-btn i.icon { margin: 0; }
+.sales-btn--wide { width: 100%; }
+a.cb-btn--accent.sales-btn, a.cb-btn--accent.sales-btn:hover { color: var(--cb-accent-ink); }
+.sales-h2 { margin: 0 0 20px; font-family: Lora, Georgia, serif; font-size: 1.6rem; font-weight: 700; line-height: 1.25; }
+.sales-badge {
+  display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px;
+  background: #e7f6ee; color: #11734b; font-size: 0.78rem; font-weight: 700;
+}
+.sales-badge--level { background: var(--cb-accent-weak); color: var(--cb-accent); }
+.sales-note-error { color: var(--cb-danger); }
+
+/* Hero */
+.sales-hero {
+  padding: 72px 0 64px;
+  background:
+    radial-gradient(900px 360px at 85% -10%, rgba(240, 180, 41, 0.18), transparent 70%),
+    radial-gradient(800px 400px at 0% 0%, var(--cb-accent-weak), transparent 70%);
+  border-bottom: 1px solid var(--cb-border);
+}
+.sales-eyebrow { margin: 0 0 10px; color: var(--cb-accent); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.sales-hero__title { margin: 0; max-width: 16ch; font-family: Lora, Georgia, serif; font-size: clamp(2.1rem, 6vw, 3.4rem); font-weight: 700; line-height: 1.1; }
+.sales-hero__lead { margin: 18px 0 28px; max-width: 34em; color: var(--cb-ink-2); font-size: 1.15rem; }
+.sales-hero__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* Sections */
+.sales-section { padding: 56px 0; }
+.sales-section--tinted { background: var(--cb-surface); border-top: 1px solid var(--cb-border); border-bottom: 1px solid var(--cb-border); }
+
+.sales-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 0; padding: 0; list-style: none; }
+.sales-steps li { padding: 4px 0; }
+.sales-steps h3 { margin: 12px 0 6px; font-size: 1.05rem; }
+.sales-steps p { margin: 0; color: var(--cb-ink-2); }
+.sales-steps__icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  border-radius: 12px; background: var(--cb-accent-weak); color: var(--cb-accent); font-size: 1.1rem;
+}
+.sales-steps__icon i.icon { margin: 0; }
+
+/* Notebook cards */
+.sales-products { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.sales-product {
+  display: flex; flex-direction: column; padding: 22px; background: var(--cb-surface-2);
+  border: 1px solid var(--cb-border); border-radius: var(--cb-radius); box-shadow: 0 1px 2px rgba(20, 25, 40, 0.04);
+}
+.sales-product__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sales-product__count { color: var(--cb-ink-3); font-size: 0.85rem; }
+.sales-product__title { margin: 14px 0 4px; font-family: Lora, Georgia, serif; font-size: 1.4rem; }
+.sales-product__pitch { margin: 0; color: var(--cb-ink-2); }
+.sales-product__price { margin: 18px 0; font-size: 1.5rem; font-weight: 700; }
+.sales-product__actions { display: flex; gap: 10px; margin-top: auto; }
+.sales-product__actions .sales-btn { flex: 1; }
+.sales-product--soon {
+  align-items: center; justify-content: center; min-height: 200px; gap: 8px;
+  background: none; border-style: dashed; box-shadow: none; color: var(--cb-ink-3); text-align: center;
+}
+.sales-product--soon i.icon { margin: 0; font-size: 1.4rem; }
+.sales-product--soon p { margin: 0; }
+
+/* Questions */
+.sales-faq details { border-bottom: 1px solid var(--cb-border); }
+.sales-faq summary { padding: 16px 0; font-weight: 600; cursor: pointer; }
+.sales-faq p { margin: 0 0 16px; color: var(--cb-ink-2); }
+
+/* Preview: centred on desktop, a full-screen sheet on phones. */
+.sales-preview {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px; background: rgba(15, 20, 35, 0.45);
+}
+.sales-preview__dialog {
+  display: flex; flex-direction: column; width: min(680px, 100%); max-height: 100%;
+  background: var(--cb-bg); border-radius: var(--cb-radius); box-shadow: 0 20px 50px rgba(15, 20, 35, 0.25); overflow: hidden;
+}
+.sales-preview__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 12px; border-bottom: 1px solid var(--cb-border); }
+.sales-preview__head h2 { margin: 0; font-family: Lora, Georgia, serif; font-size: 1.35rem; }
+.sales-preview__meta { margin: 2px 0 0; color: var(--cb-ink-3); font-size: 0.88rem; }
+.sales-preview__close {
+  flex: none; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--cb-surface);
+  color: var(--cb-ink-2); cursor: pointer; font-size: 1rem;
+}
+.sales-preview__close i.icon { margin: 0; }
+.sales-preview__body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px; }
+.sales-preview__list { margin: 0; padding: 0; list-style: none; }
+.sales-preview__item + .sales-preview__item { border-top: 1px solid var(--cb-border); }
+.sales-preview__row {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px;
+  border: none; background: none; font: inherit; color: var(--cb-ink); text-align: left;
+}
+button.sales-preview__row { cursor: pointer; border-radius: var(--cb-radius-sm); }
+button.sales-preview__row:hover { background: var(--cb-surface); }
+.sales-preview__row i.icon { margin: 0; color: var(--cb-ink-3); }
+.sales-preview__row.is-locked { color: var(--cb-ink-2); }
+.sales-preview__title { flex: 1; min-width: 0; }
+.sales-preview__item.is-free .sales-preview__title { font-weight: 600; }
+.sales-sample { padding: 0 8px 14px; }
+.sales-sample__note.card-content { margin: 4px 0 10px; }
+/* A sample shows only its first two lines, fading out; Play still reads the
+   whole note (NotebookPreview). */
+.sales-sample__note .note-zoom-text {
+  max-height: 3em; /* two lines at line-height 1.5 */
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+/* No gaps between paragraphs here, so the two lines are whole lines. */
+.sales-sample__note .note-zoom-text > * { margin-top: 0; margin-bottom: 0; }
+.sales-preview__foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 20px; border-top: 1px solid var(--cb-border); background: var(--cb-surface);
+}
+.sales-preview__price { font-size: 1.3rem; font-weight: 700; }
+
+/* Checkout */
+.sales-checkout { padding-top: 24px; padding-bottom: 56px; }
+.sales-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; color: var(--cb-ink-2); font-weight: 600; }
+.sales-back:hover { color: var(--cb-accent); }
+.sales-back i.icon { margin: 0; }
+.sales-testmode {
+  margin: 0 0 24px; padding: 10px 14px; border: 1px dashed #d97706; border-radius: var(--cb-radius-sm);
+  background: #fff7e6; color: #92400e; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.03em; text-align: center;
+}
+.sales-checkout__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 32px; align-items: start; }
+.sales-checkout__h { margin: 0 0 16px; font-size: 1.1rem; }
+.sales-order { padding: 22px; background: var(--cb-surface); border: 1px solid var(--cb-border); border-radius: var(--cb-radius); }
+.sales-order__item { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--cb-border); }
+.sales-order__name { margin: 0; font-weight: 700; }
+.sales-order__meta { margin: 2px 0 0; color: var(--cb-ink-3); font-size: 0.88rem; }
+.sales-order__total { display: flex; justify-content: space-between; padding-top: 16px; font-size: 1.15rem; }
+
+.sales-pay { padding: 22px; border: 1px solid var(--cb-border); border-radius: var(--cb-radius); }
+.sales-pay__label { display: block; margin: 0 0 6px; font-size: 0.85rem; font-weight: 700; color: var(--cb-ink-2); }
+.sales-pay__input, .sq-card {
+  width: 100%; height: 48px; border: 1px solid var(--cb-border-strong); border-radius: 6px; background: #fff;
+}
+.sales-pay__input { margin-bottom: 16px; padding: 0 12px; font: inherit; font-size: 16px; color: var(--cb-ink); }
+.sales-pay__input:focus, .sq-card:focus-within { outline: none; border-color: #006aff; box-shadow: 0 0 0 3px rgba(0, 106, 255, 0.18); }
+/* Square's look: one box, with card number, expiry, code and ZIP side by side. */
+.sq-card { display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+.sq-card__icon.icon { flex: none; margin: 0; color: var(--cb-ink-3); }
+.sq-card input {
+  min-width: 0; height: 100%; border: none; background: none; font: inherit; font-size: 16px; color: var(--cb-ink); outline: none;
+}
+.sq-card__number { flex: 1 1 auto; }
+.sq-card__small { flex: 0 0 auto; width: 4.2em; }
+.sales-pay__hint { margin: 8px 0 0; color: var(--cb-ink-3); font-size: 0.8rem; }
+.sales-pay__problem { margin: 12px 0 0; color: var(--cb-danger); font-weight: 600; }
+.sq-pay {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 50px; margin-top: 20px;
+  border: none; border-radius: 6px; background: #006aff; color: #fff; font: inherit; font-size: 1.05rem; font-weight: 700; cursor: pointer;
+}
+.sq-pay:hover { background: #0055cc; }
+.sq-pay:disabled { opacity: 0.75; cursor: default; }
+.sq-pay i.icon { margin: 0; }
+.sales-pay__secure { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 12px 0 0; color: var(--cb-ink-3); font-size: 0.82rem; }
+.sales-pay__secure i.icon { margin: 0; }
+
+/* Thank you */
+.sales-thanks { text-align: center; }
+.sales-thanks__check {
+  display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px;
+  border-radius: 50%; background: #e7f6ee; color: #11734b; font-size: 1.6rem;
+}
+.sales-thanks__check i.icon { margin: 0; }
+.sales-thanks h1 { margin: 16px 0 8px; font-family: Lora, Georgia, serif; font-size: 1.8rem; line-height: 1.2; }
+.sales-thanks > p { color: var(--cb-ink-2); }
+.sales-thanks__receipt { margin: 24px 0; padding: 4px 18px; border: 1px solid var(--cb-border); border-radius: var(--cb-radius); text-align: left; }
+.sales-thanks__receipt div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; }
+.sales-thanks__receipt div + div { border-top: 1px solid var(--cb-border); }
+.sales-thanks__receipt dt { color: var(--cb-ink-2); }
+.sales-thanks__receipt dd { margin: 0; font-weight: 700; }
+.sales-thanks__aside { margin: 10px 0 24px; font-size: 0.85rem; color: var(--cb-ink-3) !important; }
+
+/* Phones */
+@media (max-width: 768px) {
+  .sales-hero { padding: 48px 0 44px; }
+  .sales-hero__actions .sales-btn { flex: 1 1 100%; }
+  .sales-section { padding: 40px 0; }
+  .sales-steps { grid-template-columns: 1fr; gap: 18px; }
+  .sales-preview { padding: 0; align-items: stretch; }
+  .sales-preview__dialog { width: 100%; max-height: none; border-radius: 0; }
+  .sales-checkout__grid { grid-template-columns: 1fr; gap: 20px; }
+  /* The card box wraps: number on its own line, the rest below. */
+  .sq-card { flex-wrap: wrap; height: auto; padding: 4px 10px; }
+  .sq-card__number { flex-basis: calc(100% - 30px); height: 40px; }
+  .sq-card__small { flex: 1 1 0; height: 40px; border-top: 1px solid var(--cb-border) !important; }
+}
