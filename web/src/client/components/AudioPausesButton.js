@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { TTS_PAUSES } from '../utils/tts';
 import {
-    setAllPauses, addForeignPauses, removeForeignPauses, removeAllPauses, countPauses,
+    setAllPauses, addForeignPauses, addLinePauses, removeForeignPauses, removeAllPauses, countPauses,
 } from '../utils/pauseMarkup';
 import useNoteChange from '../utils/useNoteChange';
 import NoteChangeToast from './NoteChangeToast';
@@ -13,6 +13,7 @@ import NoteChangeToast from './NoteChangeToast';
 //
 //   Set all pauses (12)                    [1s] [2s] [3s] [5s]
 //   Add between foreign language lines     [1s] [2s] [3s] [5s]
+//   Add at the end of every line           [1s] [2s] [3s] [5s]
 //   Remove pauses between foreign language lines
 //   Remove all pauses
 //
@@ -68,6 +69,15 @@ export default function AudioPausesButton({ card }) {
                             {lengths((s) => run((h) => addForeignPauses(h, s),
                                 (n) => `Added ${pauses(n)} of ${s}s between foreign language lines.`,
                                 'No foreign language lines without a pause between them.'))}
+                        </div>
+                        <div className="pause-menu__row">
+                            <span className="pause-menu__label">
+                                Add at the end of every line
+                                <span className="pause-menu__hint">any language, English too</span>
+                            </span>
+                            {lengths((s) => run((h) => addLinePauses(h, s),
+                                (n) => `Added ${pauses(n)} of ${s}s at the end of lines.`,
+                                'Every line already ends with a pause.'))}
                         </div>
                         <div className="pause-menu__sep" role="separator" />
                         <button type="button" role="menuitem"

@@ -9,6 +9,11 @@
 //                          • Yo estoy — I am ⏸
 //                          • Tú estás — You are ⏸
 //                          • Ustedes están — You all are     (next: English)
+//   addLinePauses        a pause at the end of every line that's followed
+//                        by another, in any language — English too:
+//                          Greetings ⏸
+//                          • Hola — Hello ⏸
+//                          • Adiós — Goodbye                 (the last line)
 //   removeForeignPauses  the pauses between such lines (at a line's end, or
 //                        on a line of their own between them)
 //   removeAllPauses      every pause
@@ -133,6 +138,16 @@ export function setAllPauses(html, seconds) {
     return result(doc, count);
 }
 
+// Put a pause chip of `s` seconds at the very end of a line: just before the
+// <br> that ends it, or as the last thing in its paragraph.
+function appendPause(doc, line, s) {
+    const pause = doc.createElement('span');
+    pause.className = 'tts-pause';
+    pause.setAttribute('data-seconds', s);
+    if (line.br) line.br.parentNode.insertBefore(pause, line.br);
+    else line.block.appendChild(pause);
+}
+
 /** A pause after each foreign-language line followed by another; count = added. */
 export function addForeignPauses(html, seconds) {
     const doc = parse(html);
@@ -140,11 +155,27 @@ export function addForeignPauses(html, seconds) {
     let count = 0;
     foreignNeighbours(linesOf(doc)).forEach(({ line, between }) => {
         if (between.length || line.trailing.length) return; // already has one
-        const pause = doc.createElement('span');
-        pause.className = 'tts-pause';
-        pause.setAttribute('data-seconds', s);
-        if (line.br) line.br.parentNode.insertBefore(pause, line.br);
-        else line.block.appendChild(pause);
+        appendPause(doc, line, s);
+        count += 1;
+    });
+    return result(doc, count);
+}
+
+/**
+ * A pause at the end of every line followed by another (any language);
+ * count = added. Skipped: lines that already end in a pause or have one on a
+ * line of its own right after them, and the note's last line (nothing
+ * follows it, so there's nothing to wait for).
+ */
+export function addLinePauses(html, seconds) {
+    const doc = parse(html);
+    const s = String(validPause(seconds) || DEFAULT_PAUSE);
+    const lines = linesOf(doc).filter((line) => !isBlank(line));
+    let count = 0;
+    lines.forEach((line, i) => {
+        const next = lines[i + 1];
+        if (!next || isPauseOnly(line) || isPauseOnly(next) || line.trailing.length) return;
+        appendPause(doc, line, s);
         count += 1;
     });
     return result(doc, count);
