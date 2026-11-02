@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { findProduct, formatPrice } from './catalog';
 import useNotebook from './useNotebook';
+import { addPurchase } from './purchases';
 
 // Checkout for one notebook (/learn-spanish/checkout/<id>, localhost only for
 // now). It only PRETENDS to be Square's payment form: nothing typed here is
-// sent anywhere or saved, and no payment is taken.
+// sent anywhere or saved, and no payment is taken. Paying counts the notebook
+// as bought in this browser (sales/purchases.js), so it shows in the buyer's
+// library (sales/library/), where "Start learning" goes.
 //
 //   TEST MODE — no real payment is taken
 //   Your order                  │ Payment
@@ -54,7 +57,11 @@ export default function CheckoutPage() {
             return;
         }
         setStep('processing');
-        setTimeout(() => setStep('paid'), PRETEND_DELAY_MS);
+        setTimeout(() => {
+            // Pretend: counted as bought in this browser only (sales/purchases.js).
+            addPurchase(product.id);
+            setStep('paid');
+        }, PRETEND_DELAY_MS);
     };
 
     if (step === 'paid') {
@@ -70,11 +77,11 @@ export default function CheckoutPage() {
                         <div><dt>{product.title}{count != null ? ` · ${count} notes` : ''}</dt><dd>{formatPrice(product.price)}</dd></div>
                         <div><dt>Paid with</dt><dd>Card ending {card.number.replace(/\D/g, '').slice(-4)}</dd></div>
                     </dl>
-                    <Link to={`/wordbook/${encodeURIComponent(product.notebook)}`} className="cb-btn cb-btn--accent sales-btn sales-btn--wide">
+                    <Link to={`/learn-spanish/library/${product.id}`} className="cb-btn cb-btn--accent sales-btn sales-btn--wide">
                         Start learning
                     </Link>
                     <p className="sales-thanks__aside">
-                        On localhost this opens your own copy of the notebook. Buyer accounts come in a later step.
+                        Opens the notebook as a buyer sees it: read only, from your account's copy.
                     </p>
                     <BackLink />
                 </div>

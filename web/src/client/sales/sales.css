@@ -197,3 +197,58 @@ button.sales-preview__row:hover { background: var(--cb-surface); }
   .sq-card__number { flex-basis: calc(100% - 30px); height: 40px; }
   .sq-card__small { flex: 1 1 0; height: 40px; border-top: 1px solid var(--cb-border) !important; }
 }
+
+/* The buyer's library (sales/library/): a top bar instead of the app's rail,
+   then the page. The note list and note reuse the app's own styles (.nb-row,
+   .nb-back, .card-content, .quiz-list). */
+.lib-bar { position: sticky; top: 0; z-index: 20; background: var(--cb-surface-2); border-bottom: 1px solid var(--cb-border); }
+.lib-bar__inner { display: flex; align-items: center; gap: 24px; min-height: 60px; }
+.lib-bar__brand { font-family: Lora, Georgia, serif; font-size: 1.2rem; font-weight: 700; color: var(--cb-ink); white-space: nowrap; }
+.lib-bar__brand:hover { color: var(--cb-ink); }
+.lib-bar__tabs { display: flex; gap: 4px; flex: 1; min-width: 0; }
+.lib-bar__tab {
+  display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 999px;
+  color: var(--cb-ink-2); font-weight: 600; white-space: nowrap;
+}
+.lib-bar__tab:hover { background: var(--cb-surface); color: var(--cb-ink); }
+.lib-bar__tab.is-active { background: var(--cb-accent-weak); color: var(--cb-accent); }
+.lib-bar__more { display: inline-flex; align-items: center; gap: 6px; color: var(--cb-accent); font-weight: 600; white-space: nowrap; }
+.lib-bar__more i.icon { margin: 0; font-size: 0.85rem; }
+
+.lib-main { padding-top: 28px; padding-bottom: 96px; }
+.lib-title { margin: 0 0 6px; font-family: Lora, Georgia, serif; font-size: 1.8rem; font-weight: 700; line-height: 1.2; }
+.lib-meta { margin: 0 0 18px; color: var(--cb-ink-3); }
+.lib-main > .lib-title + .sales-products, .lib-main > .lib-title + .lib-empty,
+.lib-main > .lib-title + .quiz-list, .lib-main > .lib-title + .lib-notes { margin-top: 20px; }
+.lib-empty { padding: 24px 0; color: var(--cb-ink-2); }
+.lib-empty p { margin: 0 0 16px; }
+.lib-devnote { margin: 32px 0 0; color: var(--cb-ink-3); font-size: 0.85rem; }
+.lib-link { padding: 0; border: none; background: none; color: var(--cb-accent); font: inherit; font-weight: 600; cursor: pointer; }
+
+a.lib-book { color: var(--cb-ink); transition: border-color 0.15s, box-shadow 0.15s; }
+a.lib-book:hover { color: var(--cb-ink); border-color: var(--cb-accent); box-shadow: 0 4px 14px rgba(20, 25, 40, 0.08); }
+.lib-book .sales-product__title { margin-top: 14px; }
+.lib-book__count { margin: 16px 0 0; color: var(--cb-ink-3); font-size: 0.88rem; }
+
+.lib-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+.lib-actions .cb-btn i.icon { margin: 0 6px 0 0; }
+.lib-notes { max-width: 760px; margin: 0; padding: 0; list-style: none; border-bottom: 1px solid var(--cb-border); }
+.lib-bookmark { display: flex; align-items: center; padding-right: 12px; border-top: 1px solid var(--cb-border); }
+.lib-bookmark .nb-row { flex: 1; min-width: 0; border-top: none; }
+
+/* A note: the page scrolls, not the note's box (in the app the box scrolls
+   inside a screen-high pane). */
+.lib-note { max-width: 860px; }
+.lib-note .nb-back { margin: -12px 0 12px; padding: 6px 0; border-bottom: none; }
+.lib-note .search-result--card { padding: 0; }
+.lib-note .card-content--scroll { max-height: none; overflow: visible; }
+
+@media (max-width: 768px) {
+  .lib-bar__inner { flex-wrap: wrap; gap: 0 12px; padding-top: 10px; }
+  .lib-bar__brand { flex: 1; }
+  .lib-bar__more-long { display: none; }
+  .lib-bar__tabs { order: 3; flex-basis: 100%; overflow-x: auto; padding: 8px 0 10px; }
+  .lib-main { padding-top: 20px; }
+  .lib-title { font-size: 1.5rem; }
+  .lib-notes { margin-left: -16px; margin-right: -16px; }
+}
