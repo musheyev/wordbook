@@ -23,6 +23,7 @@ import { showApiImages } from '../offline/images';
 import { useIsOffline } from './DownloadBadge';
 import { NoteDownloadButton } from './DownloadButtons';
 import { renderMathIn } from '../utils/math';
+import { noteOpened, noteClosed, noteSource } from '../utils/noteAudio';
 import { htmlToChunks, htmlToPlainText, textToChunks, cardChunks, tagItem } from '../utils/tts';
 import TranslateMenu from './TranslateMenu';
 import ShareDialog from './ShareDialog';
@@ -177,6 +178,18 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
         if (currentCard) showApiImages(cardRef.current, `card:${currentCard.card_id}`);
     });
 
+    // The read-aloud controls follow the open note (utils/noteAudio.js):
+    // ready to play it (on phones the controls come up), and a note that
+    // was playing before gives way to this one.
+    const openCardId = currentCard ? currentCard.card_id : null;
+    const openCardContent = currentCard ? currentCard.content : null;
+    React.useEffect(() => {
+        if (!openCardId || typeof openCardContent !== 'string') return undefined;
+        noteOpened(currentCard);
+        return undefined;
+    }, [openCardId, openCardContent]); // eslint-disable-line react-hooks/exhaustive-deps
+    React.useEffect(() => (openCardId ? () => noteClosed(openCardId) : undefined), [openCardId]);
+
     // Reset the delete confirmation and note editor whenever the selection changes.
     React.useEffect(() => {
         setConfirmingDelete(false);
@@ -284,7 +297,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             onClick={() => setConfirmingDelete(true)}>
                             <i className="trash alternate outline icon"></i>
                         </button>
-                        <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title} />
+                        <ReadAloud getChunks={() => cardChunks(currentCard)} title={currentCard.title}
+                            sourceId={noteSource(currentCard.card_id)} />
                         <CopyNoteButton title={currentCard.title}
                             getShown={() => cardRef.current && cardRef.current.querySelector('.note-zoom-text')} />
                         <BookmarkButton item={{ type: 'card', id: currentCard.card_id, title: currentCard.title }} />
