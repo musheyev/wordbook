@@ -15,8 +15,13 @@ let uid = 0;
 // `voices={false}` leaves out the voice picker (e.g. Play selected, next to
 // Play all which has one). `firstSentence` adds "First sentence of each
 // note only" to the menu (Play all; Play selected follows it too).
-function ReadAloud({ getChunks, title, label, voices: withVoices = true, firstSentence = false }) {
-    const idRef = useRef(`ra${++uid}`);
+// `sourceId`: the player's name for this reading, when something else can
+// start or get it ready too — a note's is "note:<id>" (utils/noteAudio.js),
+// so the button shows the note playing from the big controls, and plays it
+// when it's only ready there.
+function ReadAloud({ getChunks, title, label, sourceId, voices: withVoices = true, firstSentence = false }) {
+    const ownId = useRef(`ra${++uid}`);
+    const idRef = { current: sourceId || ownId.current };
     const [state, setState] = useState(ttsPlayer.snapshot());
     const [error, setError] = useState('');
     const [menuOpen, setMenuOpen] = useState(false);
@@ -33,12 +38,13 @@ function ReadAloud({ getChunks, title, label, voices: withVoices = true, firstSe
     useEffect(() => ttsPlayer.subscribe(setState), []);
 
     const mine = state.sourceId === idRef.current;
-    const active = mine && state.status !== 'idle';
+    const active = mine && state.status !== 'idle' && state.status !== 'ready';
 
     const onToggle = async () => {
         setError('');
         if (mine && state.status === 'playing') { ttsPlayer.pause(); return; }
         if (mine && state.status === 'paused') { ttsPlayer.resume(); return; }
+        if (mine && state.status === 'ready') { ttsPlayer.start(); return; }
         ttsPlayer.prime(); // must run synchronously in the click (iOS)
         let chunks = [];
         try { chunks = await getChunks(); } catch (e) { setError('Could not prepare audio.'); return; }

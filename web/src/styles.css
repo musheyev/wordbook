@@ -3682,14 +3682,16 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   font-family: inherit; font-size: 0.85rem; cursor: pointer; touch-action: manipulation;
 }
 .player-panel__repeat.on { background: #c9d1e1; border-color: #c9d1e1; color: #1f2430; font-weight: 700; }
-/* Note / bookmark jumps (PlayerPanel). */
-.player-panel__nav { display: flex; gap: 8px; margin-top: 10px; }
+/* Note / bookmark jumps (PlayerPanel): a row each, as easy to see and hit
+   as ↺ ▶ ↻ above. */
+.player-panel__nav { display: flex; gap: 8px; margin-top: 8px; }
 .player-panel__jump {
-  flex: 1 1 0; min-width: 0; height: 48px; padding: 0 6px; border: none; border-radius: 12px;
-  background: #2b3242; color: #e5e9f2; font-family: inherit; font-size: 0.95rem; font-weight: 600;
+  flex: 1 1 0; min-width: 0; height: 64px; padding: 0 8px; border: none; border-radius: 14px;
+  background: #343b4d; color: #fff; font-family: inherit; font-size: 1.15rem; font-weight: 700;
   cursor: pointer; white-space: nowrap; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .player-panel__jump:active { background: #4a5368; }
+.player-panel__jump:disabled { opacity: 0.35; cursor: default; }
 .player-panel__foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; }
 .player-panel__skip { display: flex; align-items: center; gap: 4px; }
 .player-panel__skip-label { font-size: 0.8rem; color: #aab3c5; margin-right: 2px; }
@@ -3719,6 +3721,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
     padding: 14px 14px 8px;
   }
   .player-panel__big { height: 84px; }
+  .player-panel__jump { height: 72px; font-size: 1.25rem; }
   .player-panel__arrow { font-size: 2.3rem; }
   .player-panel__play .icon { font-size: 2.2rem; }
   .player-pill { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }

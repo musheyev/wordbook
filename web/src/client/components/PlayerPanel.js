@@ -1,22 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ttsPlayer, { SKIP_CHOICES } from '../utils/ttsPlayer';
+import { getNoteNav, onNoteNav, goToNote } from '../utils/noteAudio';
 
 // Big read-aloud controls, over the bottom of the screen whenever something
 // is being read (a note, a word, Play all), e.g. for a phone in a car mount:
 //
 //   Valuation Dashboard Meeting                 note 3 of 12
 //      [ ↺ 5 ]     [ ⏸ ]     [ 5 ↻ ]
-//   [⏮ Note] [⏮ 🔖]          [🔖 ⏭] [Note ⏭]
+//   [  ⏮ Note  ]               [  Note ⏭  ]
+//   [  ⏮ 🔖    ]               [    🔖 ⏭  ]
 //      [■ Stop]   Skip [5s] 10s   🔁 Repeat   [⌄ Hide]
+//
+// Also when a note is only ready to be read ("Ready", ▶ to start): opening
+// a note gets it ready, on phones always (utils/noteAudio.js).
 //
 // When the reading ends the panel stays, "Finished", with one big ↻ Replay
 // button (from the beginning). 🔁 Repeat (remembered on this device) starts
 // it over by itself each time it ends, until Stop.
 //
-// Note buttons show when several notes are being read (Play all); bookmark
-// buttons when what's read has bookmarks (🔖 in a note, or headings). ⏮
-// goes to the start of the current note/bookmark, or the one before if
-// it's just started (ttsPlayer.prevNote / prevBookmark).
+// Note buttons: while several notes are being read (Play all), they move
+// within that reading (ttsPlayer.prevNote / nextNote: ⏮ goes to the start
+// of the current note, or the one before if it's just started). Otherwise,
+// on a note in a notebook, they open the previous / next note there
+// (goToNote), which plays at once if one was playing. Bookmark buttons show
+// when what's read has bookmarks (🔖 in a note, or headings), and work the
+// same way within it (prevBookmark / nextBookmark). Both rows are as easy
+// to hit as the buttons above.
 // Skip sets how far ↺/↻ (and the lock screen) jump; this device remembers
 // it. Taps while the next sentence is still loading aren't lost: they're
 // applied as soon as it starts (ttsPlayer.seekBy).
@@ -33,6 +42,7 @@ const saveHidden = (v) => { try { localStorage.setItem(HIDDEN_KEY, v ? '1' : '0'
 
 export default function PlayerPanel() {
     const [state, setState] = useState(ttsPlayer.snapshot());
+    const [noteNav, setNoteNav] = useState(getNoteNav);
     const [hidden, setHidden] = useState(readHidden);
     // Where it's been dragged to ({ left, top } on screen), or null: its
     // usual place. Forgotten when the reading stops.
@@ -41,6 +51,7 @@ export default function PlayerPanel() {
     const drag = useRef(null);
 
     useEffect(() => ttsPlayer.subscribe(setState), []);
+    useEffect(() => onNoteNav(setNoteNav), []);
     useEffect(() => { if (state.status === 'idle') setPos(null); }, [state.status]);
 
     const active = state.status !== 'idle' && state.sourceId !== 'voice-preview' && state.sourceId !== 'quiz';
@@ -52,7 +63,8 @@ export default function PlayerPanel() {
         return (
             <button type="button" className="player-pill" onClick={() => hide(false)}
                 aria-label="Show playback controls">
-                <i className={`${state.status === 'playing' ? 'volume up' : 'pause'} icon`} aria-hidden="true"></i>
+                <i className={`${state.status === 'playing' ? 'volume up' : state.status === 'ready' ? 'play' : 'pause'} icon`}
+                    aria-hidden="true"></i>
                 Controls
             </button>
         );
@@ -78,7 +90,13 @@ export default function PlayerPanel() {
     const loading = state.status === 'loading';
     const playing = state.status === 'playing';
     const ended = state.status === 'ended';
+    const ready = state.status === 'ready';
     const step = state.skip;
+    // Note buttons: within Play all, or the notebook's previous / next note.
+    const manyNotes = state.notes > 1;
+    const noteButtons = manyNotes || !!(noteNav.prev || noteNav.next);
+    const prevNote = () => (manyNotes ? ttsPlayer.prevNote() : goToNote(-1));
+    const nextNote = () => (manyNotes ? ttsPlayer.nextNote() : goToNote(1));
 
     return (
         <div className={`player-panel${pos ? ' player-panel--moved' : ''}`} role="region" aria-label="Playback controls"
@@ -89,6 +107,8 @@ export default function PlayerPanel() {
                 <span className="player-panel__title">{state.title || 'Reading'}</span>
                 {ended ? (
                     <span className="player-panel__where">Finished</span>
+                ) : ready ? (
+                    <span className="player-panel__where">Ready</span>
                 ) : state.notes > 1 ? (
                     <span className="player-panel__where">note {state.note} of {state.notes}</span>
                 ) : state.total > 1 && (
@@ -106,7 +126,7 @@ export default function PlayerPanel() {
             ) : (
             <div className="player-panel__main">
                 <button type="button" className="player-panel__big" aria-label={`Back ${step} seconds`}
-                    onClick={() => ttsPlayer.seekBy(-step)}>
+                    disabled={ready} onClick={() => ttsPlayer.seekBy(-step)}>
                     <span className="player-panel__arrow" aria-hidden="true">↺</span>
                     <span className="player-panel__step">{step}</span>
                 </button>
@@ -116,30 +136,26 @@ export default function PlayerPanel() {
                     <i className={`${loading ? 'spinner loading' : playing ? 'pause' : 'play'} icon`} aria-hidden="true"></i>
                 </button>
                 <button type="button" className="player-panel__big" aria-label={`Forward ${step} seconds`}
-                    onClick={() => ttsPlayer.seekBy(step)}>
+                    disabled={ready} onClick={() => ttsPlayer.seekBy(step)}>
                     <span className="player-panel__arrow" aria-hidden="true">↻</span>
                     <span className="player-panel__step">{step}</span>
                 </button>
             </div>
             )}
-            {!ended && (state.notes > 1 || state.bookmarks) && (
+            {!ended && noteButtons && (
                 <div className="player-panel__nav">
-                    {state.notes > 1 && (
-                        <button type="button" className="player-panel__jump" aria-label="Previous note"
-                            onClick={() => ttsPlayer.prevNote()}>⏮ Note</button>
-                    )}
-                    {state.bookmarks && (
-                        <button type="button" className="player-panel__jump" aria-label="Previous bookmark"
-                            onClick={() => ttsPlayer.prevBookmark()}>⏮ 🔖</button>
-                    )}
-                    {state.bookmarks && (
-                        <button type="button" className="player-panel__jump" aria-label="Next bookmark"
-                            onClick={() => ttsPlayer.nextBookmark()}>🔖 ⏭</button>
-                    )}
-                    {state.notes > 1 && (
-                        <button type="button" className="player-panel__jump" aria-label="Next note"
-                            onClick={() => ttsPlayer.nextNote()}>Note ⏭</button>
-                    )}
+                    <button type="button" className="player-panel__jump" aria-label="Previous note"
+                        disabled={!manyNotes && !noteNav.prev} onClick={prevNote}>⏮ Note</button>
+                    <button type="button" className="player-panel__jump" aria-label="Next note"
+                        disabled={!manyNotes && !noteNav.next} onClick={nextNote}>Note ⏭</button>
+                </div>
+            )}
+            {!ended && state.bookmarks && (
+                <div className="player-panel__nav">
+                    <button type="button" className="player-panel__jump" aria-label="Previous bookmark"
+                        onClick={() => ttsPlayer.prevBookmark()}>⏮ 🔖</button>
+                    <button type="button" className="player-panel__jump" aria-label="Next bookmark"
+                        onClick={() => ttsPlayer.nextBookmark()}>🔖 ⏭</button>
                 </div>
             )}
             <div className="player-panel__foot">

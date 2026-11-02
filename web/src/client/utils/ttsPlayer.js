@@ -112,8 +112,9 @@ class TtsPlayer {
     constructor() {
         this.queue = [];
         this.idx = -1;
-        // idle | loading | playing | paused | ended (finished; the queue is
-        // kept so it can be replayed — PlayerPanel's Replay)
+        // idle | ready (a note waits, nothing played yet; see cue()) |
+        // loading | playing | paused | ended (finished; the queue is kept so
+        // it can be replayed — PlayerPanel's Replay)
         this.status = 'idle';
         this.sourceId = null; // which UI element owns the current playback
         this.title = '';
@@ -179,11 +180,44 @@ class TtsPlayer {
         this.title = meta.title || '';
         this.error = '';
         if (this.queue.length === 0) { this.status = 'idle'; this._emit(); return; }
-        reportItems(this.queue);
         this._wantPlay = true;
+        this._getGoing();
+        await this._playIdx(0);
+    }
+
+    /**
+     * Get a reading ready without playing it: the big controls show it with
+     * ▶, and start() (▶, or the note's own read-aloud button) plays it.
+     * Opening a note does this (utils/noteAudio.js), so the controls are
+     * already there for it. Whatever was playing stops.
+     */
+    cue(chunks, meta = {}) {
+        this.stop(false);
+        this.queue = Array.isArray(chunks) ? chunks : [];
+        this.sourceId = meta.sourceId || null;
+        this.title = meta.title || '';
+        this.error = '';
+        this._wantPlay = false;
+        this.status = this.queue.length ? 'ready' : 'idle';
+        this._emit();
+    }
+
+    /** Play the reading that cue() got ready. Call it from a tap (iOS). */
+    start() {
+        if (this.status !== 'ready') return;
+        this.prime();
+        this._wantPlay = true;
+        this._getGoing();
+        this._playIdx(0);
+    }
+
+    // What a reading needs before its first sentence plays: the server's
+    // note of which audio is in use, the audio element's events, and the
+    // lock-screen buttons.
+    _getGoing() {
+        reportItems(this.queue);
         this._bind();
         this._setSessionHandlers();
-        await this._playIdx(0);
     }
 
     // Play chunk i, from `startAt` seconds into its audio; `play: false`
@@ -307,7 +341,7 @@ class TtsPlayer {
      * reading. Paused stays paused.
      */
     async seekBy(seconds) {
-        if (this.idx < 0 || this.status === 'idle' || this.status === 'ended') return;
+        if (this.idx < 0 || this.status === 'idle' || this.status === 'ended' || this.status === 'ready') return;
         if (this.status === 'loading') { this._pendingSeek += seconds; return; }
         const a = getAudio();
         const play = this._wantPlay;
@@ -367,6 +401,7 @@ class TtsPlayer {
     // Jump to the chunk at `i` (keeps playing, or stays paused).
     _jumpTo(i) {
         if (i < 0 || i >= this.queue.length) return;
+        if (this.status === 'ready') this._getGoing(); // 🔖 ⏭ before ▶: there, paused
         this._pendingSeek = 0;
         this._playIdx(i, { play: this._wantPlay });
     }
@@ -412,6 +447,7 @@ class TtsPlayer {
         if (this.status === 'playing') this.pause();
         else if (this.status === 'paused') this.resume();
         else if (this.status === 'ended') this.replay();
+        else if (this.status === 'ready') this.start();
     }
 
     stop(emit = true) {

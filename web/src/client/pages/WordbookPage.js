@@ -26,6 +26,7 @@ import { keyOf } from '../components/NotebookSelect';
 import { getLastVisited, setLastVisited } from '../utils/lastVisited';
 import { MissingLine, useAvailableItems } from '../components/DownloadBadge';
 import { bookmarkPath, openedFromBookmarks } from '../utils/bookmarks';
+import { setNoteNav } from '../utils/noteAudio';
 
 // Play all / Play selected: seconds of silence before the next note or word.
 const NOTE_GAP = 2;
@@ -198,6 +199,20 @@ function WordbookPage({
     }, [type, id, searchedFor]);
 
     const goTo = (i) => navigate(itemPath(name, items[i]), { replace: true });
+
+    // ⏮ Note / Note ⏭ in the read-aloud controls (utils/noteAudio.js): the
+    // notes before and after this one in the list, skipping words.
+    useEffect(() => {
+        if (type !== 'card' || index === -1) { setNoteNav(null); return undefined; }
+        const notes = items.map((item, i) => (item.type === 'card' ? i : -1)).filter((i) => i !== -1);
+        const before = notes.filter((i) => i < index);
+        const after = notes.filter((i) => i > index);
+        setNoteNav({
+            prev: before.length ? () => goTo(before[before.length - 1]) : null,
+            next: after.length ? () => goTo(after[0]) : null,
+        });
+        return () => setNoteNav(null);
+    }, [type, id, index, items]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Previous / Next bookmark: may be in another notebook (utils/bookmarks.js).
     const bookmarkList = bookmarks || [];
