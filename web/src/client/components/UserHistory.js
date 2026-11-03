@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { connect } from 'react-redux';
 import { fetchUserHistory, deleteHistoryWord } from '../actions';
+import { PHONE_LAYOUT } from '../utils/phoneLayout';
 
 // Gap between chips, and the controls' left margin; match .history__chips
 // and .history__ctrls in styles.css.
 const GAP = 8;
 const CONTROLS_MARGIN = 4;
 // Same breakpoint as the phone layout in styles.css.
-const PHONE = '(max-width: 768px)';
+const PHONE = PHONE_LAYOUT;
 
 // Per-viewer preferences (never throw — private windows etc. can block storage).
 const readPref = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };

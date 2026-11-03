@@ -16,11 +16,12 @@
 //   - Leaving a note that's only ready (not started) puts the controls away.
 import ttsPlayer from './ttsPlayer';
 import { cardChunks } from './tts';
+import { isPhoneLayout } from './phoneLayout';
 
 /** The player's sourceId for one note's reading (its read-aloud button uses it too). */
 export const noteSource = (cardId) => `note:${cardId}`;
 
-const isPhone = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+const isPhone = isPhoneLayout;
 
 // Readings that opening a note leaves alone.
 const keeps = (snap) => snap.status === 'idle'

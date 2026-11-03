@@ -32,6 +32,7 @@ import { siteUrl, isNativeApp } from '../native/platform';
 import { apiFetch } from '../native/auth';
 import { apiImageUrl, isApiImage, loadsImagesItself } from '../offline/images';
 import shrinkImage from '../utils/shrinkImage';
+import { isPhoneLayout } from '../utils/phoneLayout';
 import { FontSize } from './editor/fontSize';
 import { NoteZoomControls } from './NoteZoomButton';
 import katex from 'katex';
@@ -994,7 +995,7 @@ const audioOn = (ed) => !!(ed && ed.storage.audioSelect && ed.storage.audioSelec
 // (editor.chain().focus()…) still applies to the selected text, and brings
 // the keyboard back. Closing the menu without choosing brings it back too.
 const phoneEditing = () => typeof window !== 'undefined'
-    && window.matchMedia('(max-width: 768px)').matches
+    && isPhoneLayout()
     && document.documentElement.classList.contains('editing-note');
 function ToolbarPop({ className, onClose, children }) {
     const phone = phoneEditing();

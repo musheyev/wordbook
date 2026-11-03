@@ -112,7 +112,7 @@
 .nav-user i.icon { margin: 0; font-size: 1.05rem; }
 
 /* Mobile: rail becomes a fixed bottom tab bar */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .app-shell { flex-direction: column; }
   .nav-rail__resizer { display: none; }
   .nav-rail {
@@ -225,7 +225,7 @@ nav-button-as-link {
 
 /* Mobile: a compact, contained search bar — narrower than the screen so it
    never runs to the right edge / out of bounds. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .cb-search { max-width: 280px; box-sizing: border-box; }
 }
 
@@ -482,7 +482,7 @@ nav-button-as-link {
 .cb-detail { display: flex; flex-direction: column; }
 #worddefinition { padding: 20px 26px; min-width: 0; }
 /* The phone list's "empty" message; on desktop the overview shows its own. */
-@media (min-width: 769px) { .cb-detail__empty--phone { display: none; } }
+@media (min-width: 769px) and (min-height: 501px) { .cb-detail__empty--phone { display: none; } }
 .nb-overview__empty {
   margin-top: 28px; padding: 28px; border: 1px dashed var(--cb-border-strong); border-radius: var(--cb-radius);
   color: var(--cb-ink-2); text-align: center; font-size: 0.95rem;
@@ -557,12 +557,12 @@ nav-button-as-link {
   color: var(--cb-ink-3); cursor: nwse-resize;
 }
 /* Windows are a desktop feature; never show them on phones. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .note-window { display: none; }
 }
 .nav-ctx__list { flex: 1; min-height: 0; overflow-y: auto; }
 
-@media (min-width: 769px) {
+@media (min-width: 769px) and (min-height: 501px) {
   /* The rail is exactly the window's height and stays put while the page
      scrolls, so a long notebook list scrolls inside it (.nav-ctx__list)
      instead of stretching the page and pushing the links below it out of
@@ -583,7 +583,7 @@ nav-button-as-link {
   .nav-rail--ctx .nav-user { order: 4; }
   .nav-rail--ctx .nav-logout { order: 5; margin-bottom: 12px; }
 }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .nav-ctx { display: none; }
 }
 
@@ -594,7 +594,7 @@ nav-button-as-link {
    Phones show their own list (.cb-mbar) instead. */
 .nb-overview { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 32px 40px; }
 .nb-overview-loading { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding-top: 60px; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .nb-overview, .nb-overview-loading { display: none; }
 }
 .nb-overview__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
@@ -719,7 +719,7 @@ nav-button-as-link {
    anchor the menu to the toolbar ROW instead (.card-header-actions is
    position: relative): it drops below the row, starts at its left edge and is
    never wider than the row, so it stays fully on screen. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .card-header-actions .es-markup { position: static; }
   .card-header-actions .es-markup .cb-menu__list { left: 0; right: auto; max-width: 100%; }
   .card-header-actions .pause-menu { min-width: 0; width: 100%; }
@@ -780,7 +780,7 @@ nav-button-as-link {
   height: 36px; padding: 0 8px; border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm);
   background: var(--cb-surface-2); color: var(--cb-ink); font-family: inherit; font-size: 0.9rem;
 }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .cb-mbar { display: block; }
   .cb-mbar__head { display: flex; align-items: center; gap: 4px; padding: 14px 16px 4px 6px; }
   .cb-mbar__head .nb-menu { margin-left: 0; margin-right: auto; }
@@ -896,10 +896,10 @@ nav-button-as-link {
   .nb-back__textstep:disabled { background: transparent; color: var(--cb-ink-3); opacity: 0.45; cursor: default; }
   .nb-back__error { margin: 8px 12px 0; }
 }
-@media (min-width: 769px) {
+@media (min-width: 769px) and (min-height: 501px) {
   .nb-back { flex-shrink: 0; padding: 10px 16px; }
 }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .cb-detail--item #worddefinition { padding: 16px; }
   /* An open note or word fills exactly the visible screen above the tab bar
      (100dvh follows Safari's own bars), so the page itself doesn't scroll:
@@ -946,7 +946,7 @@ nav-button-as-link {
 .cb-sheet__input:focus { outline: none; border-color: var(--cb-accent); box-shadow: 0 0 0 3px var(--cb-accent-weak); }
 .cb-sheet__error { margin-top: 8px; font-size: 0.85rem; color: var(--cb-danger); }
 .cb-sheet__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .cb-sheet__overlay { align-items: flex-end; padding: 0; }
   .cb-sheet {
     max-width: none; border-radius: 16px 16px 0 0; border-bottom: none;
@@ -1152,10 +1152,10 @@ nav-button-as-link {
 }
 .quiz-list__delete:hover { color: var(--cb-danger); }
 .quiz-list__delete i.icon { margin: 0; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .quiz-back { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); left: 12px; transform: none; }
 }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .quiz__overlay { padding: 0; background: var(--cb-surface-2); }
   .quiz {
     max-width: none; height: 100%; border: none; border-radius: 0; box-shadow: none;
@@ -1206,7 +1206,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .link-back__close { flex: none; padding: 0 14px 0 10px; color: #aab3c5 !important; border-left: 1px solid #3a4152 !important; }
 .link-back i.icon { margin: 0; height: auto; }
 .link-back--message { padding: 12px 18px; color: #fff; font-size: 0.92rem; border-radius: 14px; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .link-back { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); left: 12px; transform: none; }
   body:has(.quiz-back) .link-back { bottom: calc(132px + env(safe-area-inset-bottom, 0px)); }
   .link-back__title { max-width: 50vw; }
@@ -1245,7 +1245,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .note-links__items { display: flex; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
 .note-links__items a { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .note-links__missing { color: var(--cb-ink-3); font-style: italic; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .note-links__row { flex-direction: column; gap: 4px; }
   .note-links__label { width: auto; }
 }
@@ -1768,7 +1768,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 }
 
 /* desktop: reveal the remove control on hover */
-@media (min-width: 769px) {
+@media (min-width: 769px) and (min-height: 501px) {
   .word-chip:hover .word-chip__x {
     display: inline-flex;
   }
@@ -1800,7 +1800,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
   max-height: calc(100vh - 210px);
   overflow-y: auto;
 }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .card-content--scroll { max-height: calc(100vh - 260px); }
   /* Full-width, boundary-respecting content so text wraps cleanly (no side scroll). */
   .search-result { left: 0; max-width: 100%; box-sizing: border-box; }
@@ -1918,14 +1918,14 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
    toolbar, and scrolls inside. (The pane, #worddefinition, is a full-height
    column on desktop; see "cardbook detail fills the viewport".) Clicking the
    empty space below the text still puts the cursor in the note. */
-@media (min-width: 769px) {
+@media (min-width: 769px) and (min-height: 501px) {
   .card-editor { flex: 1; min-height: 0; }
   .card-editor > .rte { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .card-editor .rte-content { flex: 1; min-height: 0; max-height: none; }
   .card-editor .rte-content .ProseMirror { min-height: 100%; }
 }
 /* Phones: the page scrolls, so keep the text area to most of the screen. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .card-editor .rte-content { max-height: calc(100vh - 320px); }
 }
 /* The editor's title and buttons (CardEditorInline .card-editor__top):
@@ -1933,7 +1933,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
    ⋯ (notebooks, delete), ✓ save — so Cancel and Save are always on screen. */
 .card-editor__top { display: flex; flex-direction: column; gap: 10px; }
 .card-editor__more { display: none; position: relative; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .card-editor__top { flex-direction: row; align-items: center; gap: 6px; }
   .card-editor__top .card-editor__actions { display: contents; }
   .card-editor__top .card-editor__wide-only, .card-editor__top .card-editor__status { display: none; }
@@ -1948,7 +1948,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 /* Phones, while editing a note (CardEditorInline): the editor covers the
    screen above the keyboard (--vvh / --vvtop come from visualViewport) and
    only the text area scrolls, so typing never scrolls the whole page. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   html.editing-note, html.editing-note body { overflow: hidden; overscroll-behavior: none; }
   .cb-detail--editing {
     position: fixed; left: 0; right: 0; top: var(--vvtop, 0px); height: var(--vvh, 100dvh);
@@ -1985,7 +1985,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 
 /* While editing on mobile, the in-place editor owns the pane: hide the
    cardbook title / add / swipe-strip bar. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .cb-detail--editing .cb-mbar { display: none; }
 }
 
@@ -2073,7 +2073,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
   background: var(--cb-surface-2); border: 1px solid var(--cb-border-strong); color: var(--cb-ink-3);
 }
 .cb-btn:disabled { opacity: 0.5; cursor: default; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .cb-step { flex-wrap: wrap; }
   .cb-step__action { width: 100%; margin-top: 8px; }
 }
@@ -2094,7 +2094,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .wotd__word { font-size: 1.05rem; font-weight: 600; color: var(--cb-ink); margin-bottom: 3px; }
 .wotd__def { font-size: 0.88rem; color: var(--cb-ink-2); line-height: 1.5; }
 .wotd__go { flex-shrink: 0; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .wotd__card { flex-direction: column; align-items: flex-start; }
   .wotd__go { width: 100%; }
 }
@@ -2153,7 +2153,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 }
 .cb-landing__cta span { font-size: 0.92rem; color: var(--cb-ink-2); }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .cb-landing__features { grid-template-columns: 1fr; }
   .cb-landing__preview { grid-template-columns: 1fr; }
   .cb-landing__title { font-size: 1.4rem; }
@@ -2290,7 +2290,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .a2c__done { display: none; }
 
 /* Mobile: the picker becomes a bottom sheet. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .a2c__backdrop { background: rgba(15, 20, 35, 0.38); }
   .a2c__panel {
     position: fixed;
@@ -2391,7 +2391,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 }
 
 /* Font / size are desktop only */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .rte-desktop-only { display: none !important; }
 }
 
@@ -2543,7 +2543,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .rte-audio-bar__danger { color: #b91c1c; }
 /* Phones: the bar sits at the bottom of the screen, above the tab bar, and
    the note scrolls with the page so every line can come up above it. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .rte-audio-bar {
     position: fixed; left: 0; right: 0; bottom: calc(58px + env(safe-area-inset-bottom, 0px)); z-index: 240;
     box-shadow: 0 -6px 20px rgba(15, 20, 35, 0.15); border-top-color: #d9dbe0;
@@ -2571,7 +2571,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .rte-find-bar__wide { padding: 0 12px; }
 .rte-content .rte-find { background: #fde68a; border-radius: 2px; }
 .rte-content .rte-find--current { background: #fb923c; color: #111; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   /* 16px so iPhone Safari doesn't zoom in when the box is tapped. */
   .rte-find-bar__input { font-size: 16px; }
   .rte-find-bar__count { min-width: 0; font-size: 12px; }
@@ -2869,7 +2869,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
    16px, iPhones zoom the page in when the field is tapped and may stay
    zoomed after the window closes; the base size here is 14px, so 1rem is
    too small. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .new-notebook__input { font-size: 16px; }
 }
 .cb-page-title { font-size: 1.6rem; font-weight: 600; color: var(--cb-ink); margin: 0; }
@@ -3036,7 +3036,7 @@ ul.cb-grid { list-style: none; padding: 0; }
 .cb-menu__danger { color: var(--cb-danger); }
 
 /* Desktop: cardbook detail fills the viewport; card content scrolls to bottom */
-@media (min-width: 769px) {
+@media (min-width: 769px) and (min-height: 501px) {
   .cb-detail { height: 100vh; }
   #worddefinition {
     flex: 1;
@@ -3065,7 +3065,7 @@ ul.cb-grid { list-style: none; padding: 0; }
 /* The "‹ Inbox" back bar on an inbox item. The notebook back bar (.nb-back)
    is phone-only because desktop has the rail; the Inbox has no rail list, so
    this one shows everywhere. */
-@media (min-width: 769px) {
+@media (min-width: 769px) and (min-height: 501px) {
   .nb-back--always {
     display: flex; align-items: center; gap: 8px;
     padding: 12px 20px; border-bottom: 1px solid var(--cb-border);
@@ -3080,7 +3080,7 @@ ul.cb-grid { list-style: none; padding: 0; }
 /* Inbox list page header */
 .inbox-head { display: flex; align-items: center; gap: 4px; padding: 14px 16px 8px 6px; }
 .inbox-head__title { font-size: 1.3rem; font-weight: 600; color: var(--cb-ink); margin: 0; }
-@media (min-width: 769px) {
+@media (min-width: 769px) and (min-height: 501px) {
   .inbox-head { padding: 22px 26px 10px 16px; }
   .inbox-head .cb-mbar__back {
     display: flex; align-items: center; justify-content: center;
@@ -3289,7 +3289,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 /* --- Phone tab bar: five tabs at most. Tags, Admin and Log out move into
    the More page (pages/MorePage.js); More shows only on phones. --- */
 .nav-more-tab { display: none; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .nav-admin-group,
   .nav-phone-more,
   .nav-logout,
@@ -3391,7 +3391,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .word-images__tile { position: relative; height: 160px; max-width: 100%; }
 /* The global `img` rule adds margins and a 200px cap; tiles size themselves. */
 .word-images__tile img { display: block; height: 100%; width: auto; max-width: 100%; max-height: none; margin: 0; border-radius: 6px; object-fit: cover; }
-@media (max-width: 768px) { .word-images__tile { height: 120px; } }
+@media (max-width: 768px), (max-height: 500px) { .word-images__tile { height: 120px; } }
 
 /* A broken image stays visible as a tile, so it can be noticed and deleted. */
 .image-broken {
@@ -3401,7 +3401,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 }
 .image-broken i.icon { margin: 0; font-size: 1.3rem; }
 .image-broken--large { width: 100%; height: 220px; }
-@media (max-width: 768px) { .image-broken { width: 120px; } }
+@media (max-width: 768px), (max-height: 500px) { .image-broken { width: 120px; } }
 
 /* Admin × on an image: always visible on touch screens (no hover there),
    on hover or keyboard focus with a mouse. */
@@ -3424,7 +3424,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   box-shadow: 0 8px 24px rgba(15, 20, 35, 0.25);
 }
 .undo-toast button { border: none; background: none; color: #8fb4ff; font-weight: 600; font-family: inherit; font-size: 0.9rem; cursor: pointer; padding: 2px 4px; }
-@media (max-width: 768px) { .undo-toast { bottom: 76px; } }
+@media (max-width: 768px), (max-height: 500px) { .undo-toast { bottom: 76px; } }
 
 /* --- Refresh images dialog --- */
 .refresh-sheet__text { margin: 0 0 14px; font-size: 0.9rem; color: var(--cb-ink-2); line-height: 1.5; }
@@ -3464,7 +3464,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .admin-images__error { margin: 0 0 10px; }
 
 .admin-images__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
-@media (max-width: 768px) { .admin-images__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } }
+@media (max-width: 768px), (max-height: 500px) { .admin-images__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } }
 .admin-images__tile { position: relative; aspect-ratio: 1 / 1; }
 .admin-images__pick {
   display: block; width: 100%; height: 100%; padding: 0; border: 2px solid transparent;
@@ -3512,7 +3512,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
    triggers Safari's auto-zoom, which enlarges the whole page and doesn't
    undo itself. Kept LAST in this file: a later rule of the same strength
    setting a smaller size would win (and did, for several of these). */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .cb-search__input,
   .card-editor__title,
   .a2c__filter input,
@@ -3629,7 +3629,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .nb-snippet__where { font-size: 0.75rem; color: var(--cb-ink-3); }
 /* The match an opened search result scrolls to (utils/highlightMatch.js). */
 ::highlight(search-hit) { background-color: #fde68a; color: inherit; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .nb-search__mode { font-size: 16px; }
 }
 
@@ -3714,7 +3714,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   box-shadow: 0 8px 24px rgba(15, 20, 35, 0.3);
 }
 .player-pill .icon { margin: 0; height: auto; }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .player-panel {
     left: 8px; right: 8px; width: auto;
     bottom: calc(68px + env(safe-area-inset-bottom, 0px));
@@ -3740,7 +3740,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
    selection is down in that corner. */
 .sel-play--pinned { left: 24px; bottom: 24px; }
 .sel-play--top { left: 24px; top: calc(env(safe-area-inset-top, 0px) + 12px); }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   .sel-play--pinned { left: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   .sel-play--top { left: 12px; }
 }
@@ -3781,8 +3781,8 @@ i.icon.download-badge--item { font-size: 0.8em; }
   font-size: 0.9rem;
 }
 .offline-missing i.icon { margin: 0; color: var(--cb-ink-3); }
-@media (min-width: 769px) { .nb-missing--phone { display: none; } }
-@media (max-width: 768px) { .nb-missing--phone { padding: 0 12px; } }
+@media (min-width: 769px) and (min-height: 501px) { .nb-missing--phone { display: none; } }
+@media (max-width: 768px), (max-height: 500px) { .nb-missing--phone { padding: 0 12px; } }
 .cb-book--unavailable { opacity: 0.5; }
 .card-tool--on i.icon { color: var(--cb-accent); }
 .card-tool--on:disabled { opacity: 1; }
@@ -3828,6 +3828,12 @@ html.is-native-app {
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 html.is-native-app .app-shell { padding-top: var(--safe-top); }
+/* Turned sideways, the camera notch sits at the left or right edge instead:
+   env(safe-area-inset-left/right) keep the page clear of it (0 upright). */
+html.is-native-app .app-shell {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
 html.is-native-app body::before {
   content: ''; position: fixed; top: 0; left: 0; right: 0; height: var(--safe-top);
   background: var(--cb-bg); z-index: 1000; pointer-events: none;
@@ -3836,7 +3842,7 @@ html.is-native-app body::before {
    a text box with text under 16px is tapped, and stays zoomed. On phones in
    the app, every text box and the note editor are 16px. (Safari is kept
    from zooming by the viewport instead: main.jsx.) */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   html.is-native-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
   html.is-native-app textarea,
   html.is-native-app select,
@@ -3844,7 +3850,7 @@ html.is-native-app body::before {
 }
 html.is-native-app .offline-bar,
 html.is-native-app .nb-selectbar { top: var(--safe-top); }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) {
   /* An open note fills the screen between the status bar and the tab bar. */
   html.is-native-app .cb-detail--item:not(.cb-detail--editing) {
     height: calc(100dvh - 64px - var(--safe-top) - var(--safe-bottom));
