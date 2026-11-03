@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import { deleteWordbookWord, deleteWordbookCard, openNoteWindow } from '../actions';
 import { itemPath } from '../utils/notebookPaths';
 import GripIcon from './GripIcon';
+import { isPhoneLayout } from '../utils/phoneLayout';
 
 // Renders one item in a notebook's list. `item` is a typed object:
 //   { type: 'word'|'card', id, title }
@@ -24,7 +25,7 @@ const WordWithDelete = ({ item, wordbook, selected, handleProps, noteWindowMode,
     const onClick = () => {
         // Window mode (desktop only): notes open in a floating window instead of
         // taking over the main pane. Words always use the normal page.
-        if (isCard && noteWindowMode && typeof window !== 'undefined' && window.innerWidth > 768) {
+        if (isCard && noteWindowMode && !isPhoneLayout()) {
             openNoteWindow(item);
             return;
         }
