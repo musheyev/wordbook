@@ -12,10 +12,19 @@ import { ITEM_COLORS } from '../utils/itemColors';
 import { canAnswerBySpeech, listenForAnswer, stopListening, sayReply } from '../native/speech';
 import { isRightAnswer } from '../utils/answerCheck';
 import { runKey, cardKey, loadRun, saveRun, scoreOf } from '../utils/quizResults';
+import { MIX_SHARES, lastShare, rememberShare, dealDirections, loadDeal, saveDeal } from '../utils/quizMix';
+import { languageLabel } from '../utils/tts';
 
 // The quiz (admins): started by the Quiz buttons of a notebook, of a note
 // (the note and the notes it links to), of a tag (Tags), or from My
-// Quizzes. First a sheet to pick the direction, then one flash card at a time:
+// Quizzes. First a sheet to pick the direction:
+//
+//   [ Spanish → English ]  [ English → Spanish ]  [ Mixed ]
+//
+// Mixed asks some cards one way and the rest the other, in the share picked
+// under it — 70 / 30 (mostly Spanish → English), 50 / 50 or 30 / 70
+// (utils/quizMix.js) — and each card says which language to answer in
+// ("→ English"). Then one flash card at a time:
 //
 //   3 of 24                    Save    Stop     (✓ Saved once saved)
 //
@@ -80,7 +89,13 @@ function NotebookQuiz() {
     const navigate = useNavigate();
     const [quiz, setQuiz] = useState(null); // what openQuiz() was given; null: closed
     const [loaded, setLoaded] = useState(null); // { cards, missing }
-    const [toEnglish, setToEnglish] = useState(true); // front: the foreign side
+    // 'to-en' (front: the foreign side), 'from-en' (front: English), or
+    // 'mixed': each card as `deal` says ({ <card key>: true = to English }),
+    // dealt in the share picked (70: 70 of 100 cards to English).
+    const [direction, setDirection] = useState('to-en');
+    const [mixing, setMixing] = useState(false); // the sheet shows the Mixed shares
+    const [share, setShare] = useState(lastShare);
+    const [deal, setDeal] = useState(null);
     const [index, setIndex] = useState(-1); // -1: choosing the direction
     const [flipped, setFlipped] = useState(false);
     const [audioError, setAudioError] = useState('');
@@ -104,6 +119,7 @@ function NotebookQuiz() {
         setQuiz(next);
         setLoaded(null);
         setIndex(-1);
+        setMixing(false);
         setFlipped(false);
         setAudioError('');
         setSaved(next.saved || null);
@@ -165,7 +181,11 @@ function NotebookQuiz() {
     if (!quiz) return null;
 
     const cards = loaded ? loaded.cards : [];
-    const sideOf = (card, back, english = toEnglish) => ((english !== back) ? card.foreign : card.english);
+    // Whether a card is asked to English (its front is the foreign side).
+    const toEnglishFor = (card, dir = direction, d = deal) => (dir === 'mixed' ? !d || d[cardKey(card)] !== false : dir === 'to-en');
+    const sideOf = (card, back, english = toEnglishFor(card)) => ((english !== back) ? card.foreign : card.english);
+    // This test's name for its kept answers (utils/quizResults.js).
+    const runName = direction === 'mixed' ? `mixed-${share}` : direction;
     const title = saved ? saved.name : quiz.title;
 
     // Read a card's side. Called straight from the tap (iOS plays audio only
@@ -176,12 +196,20 @@ function NotebookQuiz() {
         ttsPlayer.play(side.chunks, { title: `${title} quiz`, sourceId: SOURCE });
     };
 
-    const start = (english) => {
-        setToEnglish(english);
-        setRun(loadRun(runKey(saved, english)));
+    // dir: 'to-en', 'from-en' or 'mixed' (in the share picked on the sheet).
+    const start = (dir) => {
+        let d = null;
+        if (dir === 'mixed') {
+            rememberShare(share);
+            d = loadDeal(saved, share, cards); // a saved quiz asks each card the same way again
+            saveDeal(saved, share, d);
+        }
+        setDirection(dir);
+        setDeal(d);
+        setRun(loadRun(runKey(saved, dir === 'mixed' ? `mixed-${share}` : dir)));
         setIndex(0);
         setFlipped(false);
-        say(sideOf(cards[0], false, english));
+        say(sideOf(cards[0], false, toEnglishFor(cards[0], dir, d)));
     };
     const flip = () => {
         setFlipped(!flipped);
@@ -192,11 +220,11 @@ function NotebookQuiz() {
         e.stopPropagation();
         copyText(text).then(() => setCopied('done'), () => setCopied('failed'));
     };
-    // Go to card i, front side up, and read it.
-    const goTo = (i, list = cards) => {
+    // Go to card i, front side up, and read it (d: a deal just made).
+    const goTo = (i, list = cards, d = deal) => {
         setIndex(i);
         setFlipped(false);
-        say(sideOf(list[i], false));
+        say(sideOf(list[i], false, toEnglishFor(list[i], direction, d)));
     };
     const next = () => {
         if (index + 1 >= cards.length) { close(); return; }
@@ -206,7 +234,7 @@ function NotebookQuiz() {
     // ---- Spoken answers (iPhone app) ----
     // The answer to the card's front is its other side.
     const answerTo = (c) => sideOf(c, true);
-    const runStore = () => runKey(saved, toEnglish);
+    const runStore = () => runKey(saved, runName);
 
     // 🎤: hear an answer for this card (tapping it while listening stops).
     // Before Check it's only shown; after Check it's practice, marked at once.
@@ -259,12 +287,19 @@ function NotebookQuiz() {
     };
 
     // Score › Start over: forget this run's answers and begin at card 1.
+    // A Mixed quiz is dealt again, so the cards go a new mix of ways.
     const startOver = () => {
         setRun({});
         saveRun(runStore(), {});
         setShowScore(false);
         setAnswer(null);
-        goTo(0);
+        let d = deal;
+        if (direction === 'mixed') {
+            d = dealDirections(cards, share);
+            setDeal(d);
+            saveDeal(saved, share, d);
+        }
+        goTo(0, cards, d);
     };
 
     // Save to My Quizzes (a copy of these cards). Throws if it couldn't.
@@ -281,7 +316,8 @@ function NotebookQuiz() {
         try {
             await store(entry, cards);
             setSaved(entry);
-            saveRun(runKey(entry, toEnglish), run); // the answers so far stay with it
+            saveRun(runKey(entry, runName), run); // the answers so far stay with it
+            if (direction === 'mixed') saveDeal(entry, share, deal); // and each card's way
             setNaming(null);
         } catch (err) {
             setSaveError('Couldn’t save the quiz. Check your connection and try again.');
@@ -374,12 +410,36 @@ function NotebookQuiz() {
                         </div>
                     ) : (
                         <div className="quiz-sheet__choices">
-                            <button type="button" className="cb-btn cb-btn--accent" onClick={() => start(true)}>
+                            <button type="button" className="cb-btn cb-btn--accent" onClick={() => start('to-en')}>
                                 {lang} → English
                             </button>
-                            <button type="button" className="cb-btn cb-btn--ghost" onClick={() => start(false)}>
+                            <button type="button" className="cb-btn cb-btn--ghost" onClick={() => start('from-en')}>
                                 English → {lang}
                             </button>
+                            <button type="button" className={`cb-btn cb-btn--ghost${mixing ? ' is-active' : ''}`}
+                                aria-expanded={mixing} onClick={() => setMixing(!mixing)}>
+                                Mixed <i className={`angle ${mixing ? 'up' : 'down'} icon`} aria-hidden="true"></i>
+                            </button>
+                            {mixing && (
+                                <div className="quiz-mix">
+                                    <div className="quiz-mix__label">
+                                        How much each way?
+                                        <span className="quiz-mix__legend">{lang} → English / English → {lang}</span>
+                                    </div>
+                                    <div className="quiz-mix__shares" role="radiogroup" aria-label="How much each way">
+                                        {MIX_SHARES.map((s) => (
+                                            <button type="button" key={s} role="radio" aria-checked={share === s}
+                                                className={`quiz-mix__share${share === s ? ' on' : ''}`}
+                                                onClick={() => setShare(s)}>
+                                                {s} / {100 - s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button type="button" className="cb-btn cb-btn--accent" onClick={() => start('mixed')}>
+                                        Start
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                     {loaded && loaded.missing > 0 && (
@@ -397,6 +457,10 @@ function NotebookQuiz() {
     // The card's own colour, if it was given one ({ key, label, tint, ink }).
     const cardColor = card && card.color ? ITEM_COLORS.find((c) => c.key === card.color) || null : null;
     const last = index + 1 >= cards.length;
+    // Mixed: which language to answer the front in ("→ English", "→ Spanish").
+    const answerIn = card && direction === 'mixed' && !flipped
+        ? (toEnglishFor(card) ? 'English' : languageLabel(card.foreign.lang).replace(/ \(.*\)$/, ''))
+        : null;
 
     // Under the front of the card (iPhone app): 🎤, what was heard, Again /
     // Check, and once checked, the mark.
@@ -545,6 +609,7 @@ function NotebookQuiz() {
                             data-color={cardColor ? cardColor.key : undefined}
                             onClick={flip}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } }}>
+                            {answerIn && <span className="quiz__toward">→ {answerIn}</span>}
                             <span className="quiz__textrow">
                                 <span className="quiz__text" lang={side.lang}>{side.text}</span>
                                 <button type="button" className={`quiz__copy${copied ? ` quiz__copy--${copied}` : ''}`}
