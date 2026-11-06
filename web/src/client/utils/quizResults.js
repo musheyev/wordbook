@@ -3,11 +3,11 @@
 // 100). Kept on the phone only, not on the account.
 //
 // A saved quiz (My Quizzes) keeps its run here between visits, one per
-// direction (Spanish → English and English → Spanish are different
-// tests), until Start over. An unsaved quiz has no key: its run lasts only
-// while it's open.
+// direction (Spanish → English, English → Spanish and each Mixed share are
+// different tests), until Start over. An unsaved quiz has no key: its run
+// lasts only while it's open.
 //
-//   localStorage "quiz-run:<quiz id>:<to-en|from-en>"
+//   localStorage "quiz-run:<quiz id>:<to-en|from-en|mixed-70|mixed-50|mixed-30>"
 //     { "<card key>": { heard: "I am", correct: true }, … }
 
 const PREFIX = 'quiz-run:';
@@ -15,9 +15,10 @@ const PREFIX = 'quiz-run:';
 /**
  * The storage key for a quiz run, or null for one that isn't kept.
  * @param {{id: string}|null} saved the quiz in My Quizzes, if it's there
- * @param {boolean} toEnglish the direction: answering in English
+ * @param {'to-en'|'from-en'|string} direction 'to-en' (answering in English),
+ *   'from-en', or a Mixed share: 'mixed-70'
  */
-export const runKey = (saved, toEnglish) => (saved ? `${PREFIX}${saved.id}:${toEnglish ? 'to-en' : 'from-en'}` : null);
+export const runKey = (saved, direction) => (saved ? `${PREFIX}${saved.id}:${direction}` : null);
 
 /** A card's identity within a quiz (its two sides). */
 export const cardKey = (card) => `${card.foreign.text}\u0001${card.english.text}`;
