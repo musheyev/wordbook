@@ -1274,18 +1274,37 @@ export const quizCardsForLinked = (item) => async (dispatch) => {
   return dispatch(quizCardsForItems([item, ...linked]));
 };
 
+// The server's answer as { linksTo, linkedFrom }, each a list.
+const noteLinksOf = (data) => ({
+  linksTo: Array.isArray(data && data.linksTo) ? data.linksTo : [],
+  linkedFrom: Array.isArray(data && data.linkedFrom) ? data.linkedFrom : [],
+});
+
 /**
  * A note's or word's links both ways: { linksTo, linkedFrom }, each
- * [{ type, id, title, missing? }] (api/note-links.js). Kept on the phone
- * with the note when it's downloaded (offline/apiCache.js).
+ * [{ type, id, title, added?, inText?, missing? }] (api/note-links.js):
+ * `added` ones were added in the row beside its tags (NoteLinksRow.js),
+ * `inText` ones are links in its text. Kept on the phone with the note when
+ * it's downloaded (offline/apiCache.js).
  */
 export const fetchNoteLinks = (type, id) => async (dispatch, getState, api) => {
   const res = await api.get(`/note-links?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`);
-  const data = res.data || {};
-  return {
-    linksTo: Array.isArray(data.linksTo) ? data.linksTo : [],
-    linkedFrom: Array.isArray(data.linkedFrom) ? data.linkedFrom : [],
-  };
+  return noteLinksOf(res.data);
+};
+
+/**
+ * Save the links added in a note's row ("🔗 Add link"), replacing the ones
+ * added before; the links in its text aren't touched. Returns its links
+ * now, as fetchNoteLinks does. Throws if it couldn't be saved.
+ *
+ * @param {{type: 'card'|'word', id: string, title: string}} item the note (or word)
+ * @param {Array<{type: 'card'|'word', id: string}>} links in the order shown
+ */
+export const saveAddedNoteLinks = (item, links) => async (dispatch, getState, api) => {
+  const res = await api.post('/note-links/added', {
+    type: item.type, id: item.id, title: item.title, links: links.map((l) => ({ type: l.type, id: l.id })),
+  }, JSON_HEADERS);
+  return noteLinksOf(res.data);
 };
 
 /**

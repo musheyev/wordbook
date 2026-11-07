@@ -14,6 +14,7 @@ import NoteZoomButton from './NoteZoomButton';
 import { useNoteZoom } from '../utils/noteZoom';
 import ItemTags from './ItemTags';
 import NoteLinkLists from './NoteLinkLists';
+import NoteLinksRow from './NoteLinksRow';
 import BookmarkButton from './BookmarkButton';
 import CopyNoteButton from './CopyNoteButton';
 import { quizCardsForLinked } from '../actions';
@@ -314,7 +315,12 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     </div>
                 </div>
 
-                <ItemTags type="card" id={currentCard.card_id} title={currentCard.title} />
+                {/* Tags, then the notes this one links to (🔗 Add link). */}
+                <div className="item-meta">
+                    <ItemTags type="card" id={currentCard.card_id} title={currentCard.title} />
+                    <NoteLinksRow type="card" id={currentCard.card_id} title={currentCard.title}
+                        version={currentCard.content} />
+                </div>
 
                 {confirmingDelete && (
                     <div className="card-confirm">
@@ -401,7 +407,10 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                                 <TranslateMenu word={currentWord} />
                             </div>
                         </div>
-                        <ItemTags type="word" id={currentWord} title={currentWord} />
+                        <div className="item-meta">
+                            <ItemTags type="word" id={currentWord} title={currentWord} />
+                            <NoteLinksRow type="word" id={currentWord} title={currentWord} version={noteContent || ''} />
+                        </div>
                     </>
                     : ""}
 

@@ -492,8 +492,8 @@ wordbookRouter.post("/card/delete", function (req, res) {
         // admin later; see tts-refs.js). Never fails the delete.
         .then(() => ttsRefs.removeItem(`card:${card_id}`)
             .catch((err) => console.log(`tts refs cleanup error: ${err.name}`)))
-        // Its links are gone too (note-links.js; never fails).
-        .then(() => noteLinks.recordLinksForToken(token, { type: "card", id: card_id }, ""))
+        // Its links are gone too, added ones included (note-links.js; never fails).
+        .then(() => noteLinks.recordLinksForToken(token, { type: "card", id: card_id }, "", { deleted: true }))
         .then(() => res.status(200).send("Done"))
         .catch((err) => {
             console.log(`card/delete error: ${err.name}`);
