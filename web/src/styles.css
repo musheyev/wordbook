@@ -3251,6 +3251,27 @@ ul.cb-grid { list-style: none; padding: 0; }
   font-size: 0.82rem; color: var(--cb-ink); width: 90px; padding: 3px 2px;
 }
 .item-tags__add input::placeholder { color: var(--cb-ink-3); }
+/* Tags, then the notes this one links to (NoteLinksRow.js), on one line
+   while they fit. On a phone the links get a line of their own. */
+.item-meta { display: flex; flex-wrap: wrap; align-items: center; column-gap: 22px; row-gap: 4px; margin: 10px 0 4px; }
+.item-meta .item-tags { margin: 0; }
+.item-links { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.item-links > i.icon { margin: 0; color: var(--cb-ink-3); font-size: 0.9rem; }
+.item-link { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; font-size: 0.82rem; }
+.item-link a {
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 6px 2px 5px;
+}
+.item-link__missing { color: var(--cb-ink-3); font-style: italic; }
+.item-links__add {
+  border: none; background: none; cursor: pointer; padding: 3px 2px;
+  font: inherit; font-size: 0.82rem; color: var(--cb-ink-3);
+}
+.item-links__add:hover { color: var(--cb-accent); }
+.item-links__error { flex-basis: 100%; font-size: 0.8rem; color: var(--cb-danger); }
+@media (max-width: 768px), (max-height: 500px) {
+  .item-links { flex-basis: 100%; }
+  .item-links__add { padding: 6px 4px; }
+}
 
 .tags-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 20px; }
 .tag-pill {

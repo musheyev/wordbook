@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchAllNotebookItems } from '../actions';
 
-// "Link to another note": choose the note or word a link points to (the
-// editor's 🔗 menu, RichTextEditor.js). Searches every note and word in every
+// "Link to another note": choose the note or word a link points to ("Add
+// link" beside a note's tags, NoteLinksRow.js). Searches every note and word in every
 // notebook by title; the open notebook's come first.
 //
 //   Link to another note

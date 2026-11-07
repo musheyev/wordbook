@@ -3,17 +3,17 @@ import { useDispatch } from 'react-redux';
 import { fetchNoteLinks } from '../actions';
 import { noteLinkHref } from '../utils/noteLinks';
 
-// "Links to" and "Linked from" at the bottom of a note, or under a word
-// (SearchResult.js). Shown only when there are some:
+// "Linked from" at the bottom of a note, or under a word (SearchResult.js):
+// the notes that link to this one. Shown only when there are some:
 //
 //   ─────────────────────────────────────────────
-//   Links to      📝 Spanish verbs   Aa hablar
 //   Linked from   📝 Lesson 3   📝 Travel phrases
 //
-// Each one is an ordinary note link, so a tap opens it with "‹ Back to …"
-// (components/NoteLinks.js). The lists come from the server, which records
-// every note's links when it's saved (api/note-links.js); "Linked from"
-// couldn't be worked out from the note alone.
+// (The notes this one links to are in the row beside its tags:
+// NoteLinksRow.js.) Each one is an ordinary note link, so a tap opens it
+// with "‹ Back to …" (components/NoteLinks.js). The list comes from the
+// server, which records every note's links (api/note-links.js); it couldn't
+// be worked out from the note alone.
 
 /**
  * @param {object} props
@@ -35,7 +35,7 @@ export default function NoteLinkLists({ type, id, version }) {
         return () => { cancelled = true; };
     }, [type, id, version]);
 
-    if (!links || (links.linksTo.length === 0 && links.linkedFrom.length === 0)) return null;
+    if (!links || links.linkedFrom.length === 0) return null;
 
     const row = (label, list) => list.length > 0 && (
         <div className="note-links__row">
@@ -53,8 +53,7 @@ export default function NoteLinkLists({ type, id, version }) {
     );
 
     return (
-        <div className="note-links" aria-label="Linked notes">
-            {row('Links to', links.linksTo)}
+        <div className="note-links" aria-label="Notes that link here">
             {row('Linked from', links.linkedFrom)}
         </div>
     );

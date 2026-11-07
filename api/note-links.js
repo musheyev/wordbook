@@ -1,17 +1,23 @@
 // Note links: which notes link to which (the "Links to" and "Linked from"
-// lists under a note). A link is an ordinary link in a note's HTML whose
-// address names another note or word (web/src/client/utils/noteLinks.js):
+// lists under a note). A note links to another in one of two ways:
 //
-//   <a href="/note/card/3f2c…">Spanish verbs</a>     a note, by its id
-//   <a href="/note/word/hablar">hablar</a>           a word (its definitions and your note)
+//   - In its text: an ordinary link whose address names another note or word
+//     (web/src/client/utils/noteLinks.js). Read from the note at every save.
+//       <a href="/note/card/3f2c…">Spanish verbs</a>     a note, by its id
+//       <a href="/note/word/hablar">hablar</a>           a word (its definitions and your note)
+//   - Added: "🔗 Add link" in the row beside the note's tags
+//     (NoteLinksRow.js), kept here only — the note's text isn't touched.
+//     setAddedLinks saves them.
 //
 // "Links to" can be read from the note itself, but "Linked from" can't: it
 // would mean reading every note. So each save records the note's links in
 // `dictionary_note_links` (PK user_name, SK link_key), two kinds of rows:
 //
 //   out#<type>#<id>                      one per note that has links:
-//                                        { targets: [{ type, id }] } in the
-//                                        order they appear
+//                                        { targets: [{ type, id }] } the ones
+//                                        in its text, in the order they
+//                                        appear, and { added: [{ type, id }] }
+//                                        the ones added in the row
 //   in#<toType>#<toId>#<fromType>#<fromId>
 //                                        one per link, kept under the note it
 //                                        points to: { from_type, from_id,
@@ -21,9 +27,10 @@
 // Ids in keys are URI-encoded, so a "#" in a word can't confuse them.
 // Words are keyed in lower case, as word notes are (word-notes.js).
 //
-// recordLinks runs after every save of a note or a word's note (and with no
-// content after a delete): it compares the links with the ones recorded
-// last time and adds or removes rows to match.
+// recordLinks runs after every save of a note or a word's note (and after a
+// note is deleted): it compares the links with the ones recorded last time
+// and adds or removes rows to match. A save changes only the links in the
+// text; the added ones stay (deleting a note removes both).
 const database = require("./dynamoDb");
 const getCurentUserFromToken = require("./auth").getCurentUserFromToken;
 
@@ -90,43 +97,97 @@ async function writeRows(userName, puts, deleteKeys) {
     }
 }
 
+/** Each link once (by type and id), in order, leaving out a link to `self`. */
+function uniqueLinks(list, self) {
+    const seen = new Set();
+    const out = [];
+    (list || []).forEach((t) => {
+        if (!t || !["card", "word"].includes(t.type) || !String(t.id || "").trim()) return;
+        const key = `${t.type}#${keyId(t.type, t.id)}`;
+        if (seen.has(key) || (self && t.type === self.type && keyId(t.type, t.id) === self.id)) return;
+        seen.add(key);
+        out.push({ type: t.type, id: t.type === "word" ? String(t.id).trim() : String(t.id) });
+    });
+    return out.slice(0, MAX_LINKS);
+}
+
+/** A note's recorded links: { targets (in its text), added (in the row), row (or null) }. */
+async function recordedLinks(userName, fromItem) {
+    const client = database.dynamoDbClientInstance();
+    const before = await client.get({ TableName: TABLE, Key: { user_name: userName, link_key: outKey(fromItem.type, fromItem.id) } }).promise();
+    const row = before.Item || null;
+    return {
+        row,
+        targets: row && Array.isArray(row.targets) ? row.targets : [],
+        added: row && Array.isArray(row.added) ? row.added : [],
+    };
+}
+
 /**
- * Record a note's links after it's saved (or, with no content, deleted).
+ * Write a note's links: its out# row and an in# row under each note it
+ * links to (in its text or added), adding and removing rows to match what
+ * was recorded before.
+ */
+async function writeLinks(userName, fromItem, title, before, targets, added) {
+    const all = uniqueLinks([...targets, ...added]);
+    const was = uniqueLinks([...before.targets, ...before.added]);
+    const now = all.map((t) => inKey(t, fromItem));
+    const gone = was.map((t) => inKey(t, fromItem)).filter((key) => !now.includes(key));
+    const puts = all.map((t) => ({
+        link_key: inKey(t, fromItem), from_type: fromItem.type, from_id: fromItem.id, from_title: title,
+    }));
+    const deletes = [...gone];
+    if (all.length) {
+        puts.push({ link_key: outKey(fromItem.type, fromItem.id), targets, added, from_title: title, updated_at: new Date().toISOString() });
+    } else if (before.row) {
+        deletes.push(outKey(fromItem.type, fromItem.id));
+    }
+    await writeRows(userName, puts, deletes);
+}
+
+/**
+ * Record a note's links after it's saved (or deleted). Only the links in
+ * its text change; the added ones stay, unless the note was deleted.
  * Never throws for the caller's sake: the save itself already worked, so a
  * problem here is logged and the lists catch up at the next save.
  *
  * @param {string} userName
  * @param {{type: 'card'|'word', id: string, title?: string}} from the saved note (a word: its note)
  * @param {string} html its content now ('' when deleted)
+ * @param {{deleted?: boolean}} [options] deleted: the note is gone, so its added links go too
  */
-async function recordLinks(userName, from, html) {
+async function recordLinks(userName, from, html, { deleted = false } = {}) {
     try {
         const fromItem = { type: from.type, id: keyId(from.type, from.id) };
         if (!userName || !fromItem.id) return;
         // A link to itself isn't listed.
-        const targets = linksIn(html).filter((t) => !(t.type === fromItem.type && keyId(t.type, t.id) === fromItem.id));
-        const client = database.dynamoDbClientInstance();
-        const before = await client.get({ TableName: TABLE, Key: { user_name: userName, link_key: outKey(fromItem.type, fromItem.id) } }).promise();
-        const old = before.Item && Array.isArray(before.Item.targets) ? before.Item.targets : [];
-        const title = from.type === "word" ? fromItem.id : String(from.title || "");
-        const sameTargets = JSON.stringify(old) === JSON.stringify(targets);
-        if (sameTargets && (!targets.length || (before.Item && before.Item.from_title === title))) return;
-
-        const now = targets.map((t) => inKey(t, fromItem));
-        const gone = old.map((t) => inKey(t, fromItem)).filter((key) => !now.includes(key));
-        const puts = targets.map((t) => ({
-            link_key: inKey(t, fromItem), from_type: fromItem.type, from_id: fromItem.id, from_title: title,
-        }));
-        const deletes = [...gone];
-        if (targets.length) {
-            puts.push({ link_key: outKey(fromItem.type, fromItem.id), targets, from_title: title, updated_at: new Date().toISOString() });
-        } else if (before.Item) {
-            deletes.push(outKey(fromItem.type, fromItem.id));
-        }
-        await writeRows(userName, puts, deletes);
+        const targets = uniqueLinks(linksIn(html), fromItem);
+        const before = await recordedLinks(userName, fromItem);
+        const added = deleted ? [] : before.added;
+        const title = from.type === "word" ? fromItem.id : String(from.title || (before.row && before.row.from_title) || "");
+        const sameTargets = JSON.stringify(before.targets) === JSON.stringify(targets);
+        const sameAdded = JSON.stringify(before.added) === JSON.stringify(added);
+        if (sameTargets && sameAdded && (!before.row || before.row.from_title === title)) return;
+        await writeLinks(userName, fromItem, title, before, targets, added);
     } catch (err) {
         console.log(`recordLinks error: ${err.name || err}`);
     }
+}
+
+/**
+ * Save the links added to a note in its row ("🔗 Add link"), replacing the
+ * ones added before. The links in its text stay as they are.
+ *
+ * @param {string} userName
+ * @param {{type: 'card'|'word', id: string, title?: string}} from the note (or word)
+ * @param {Array<{type: 'card'|'word', id: string}>} links in the order shown
+ */
+async function setAddedLinks(userName, from, links) {
+    const fromItem = { type: from.type, id: keyId(from.type, from.id) };
+    const added = uniqueLinks(links, fromItem);
+    const before = await recordedLinks(userName, fromItem);
+    const title = from.type === "word" ? fromItem.id : String(from.title || (before.row && before.row.from_title) || "");
+    await writeLinks(userName, fromItem, title, before, before.targets, added);
 }
 
 /**
@@ -135,11 +196,12 @@ async function recordLinks(userName, from, html) {
  * @param {string} token the id_token cookie
  * @param {{type: 'card'|'word', id: string, title?: string}} from
  * @param {string} html
+ * @param {{deleted?: boolean}} [options]
  */
-async function recordLinksForToken(token, from, html) {
+async function recordLinksForToken(token, from, html, options) {
     try {
         const userName = await getCurentUserFromToken(token);
-        await recordLinks(userName, from, html);
+        await recordLinks(userName, from, html, options);
     } catch (err) {
         console.log(`recordLinks error: ${err.name || err}`);
     }
@@ -169,12 +231,20 @@ async function noteTitles(userName, ids) {
  * @param {string} userName
  * @param {'card'|'word'} type
  * @param {string} id
- * @returns {Promise<{linksTo: Array<{type, id, title, missing?: true}>, linkedFrom: Array<{type, id, title}>}>}
+ * linksTo: the added links first (`added: true`, in the order added), then
+ * the ones only in its text; a link that's in both is `added` and `inText`.
+ *
+ * @returns {Promise<{linksTo: Array<{type, id, title, added?: true, inText?: true, missing?: true}>, linkedFrom: Array<{type, id, title}>}>}
  */
 async function linksFor(userName, type, id) {
     const client = database.dynamoDbClientInstance();
     const out = await client.get({ TableName: TABLE, Key: { user_name: userName, link_key: outKey(type, id) } }).promise();
-    const targets = out.Item && Array.isArray(out.Item.targets) ? out.Item.targets : [];
+    const inText = out.Item && Array.isArray(out.Item.targets) ? out.Item.targets : [];
+    const added = out.Item && Array.isArray(out.Item.added) ? out.Item.added : [];
+    const keyOf = (t) => `${t.type}#${keyId(t.type, t.id)}`;
+    const addedKeys = new Set(added.map(keyOf));
+    const textKeys = new Set(inText.map(keyOf));
+    const targets = uniqueLinks([...added, ...inText]);
 
     const linkedFrom = [];
     let lastKey;
@@ -193,9 +263,13 @@ async function linksFor(userName, type, id) {
     // linked notes are gone.
     const cardIds = [...new Set([...targets, ...linkedFrom].filter((t) => t.type === "card").map((t) => t.id))];
     const titles = cardIds.length ? await noteTitles(userName, cardIds) : {};
-    const linksTo = targets.map((t) => (t.type === "word"
-        ? { type: "word", id: t.id, title: t.id }
-        : t.id in titles ? { type: "card", id: t.id, title: titles[t.id] } : { type: "card", id: t.id, title: "", missing: true }));
+    const linksTo = targets.map((t) => ({
+        ...(t.type === "word"
+            ? { type: "word", id: t.id, title: t.id }
+            : t.id in titles ? { type: "card", id: t.id, title: titles[t.id] } : { type: "card", id: t.id, title: "", missing: true }),
+        ...(addedKeys.has(keyOf(t)) ? { added: true } : {}),
+        ...(textKeys.has(keyOf(t)) ? { inText: true } : {}),
+    }));
     return {
         linksTo,
         linkedFrom: linkedFrom
@@ -205,4 +279,4 @@ async function linksFor(userName, type, id) {
     };
 }
 
-module.exports = { recordLinks, recordLinksForToken, linksFor, linksIn, unlinkNotes, noteTitles, TABLE };
+module.exports = { recordLinks, recordLinksForToken, setAddedLinks, linksFor, linksIn, unlinkNotes, noteTitles, TABLE };
