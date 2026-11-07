@@ -9,11 +9,13 @@
 //                          • Yo estoy — I am ⏸
 //                          • Tú estás — You are ⏸
 //                          • Ustedes están — You all are     (next: English)
-//                        and a pause before a line's "—" when the words in
-//                        front of it are foreign — time to say them before
-//                        hearing the English (any such line, the last too):
+//                        and, on a line whose words before its "—" are
+//                        foreign, a pause before the "—" (time to say them
+//                        before hearing the English) and one at its end
+//                        (time to repeat the English) — any such line, a
+//                        line on its own or the last one too:
 //                          • Yo estoy ⏸ — I am ⏸
-//                          • Cuántas paradas ⏸ — How many stops
+//                          • Cuántas paradas ⏸ — How many stops ⏸
 //   addLinePauses        a pause at the end of every line that's followed
 //                        by another, in any language — English too:
 //                          Greetings ⏸
@@ -21,7 +23,8 @@
 //                          • Adiós — Goodbye                 (the last line)
 //   removeForeignPauses  the pauses addForeignPauses adds: between such
 //                        lines (at a line's end, or on a line of their own
-//                        between them), and before a "—" after foreign words
+//                        between them), and those before a "—" after
+//                        foreign words and at the end of such a line
 //   removeAllPauses      every pause
 //
 // A "line" is a paragraph, heading or list item — or each part of one split
@@ -209,26 +212,48 @@ function appendPause(doc, line, s) {
     else line.block.appendChild(pause);
 }
 
+// Whether the next line that isn't blank is just a pause (one on a line of
+// its own right after lines[i]) — that already counts as a pause at its end.
+function pauseLineAfter(lines, i) {
+    for (let j = i + 1; j < lines.length; j++) {
+        if (isBlank(lines[j])) continue;
+        return isPauseOnly(lines[j]);
+    }
+    return false;
+}
+
 /**
- * A pause after each foreign-language line followed by another, and one
- * before a "—" that follows foreign words (dashAfterForeign); count = added.
- * Spots that already have a pause are left as they are.
+ * The pauses for saying foreign phrases back; count = added:
+ *   - at the end of each foreign-language line followed by another;
+ *   - on a line with foreign words before its "—" (dashAfterForeign): one
+ *     before the "—" and one at the line's end, wherever the line is.
+ * Spots that already have a pause are left as they are, and no line gets
+ * two at its end.
  */
 export function addForeignPauses(html, seconds) {
     const doc = parse(html);
     const s = String(validPause(seconds) || DEFAULT_PAUSE);
     const lines = linesOf(doc);
     let count = 0;
-    foreignNeighbours(lines).forEach(({ line, between }) => {
-        if (between.length || line.trailing.length) return; // already has one
+    const ended = new Set(); // lines given a pause at their end here
+    const endWithPause = (line) => {
+        if (ended.has(line)) return;
+        ended.add(line);
         appendPause(doc, line, s);
         count += 1;
+    };
+    foreignNeighbours(lines).forEach(({ line, between }) => {
+        if (between.length || line.trailing.length) return; // already has one
+        endWithPause(line);
     });
-    lines.forEach((line) => {
+    lines.forEach((line, i) => {
         const dash = dashAfterForeign(line);
-        if (!dash || dash.pauses.length) return; // none, or already has one
-        insertPauseAt(doc, dash, s);
-        count += 1;
+        if (!dash) return;
+        if (!dash.pauses.length) {
+            insertPauseAt(doc, dash, s);
+            count += 1;
+        }
+        if (!line.trailing.length && !pauseLineAfter(lines, i)) endWithPause(line);
     });
     return result(doc, count);
 }
@@ -255,18 +280,20 @@ export function addLinePauses(html, seconds) {
 
 /**
  * Remove the pauses addForeignPauses adds: between foreign-language lines,
- * and before a "—" after foreign words; count = removed.
+ * and before the "—" and at the end of a line with foreign words before its
+ * "—"; count = removed.
  */
 export function removeForeignPauses(html) {
     const doc = parse(html);
     const lines = linesOf(doc);
     let count = 0;
+    const drop = (p) => { if (p.isConnected) { p.remove(); count += 1; } };
     lines.forEach((line) => {
         const dash = dashAfterForeign(line);
-        if (dash) dash.pauses.forEach((p) => { p.remove(); count += 1; });
+        if (dash) [...dash.pauses, ...line.trailing].forEach(drop);
     });
     foreignNeighbours(lines).forEach(({ line, between }) => {
-        line.trailing.forEach((p) => { p.remove(); count += 1; });
+        line.trailing.forEach(drop);
         between.forEach((l) => { count += l.pauses.length; removeLine(l); });
     });
     return result(doc, count);
