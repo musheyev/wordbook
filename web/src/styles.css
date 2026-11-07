@@ -979,93 +979,186 @@ nav-button-as-link {
   background: var(--cb-surface); color: var(--cb-ink); font: inherit; font-size: 1rem; cursor: pointer;
 }
 .quiz-mix__share.on { border-color: var(--cb-accent); background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 600; }
-/* Mixed: the card's "→ English" — the language to answer in. */
-.quiz__toward { font-size: 0.85rem; font-weight: 600; color: var(--cb-accent); letter-spacing: 0.02em; }
+/* The quiz screen: ✕, the round's progress and ⋯ on top; the card; the
+   microphone (iPhone) or Show answer / Next under it, with ‹ › beside; after
+   an answer, a green or amber panel. A centred panel on a computer, the
+   whole screen on a phone. */
 .quiz__overlay {
   position: fixed; inset: 0; z-index: 300; background: rgba(15, 20, 35, 0.38);
   display: flex; align-items: center; justify-content: center; padding: 16px;
 }
 .quiz {
-  width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 14px;
-  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
-  border-radius: var(--cb-radius); box-shadow: 0 16px 40px rgba(15, 20, 35, 0.24); padding: 16px 18px 18px;
+  --quiz-right: #15803d; --quiz-right-bg: #f0fdf4; --quiz-right-line: #86efac;
+  --quiz-wrong: #b45309; --quiz-wrong-bg: #fffbeb; --quiz-wrong-line: #fcd34d;
+  width: 100%; max-width: 520px; min-height: min(680px, calc(100vh - 32px));
+  display: flex; flex-direction: column; gap: 16px;
+  background: var(--cb-bg); border: 1px solid var(--cb-border);
+  border-radius: 20px; box-shadow: 0 16px 40px rgba(15, 20, 35, 0.24); padding: 16px 18px 20px;
 }
-.quiz__head, .quiz__foot { display: flex; align-items: center; justify-content: space-between; }
-.quiz__foot { gap: 10px; }
-.quiz__foot .cb-btn:disabled { opacity: 0.45; cursor: default; }
-.quiz__count { font-size: 0.9rem; color: var(--cb-ink-3); }
-.quiz__card {
-  min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-  padding: 24px 20px; border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius);
-  background: var(--cb-surface); color: var(--cb-ink); font-family: inherit; cursor: pointer; text-align: center;
+/* Top bar. */
+.quiz__top { display: flex; align-items: center; gap: 10px; }
+.quiz__icon {
+  flex: none; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 12px; background: none; color: var(--cb-ink-2); font-size: 1.15rem; cursor: pointer;
 }
-.quiz__card--back { background: var(--cb-accent-weak); }
-.quiz__cardwrap { position: relative; display: flex; flex-direction: column; }
-.quiz__again {
-  position: absolute; top: 12px; right: 12px; width: 60px; height: 60px;
-  display: flex; align-items: center; justify-content: center;
-  border: 1.5px solid var(--cb-border-strong); border-radius: 16px; background: var(--cb-surface-2);
-  color: var(--cb-accent); font-size: 1.7rem; cursor: pointer;
+.quiz__icon:hover, .quiz__icon.on { background: var(--cb-surface); color: var(--cb-ink); }
+.quiz__icon i.icon { margin: 0; height: auto; }
+.quiz__progress { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.quiz__bar { height: 8px; border-radius: 4px; background: var(--cb-surface); border: 1px solid var(--cb-border); overflow: hidden; }
+.quiz__barfill { height: 100%; border-radius: 4px; background: var(--cb-accent); transition: width 0.3s ease; }
+.quiz__where { font-size: 0.75rem; color: var(--cb-ink-3); min-height: 1em; }
+.quiz__count { flex: none; font-size: 0.9rem; font-weight: 600; color: var(--cb-ink-2); font-variant-numeric: tabular-nums; }
+/* ⋯ menu. */
+.quiz__menuwrap { position: relative; flex: none; }
+.quiz-menu__scrim { position: fixed; inset: 0; z-index: 1; }
+.quiz-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 2; width: 268px;
+  display: flex; flex-direction: column; padding: 6px; background: var(--cb-bg);
+  border: 1px solid var(--cb-border); border-radius: 14px; box-shadow: 0 12px 32px rgba(15, 20, 35, 0.18);
 }
-.quiz__again:hover { border-color: var(--cb-accent); }
-.quiz__again i.icon { margin: 0; }
-.quiz__text { font-size: 1.6rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
-/* The text and its small Copy button beside it. */
-.quiz__textrow { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; }
-.quiz__textrow .quiz__text { min-width: 0; }
-.quiz__copy {
-  flex: none; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--cb-border); border-radius: 10px; background: var(--cb-surface-2);
-  color: var(--cb-ink-3); font-size: 0.95rem; cursor: pointer;
+.quiz-menu > button {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: none; border-radius: 10px;
+  background: none; color: var(--cb-ink); font: inherit; font-size: 0.98rem; text-align: left; cursor: pointer;
 }
-.quiz__copy:hover { color: var(--cb-accent); border-color: var(--cb-accent); }
-.quiz__copy--done { color: #15803d; border-color: #15803d; }
-.quiz__copy--failed { color: var(--cb-danger); border-color: var(--cb-danger); }
-.quiz__copy i.icon { margin: 0; height: auto; }
-/* The card's colour: a dot on its small button, then a row of choices. */
-.quiz__colorbtn.on { border-color: var(--cb-accent); }
-.quiz__dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--cb-border-strong); background: transparent; }
-.quiz__colors {
-  display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--cb-border);
-  border-radius: 12px; background: var(--cb-surface-2); box-shadow: 0 4px 14px rgba(15, 20, 35, 0.12);
-}
+.quiz-menu > button:hover { background: var(--cb-surface); }
+.quiz-menu > button i.icon { margin: 0; width: 18px; color: var(--cb-ink-3); }
+.quiz-menu .quiz-menu__danger { color: var(--cb-danger); border-top: 1px solid var(--cb-border); border-radius: 0 0 10px 10px; margin-top: 4px; }
+.quiz-menu .quiz-menu__danger i.icon { color: var(--cb-danger); }
+.quiz-menu__note { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; font-size: 0.92rem; color: var(--cb-accent); }
+.quiz-menu__note i.icon { margin: 0; width: 18px; }
+.quiz-menu__colors { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+.quiz-menu__label { font-size: 0.8rem; color: var(--cb-ink-3); }
+.quiz-menu__swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .quiz__swatch {
-  width: 32px; height: 32px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; padding: 0;
+  width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.quiz__swatch.on { border-color: var(--cb-ink); }
+.quiz__swatch.on { border-color: var(--cb-ink); box-shadow: inset 0 0 0 2px var(--cb-bg); }
 .quiz__swatch--none { background: var(--cb-surface); border-color: var(--cb-border-strong); color: var(--cb-ink-3); }
 .quiz__swatch--none i.icon { margin: 0; height: auto; }
+/* The card. */
+.quiz__card {
+  position: relative; flex: 1; min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 28px 22px; border: 1px solid var(--cb-border); border-radius: 20px;
+  background: var(--cb-bg); color: var(--cb-ink); box-shadow: 0 6px 24px rgba(15, 20, 35, 0.08), 0 1px 3px rgba(15, 20, 35, 0.06);
+  font-family: inherit; cursor: pointer; text-align: center; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+.quiz__card:focus-visible { outline: 3px solid var(--cb-accent-weak); outline-offset: 2px; }
 .quiz__card[data-color] { border-width: 2px; }
-.quiz__hint { font-size: 0.8rem; color: var(--cb-ink-3); }
-.quiz__error { font-size: 0.85rem; color: var(--cb-danger); text-align: center; }
-/* Spoken answers (iPhone app): 🎤 Say it under the card, what was heard,
-   Again / Check, then ✓ Correct or ✗ Not quite. */
+.quiz__way {
+  font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; padding: 4px 10px; border-radius: 999px;
+  background: var(--cb-accent-weak); color: var(--cb-accent);
+}
+.quiz__card--back .quiz__way { background: var(--cb-surface); color: var(--cb-ink-2); }
+.quiz__text { font-size: 2.2rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; letter-spacing: -0.01em; }
+.quiz__reveal {
+  font-size: 1.35rem; font-weight: 600; color: var(--cb-accent); overflow-wrap: anywhere;
+  min-width: 50%; padding-top: 12px; border-top: 1px solid var(--cb-border); animation: quiz-fade 0.25s ease;
+}
+.quiz__again {
+  width: 52px; height: 52px; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  border: none; border-radius: 50%; background: var(--cb-accent-weak); color: var(--cb-accent); font-size: 1.35rem; cursor: pointer;
+}
+.quiz__again:hover { filter: brightness(0.96); }
+.quiz__again i.icon { margin: 0; height: auto; }
+.quiz__hint { position: absolute; bottom: 14px; left: 0; right: 0; font-size: 0.78rem; color: var(--cb-ink-3); }
+/* The card comes in: flipped (turning over), or sliding from the side. */
+.quiz__card--flip { animation: quiz-flip 0.28s ease; }
+.quiz__card--next { animation: quiz-in-right 0.25s ease; }
+.quiz__card--prev { animation: quiz-in-left 0.25s ease; }
+@keyframes quiz-flip { from { transform: perspective(900px) rotateY(80deg); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes quiz-in-right { from { transform: translateX(36px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes quiz-in-left { from { transform: translateX(-36px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes quiz-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes quiz-pop { 0% { transform: scale(0.96); } 60% { transform: scale(1.02); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .quiz__card, .quiz__reveal, .quiz-feedback, .quiz-feedback__title, .quiz-summary { animation: none !important; }
+}
+/* Under the card: ‹ (main) ›. */
 .quiz__answer { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.quiz__controls { display: flex; align-items: center; justify-content: center; gap: 22px; width: 100%; }
+.quiz__step {
+  flex: none; width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--cb-border); border-radius: 50%; background: var(--cb-bg); color: var(--cb-ink-2);
+  font-size: 1.3rem; cursor: pointer;
+}
+.quiz__step:hover { border-color: var(--cb-border-strong); color: var(--cb-ink); }
+.quiz__step:disabled { opacity: 0.35; cursor: default; }
+.quiz__step i.icon { margin: 0; height: auto; }
 .quiz__mic {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; padding: 0 26px;
-  border: 2px solid var(--cb-accent); border-radius: 14px; background: var(--cb-surface); color: var(--cb-accent);
-  font: inherit; font-size: 1.1rem; font-weight: 600; cursor: pointer; touch-action: manipulation;
+  flex: none; width: 76px; height: 76px; display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%; background: var(--cb-accent); color: var(--cb-accent-ink); font-size: 1.8rem;
+  cursor: pointer; touch-action: manipulation; box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
 }
 .quiz__mic i.icon { margin: 0; height: auto; }
-.quiz__mic--on { background: var(--cb-danger); border-color: var(--cb-danger); color: #fff; animation: quiz-mic-pulse 1.2s ease-in-out infinite; }
-@keyframes quiz-mic-pulse { 50% { opacity: 0.75; } }
-.quiz__mic--small { min-height: 48px; padding: 0 18px; font-size: 1rem; }
-.quiz__answerbtns { display: flex; gap: 10px; }
-.quiz__check { min-height: 48px; padding: 0 22px; font-size: 1rem; border-radius: 14px; }
-.quiz__check:disabled { opacity: 0.45; cursor: default; }
-.quiz__check i.icon { margin: 0 6px 0 0; }
-.quiz__heard { font-size: 1.05rem; color: var(--cb-ink-2, var(--cb-ink)); overflow-wrap: anywhere; }
-.quiz__heard--none { color: var(--cb-ink-3); }
-.quiz__result { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; }
-.quiz__mark { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 1.1rem; }
-.quiz__mark i.icon { margin: 0; }
-.quiz__mark--right { color: #15803d; }
-.quiz__mark--wrong { color: var(--cb-danger); }
-.quiz__solution { font-size: 1rem; color: var(--cb-ink); }
-.quiz__practice { font-size: 0.95rem; color: var(--cb-ink-3); }
-.quiz__practice .quiz__mark { font-size: 0.95rem; }
-/* Score: only when asked. Above the quiz. */
+.quiz__mic--on { background: var(--cb-danger); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); animation: quiz-mic-pulse 1.3s ease-out infinite; }
+@keyframes quiz-mic-pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); } 100% { box-shadow: 0 0 0 18px rgba(220, 38, 38, 0); } }
+.quiz__miclabel { font-size: 0.95rem; color: var(--cb-ink-2); min-height: 1.4em; max-width: 100%; overflow-wrap: anywhere; }
+.quiz__miclabel--error { color: var(--cb-danger); }
+.quiz__main {
+  flex: 1; max-width: 320px; min-height: 56px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; border-radius: 16px; background: var(--cb-accent); color: var(--cb-accent-ink);
+  font: inherit; font-size: 1.08rem; font-weight: 600; cursor: pointer;
+}
+.quiz__main:hover { filter: brightness(1.05); }
+.quiz__main i.icon { margin: 0; height: auto; }
+.quiz__second {
+  min-height: 52px; padding: 0 20px; border: 1px solid var(--cb-border-strong); border-radius: 16px;
+  background: var(--cb-bg); color: var(--cb-ink); font: inherit; font-size: 1rem; font-weight: 600; cursor: pointer;
+}
+.quiz__second:hover { border-color: var(--cb-accent); color: var(--cb-accent); }
+/* After an answer: green (right) or amber (not quite). */
+.quiz-feedback {
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; border-radius: 18px; border: 1px solid;
+  animation: quiz-fade 0.25s ease;
+}
+.quiz-feedback--right { background: var(--quiz-right-bg); border-color: var(--quiz-right-line); color: var(--quiz-right); }
+.quiz-feedback--wrong { background: var(--quiz-wrong-bg); border-color: var(--quiz-wrong-line); color: var(--quiz-wrong); }
+.quiz-feedback__title { display: flex; align-items: center; gap: 8px; font-size: 1.2rem; font-weight: 700; animation: quiz-pop 0.35s ease; }
+.quiz-feedback__title i.icon { margin: 0; height: auto; }
+.quiz-feedback__marked { font-size: 0.8rem; font-weight: 500; opacity: 0.85; }
+.quiz-feedback__said { font-size: 0.95rem; overflow-wrap: anywhere; }
+.quiz-feedback__go {
+  min-height: 54px; border: none; border-radius: 14px; color: #fff; font: inherit; font-size: 1.08rem; font-weight: 600; cursor: pointer;
+}
+.quiz-feedback--right .quiz-feedback__go { background: var(--quiz-right); }
+.quiz-feedback--wrong .quiz-feedback__go { background: var(--quiz-wrong); }
+.quiz-feedback__more { display: flex; gap: 8px; }
+.quiz-feedback__more button {
+  flex: 1; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid currentColor; border-radius: 14px; background: var(--cb-bg); color: inherit;
+  font: inherit; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+}
+.quiz-feedback__more button i.icon { margin: 0; height: auto; }
+/* The end of a round. */
+.quiz-summary {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  text-align: center; animation: quiz-fade 0.3s ease;
+}
+.quiz-ring { position: relative; width: 150px; height: 150px; }
+.quiz-ring svg { width: 100%; height: 100%; }
+.quiz-ring__track { fill: none; stroke: var(--cb-surface); stroke-width: 12; }
+.quiz-ring__fill { fill: none; stroke: var(--quiz-right); stroke-width: 12; stroke-linecap: round; }
+.quiz-ring__label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; color: var(--cb-ink); }
+.quiz-summary__done {
+  width: 96px; height: 96px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--quiz-right-bg); color: var(--quiz-right); font-size: 2.6rem;
+}
+.quiz-summary__done i.icon { margin: 0; height: auto; }
+.quiz-summary__title { margin: 0; font-size: 1.45rem; font-weight: 700; color: var(--cb-ink); }
+.quiz-summary__line { font-size: 0.95rem; color: var(--cb-ink-2); }
+.quiz-summary__tiles { display: flex; gap: 10px; width: 100%; max-width: 340px; }
+.quiz-summary__tile {
+  flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 14px; background: var(--cb-surface);
+}
+.quiz-summary__tilelabel { font-size: 0.78rem; color: var(--cb-ink-3); }
+.quiz-summary__tilenum { font-size: 1.2rem; font-weight: 700; color: var(--cb-ink); }
+.quiz-summary__btns { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 340px; margin-top: 6px; }
+.quiz-summary__btns .quiz__main { max-width: none; }
+.quiz__error { font-size: 0.85rem; color: var(--cb-danger); text-align: center; }
+.quiz__empty { flex: 1; min-height: 200px; display: flex; align-items: center; justify-content: center; color: var(--cb-ink-3); }
+.quiz__done { align-self: center; width: 100%; }
+/* Score: only when asked (⋯ › Score). Above the quiz. */
 .quiz-score__overlay { z-index: 310; }
 .quiz-score { text-align: center; }
 .quiz-score__big { font-size: 3.4rem; font-weight: 700; line-height: 1.1; color: var(--cb-ink); margin: 8px 0 4px; }
@@ -1075,13 +1168,7 @@ nav-button-as-link {
 .quiz-score__btns { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
 .quiz-score__btns .cb-btn { min-height: 48px; padding: 0 22px; font-size: 1rem; }
 .quiz-score__btns .cb-btn:disabled { opacity: 0.45; cursor: default; }
-.quiz__foot .cb-btn { padding: 10px 20px; font-size: 1rem; }
-.quiz__foot .cb-btn i.icon { margin: 0 0 0 6px; }
-.quiz__foot .cb-btn i.arrow.left.icon { margin: 0 6px 0 0; }
-/* Save (or ✓ Saved), Remove, and "From: <note> ›". */
-.quiz__headbtns { display: flex; align-items: center; gap: 8px; }
-.quiz__saved { display: inline-flex; align-items: center; gap: 4px; font-size: 0.9rem; font-weight: 600; color: var(--cb-accent); }
-.quiz__saved i.icon { margin: 0; }
+/* ⋯ › Save quiz: its name. */
 .quiz__name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .quiz__namelabel { width: 100%; font-size: 0.85rem; color: var(--cb-ink-3); }
 .quiz__nameinput {
@@ -1089,21 +1176,6 @@ nav-button-as-link {
   border-radius: 8px; background: var(--cb-surface); color: var(--cb-ink); font: inherit; font-size: 1rem;
 }
 .quiz__namebtns { display: flex; gap: 8px; }
-.quiz__from {
-  align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
-  border: none; background: none; padding: 4px 8px; color: var(--cb-ink-3); font: inherit; font-size: 0.85rem; cursor: pointer;
-}
-.quiz__fromname { color: var(--cb-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.quiz__from:hover .quiz__fromname { text-decoration: underline; }
-.quiz__from i.icon { margin: 0; color: var(--cb-accent); }
-.quiz__remove {
-  display: inline-flex; align-items: center; gap: 4px; flex: none;
-  border: none; background: none; padding: 8px; color: var(--cb-ink-3); font: inherit; font-size: 0.9rem; cursor: pointer;
-}
-.quiz__remove:hover { color: var(--cb-danger); }
-.quiz__remove i.icon { margin: 0; }
-.quiz__empty { min-height: 200px; display: flex; align-items: center; justify-content: center; color: var(--cb-ink-3); }
-.quiz__foot .quiz__done { margin-left: auto; }
 /* "← Back to quiz", while looking at a card's note. */
 .quiz-back {
   position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px; z-index: 265;
@@ -1172,22 +1244,38 @@ nav-button-as-link {
   .quiz-back { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); left: 12px; transform: none; }
 }
 @media (max-width: 768px), (max-height: 500px) {
-  .quiz__overlay { padding: 0; background: var(--cb-surface-2); }
+  .quiz__overlay { padding: 0; background: var(--cb-bg); }
   .quiz {
-    max-width: none; height: 100%; border: none; border-radius: 0; box-shadow: none;
-    padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    max-width: none; height: 100%; min-height: 0; border: none; border-radius: 0; box-shadow: none; gap: 14px;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
   }
-  .quiz__cardwrap, .quiz__card { flex: 1; }
-  /* Big, and low on the screen, for a thumb with the phone in one hand:
-     🔊 at the bottom of the card, Previous / Next below it. */
-  .quiz__foot .cb-btn { flex: 1; justify-content: center; min-height: 76px; padding: 0 16px; font-size: 1.15rem; border-radius: 12px; }
-  .quiz__again {
-    top: auto; bottom: 16px; right: 50%; transform: translateX(50%);
-    width: 80px; height: 80px; font-size: 2.2rem; border-width: 2px; border-radius: 20px;
-  }
-  .quiz__card { padding-bottom: 112px; } /* text stays clear of 🔊 */
+  .quiz__card { min-height: 0; }
+  .quiz__text { font-size: 2.4rem; }
   /* 16px, or tapping it makes iPhones zoom in (and stay zoomed). */
   .quiz__nameinput, .link-pick__search input { font-size: 16px; }
+}
+
+/* Turned sideways (a short screen): the card keeps the height its words
+   need (never squeezed smaller), and the feedback is one band, its words on
+   the left and its buttons on the right. Scrolls if it still can't fit. */
+@media (max-height: 500px) {
+  .quiz { gap: 8px; overflow-y: auto; }
+  .quiz__card { flex: 1 0 auto; padding: 10px 16px; gap: 6px; }
+  .quiz__way { font-size: 0.7rem; padding: 2px 8px; }
+  .quiz__text { font-size: 1.6rem; }
+  .quiz__reveal { font-size: 1.1rem; padding-top: 4px; }
+  .quiz__again { width: 38px; height: 38px; font-size: 1.05rem; }
+  .quiz__mic { width: 60px; height: 60px; font-size: 1.5rem; }
+  .quiz__hint { display: none; }
+  .quiz-feedback {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center;
+    column-gap: 10px; row-gap: 2px; padding: 8px 12px;
+  }
+  .quiz-feedback__title { grid-column: 1; grid-row: 1; font-size: 1.05rem; }
+  .quiz-feedback__said { grid-column: 1; grid-row: 2; font-size: 0.85rem; }
+  .quiz-feedback__go { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; padding: 0 20px; }
+  .quiz-feedback__more { grid-column: 3; grid-row: 1 / span 2; }
+  .quiz-feedback__more button { min-height: 44px; padding: 0 12px; white-space: nowrap; }
 }
 
 /* Note links: a link to another note or word (utils/noteLinks.js), drawn

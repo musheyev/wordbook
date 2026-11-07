@@ -9,10 +9,11 @@ import { noteLinkHref } from '../utils/noteLinks';
 import { saveQuiz } from '../actions';
 import Spinner from './Spinner';
 import { ITEM_COLORS } from '../utils/itemColors';
-import { canAnswerBySpeech, listenForAnswer, stopListening, sayReply } from '../native/speech';
+import { canAnswerBySpeech, listenForAnswer, stopListening, sayReply, feel } from '../native/speech';
 import { isRightAnswer } from '../utils/answerCheck';
 import { runKey, cardKey, loadRun, saveRun, scoreOf } from '../utils/quizResults';
 import { MIX_SHARES, lastShare, rememberShare, dealDirections, loadDeal, saveDeal } from '../utils/quizMix';
+import { roundsOf, roundAt, recordQuizDay, dayStreak } from '../utils/quizRounds';
 import { languageLabel } from '../utils/tts';
 
 // The quiz (admins): started by the Quiz buttons of a notebook, of a note
@@ -23,16 +24,18 @@ import { languageLabel } from '../utils/tts';
 //
 // Mixed asks some cards one way and the rest the other, in the share picked
 // under it — 70 / 30 (mostly Spanish → English), 50 / 50 or 30 / 70
-// (utils/quizMix.js) — and each card says which language to answer in
-// ("→ English"). Then one flash card at a time:
+// (utils/quizMix.js). Then one flash card at a time, in rounds of 20
+// (utils/quizRounds.js):
 //
-//   3 of 24                    Save    Stop     (✓ Saved once saved)
-//
-//                Yo estoy               🔊   read aloud when it opens; 🔊 reads
-//              tap to flip                   it again. Flipped: "I am", in English
-//            See note ›                      opens the note the card came from
-//   🗑 Remove
-//   ← Previous                      Next →     (Done on the last card)
+//   ✕  ━━━━━━──────────  3/20  ⋯       ✕ ends the quiz; ⋯ is the menu: Score,
+//      Round 2 of 13                   Save, See note, Copy, card colour, Remove
+//   ┌──────────────────────────┐
+//   │    Spanish → English     │       which way this card is asked
+//   │          Hola            │       read aloud when it opens
+//   │           🔊             │       reads it again
+//   └──────────────────────────┘       tap the card to flip it; swipe left for
+//        ‹      (🎤)      ›            the next card, right for the one before
+//          Say it in English
 //
 // The cards come from the notes' "foreign — English" lines
 // (utils/quizCards.js), in the notebook's order, or from a saved quiz's copy
@@ -41,32 +44,39 @@ import { languageLabel } from '../utils/tts';
 // through ttsPlayer (the chosen voices and speeds), without bringing up the
 // big player controls (PlayerPanel skips 'quiz').
 //
-// Remove drops a card from this quiz only (never from the note). Save keeps
-// the cards left under a name in My Quizzes; once saved, each Remove saves
-// again.
+// Spoken answers (iPhone app only, native/speech.js): 🎤 listens until you
+// pause, then the answer is marked at once (utils/answerCheck.js) — "Correct"
+// or "Not quite", said aloud and felt as a buzz — and the card shows both
+// sides. One answer per card counts for the score; "Try again" after that is
+// practice. When it marked you wrong but you were right ("Hello" for "Hola"),
+// "I was right" counts it and keeps what you said as another right answer for
+// that card (the side's `also`), saved with the quiz like its colour.
+//
+// On the website (no microphone) the button under the card is "Show answer",
+// then "Next".
+//
+// The end of each round shows its summary: the round's score (iPhone), the
+// day streak, and "Review the N missed" (those cards again, as practice), then
+// "Next round".
+//
+// Remove (in ⋯) drops a card from this quiz only (never from the note). Save
+// keeps the cards left under a name in My Quizzes; once saved, each Remove,
+// colour or "I was right" saves again.
 //
 // Drawn once at the app's root (App.js) and opened with openQuiz()
 // (utils/quizLauncher.js), so "See note" can leave for the note and a "Back to
 // quiz" button brings back the same card.
-//
-// Spoken answers (iPhone app only, native/speech.js). Under the front of a
-// card, "🎤 Say it": say the hidden side; it stops listening when you pause.
-// Nothing is marked yet — you see what it heard, then
-//
-//   Heard: “I'm”            [🎤 Again]  [✓ Check]
-//
-// Again replaces the answer; Check marks it (utils/answerCheck.js), says
-// "Correct" or "Not quite", and that's what the score counts: one answer per
-// card per run, so retrying until it says Correct isn't possible. After
-// Check, 🎤 is only practice. Skipping a card (Next without Check) leaves it
-// unanswered. "Score" in the header shows correct ÷ answered × 100 only when
-// asked, with Start over (utils/quizResults.js keeps a saved quiz's run).
 const SOURCE = 'quiz';
+// How far (px) a finger must move sideways to count as a swipe.
+const SWIPE = 60;
+// A phone or tablet (you swipe), not a computer (you use the arrow keys):
+// for the hint on the first cards.
+const touchScreen = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
 /**
- * Put text on the clipboard (the card's Copy button). navigator.clipboard
- * where it's allowed; otherwise the older way, a hidden text box and the
- * browser's Copy command (older iPhones).
+ * Put text on the clipboard (⋯ › Copy). navigator.clipboard where it's
+ * allowed; otherwise the older way, a hidden text box and the browser's Copy
+ * command (older iPhones).
  * @param {string} text
  */
 async function copyText(text) {
@@ -84,6 +94,28 @@ async function copyText(text) {
     if (!ok) throw new Error('Copy failed');
 }
 
+/**
+ * The round summary's ring: how much of the round was right, as a circle
+ * filled that far round.
+ * @param {{percent: number|null, label: string}} props
+ */
+function ScoreRing({ percent, label }) {
+    const r = 52;
+    const around = 2 * Math.PI * r;
+    return (
+        <div className="quiz-ring" role="img" aria-label={label}>
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+                <circle className="quiz-ring__track" cx="60" cy="60" r={r} />
+                {percent !== null && (
+                    <circle className="quiz-ring__fill" cx="60" cy="60" r={r}
+                        strokeDasharray={`${(around * percent) / 100} ${around}`} transform="rotate(-90 60 60)" />
+                )}
+            </svg>
+            <span className="quiz-ring__label">{label}</span>
+        </div>
+    );
+}
+
 function NotebookQuiz() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -98,20 +130,27 @@ function NotebookQuiz() {
     const [deal, setDeal] = useState(null);
     const [index, setIndex] = useState(-1); // -1: choosing the direction
     const [flipped, setFlipped] = useState(false);
+    // How the card came in, for its animation: 'flip', 'next' or 'prev'.
+    const [motion, setMotion] = useState('next');
+    const [summary, setSummary] = useState(null); // the round (0, 1, …) whose summary shows
+    // Reviewing a round's missed cards: { round, list: [card positions], pos }.
+    const [review, setReview] = useState(null);
     const [audioError, setAudioError] = useState('');
     const [saved, setSaved] = useState(null); // { id, name } once in My Quizzes
     const [naming, setNaming] = useState(null); // the name being typed, while saving
     const [saveError, setSaveError] = useState('');
     const [away, setAway] = useState(false); // at a card's note; "Back to quiz" shows
-    const [copied, setCopied] = useState(''); // '' | 'done' | 'failed': the Copy button's tick
-    const [coloring, setColoring] = useState(false); // the card's colour choices are open
+    const [menu, setMenu] = useState(false); // ⋯ is open
+    const [copied, setCopied] = useState(''); // '' | 'done' | 'failed': ⋯ › Copy's tick
     const [run, setRun] = useState({}); // this run's checked answers, by card (utils/quizResults.js)
-    // The card's spoken answer before Check (or a practice one after it):
-    // { status: 'listening'|'heard'|'error', text, practice?, correct?, error? }
+    // The card's spoken answer while it's heard, or a practice one:
+    // { status: 'listening'|'heard'|'error', text, practice?, correct?, marked?, error? }
     const [answer, setAnswer] = useState(null);
     const [showScore, setShowScore] = useState(false);
     const latest = useRef(null); // the quiz being loaded (a newer one wins)
     const listeningFor = useRef(null); // the card key being listened for, while listening
+    const touch = useRef(null); // where a finger went down on the card { x, y }
+    const swiped = useRef(false); // that touch was a swipe, so its tap doesn't flip
 
     // openQuiz(): start afresh with the new cards.
     useEffect(() => onOpenQuiz((next) => {
@@ -121,11 +160,14 @@ function NotebookQuiz() {
         setIndex(-1);
         setMixing(false);
         setFlipped(false);
+        setSummary(null);
+        setReview(null);
         setAudioError('');
         setSaved(next.saved || null);
         setNaming(null);
         setSaveError('');
         setAway(false);
+        setMenu(false);
         setRun({});
         setAnswer(null);
         setShowScore(false);
@@ -156,37 +198,48 @@ function NotebookQuiz() {
         setQuiz(null);
     };
 
+    // The card showing: its position in `cards` (in a review, the missed
+    // card the review is at).
+    const cur = review ? review.list[review.pos] : index;
+
+    // An answer being heard or practised belongs to that card and side: it's
+    // dropped (and listening stops) on another one, and ⋯ closes.
+    useEffect(() => {
+        setCopied('');
+        setMenu(false);
+        setAnswer(null);
+        stopHearing();
+    }, [cur, flipped, summary]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const showing = !!quiz && !away;
     useEffect(() => {
         if (!showing) return undefined;
         const onKey = (e) => {
-            if (e.key !== 'Escape' || naming !== null) return;
-            if (showScore) setShowScore(false);
-            else close();
+            if (naming !== null) return;
+            if (e.key === 'Escape') {
+                if (menu) setMenu(false);
+                else if (showScore) setShowScore(false);
+                else close();
+            } else if (index >= 0 && summary === null && !menu && !showScore) {
+                if (e.key === 'ArrowRight') next(); // eslint-disable-line no-use-before-define
+                if (e.key === 'ArrowLeft') previous(); // eslint-disable-line no-use-before-define
+            }
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // The tick goes back to the copy icon, and the colour choices close, on
-    // another card or side. An answer not yet checked is dropped (and
-    // listening stops): it belonged to that card's front.
-    useEffect(() => {
-        setCopied('');
-        setColoring(false);
-        setAnswer(null);
-        stopHearing();
-    }, [index, flipped]); // eslint-disable-line react-hooks/exhaustive-deps
-
     if (!quiz) return null;
 
     const cards = loaded ? loaded.cards : [];
+    const rounds = roundsOf(cards.length);
     // Whether a card is asked to English (its front is the foreign side).
     const toEnglishFor = (card, dir = direction, d = deal) => (dir === 'mixed' ? !d || d[cardKey(card)] !== false : dir === 'to-en');
     const sideOf = (card, back, english = toEnglishFor(card)) => ((english !== back) ? card.foreign : card.english);
     // This test's name for its kept answers (utils/quizResults.js).
     const runName = direction === 'mixed' ? `mixed-${share}` : direction;
     const title = saved ? saved.name : quiz.title;
+    const speech = canAnswerBySpeech();
 
     // Read a card's side. Called straight from the tap (iOS plays audio only
     // when it starts in a tap).
@@ -196,6 +249,13 @@ function NotebookQuiz() {
         ttsPlayer.play(side.chunks, { title: `${title} quiz`, sourceId: SOURCE });
     };
 
+    // Show card i (a position in `cards`), front side up, and read it.
+    // how: 'next' or 'prev', the way it slides in; d: a deal just made.
+    const show = (i, how = 'next', list = cards, d = deal) => {
+        setFlipped(false);
+        setMotion(how);
+        say(sideOf(list[i], false, toEnglishFor(list[i], direction, d)));
+    };
     // dir: 'to-en', 'from-en' or 'mixed' (in the share picked on the sheet).
     const start = (dir) => {
         let d = null;
@@ -209,55 +269,124 @@ function NotebookQuiz() {
         setRun(loadRun(runKey(saved, dir === 'mixed' ? `mixed-${share}` : dir)));
         setIndex(0);
         setFlipped(false);
+        setMotion('next');
         say(sideOf(cards[0], false, toEnglishFor(cards[0], dir, d)));
     };
     const flip = () => {
+        if (swiped.current) { swiped.current = false; return; } // the end of a swipe, not a tap
         setFlipped(!flipped);
-        say(sideOf(cards[index], !flipped));
+        setMotion('flip');
+        say(sideOf(cards[cur], !flipped));
     };
-    // Copy the side showing. Its own tap: the card doesn't flip.
-    const copy = (e, text) => {
-        e.stopPropagation();
-        copyText(text).then(() => setCopied('done'), () => setCopied('failed'));
-    };
-    // Go to card i, front side up, and read it (d: a deal just made).
-    const goTo = (i, list = cards, d = deal) => {
+    const goTo = (i, list = cards, d = deal, how = i < index ? 'prev' : 'next') => {
         setIndex(i);
-        setFlipped(false);
-        say(sideOf(list[i], false, toEnglishFor(list[i], direction, d)));
+        show(i, how, list, d);
     };
+
+    // The end of a round: its summary (and today counts for the streak).
+    const endRound = (round) => {
+        stopAudio();
+        stopHearing();
+        recordQuizDay();
+        feel('light');
+        setReview(null);
+        setSummary(round);
+    };
+    // Next (Continue, swipe left, →): the next card, or at the end of the
+    // round (or of the review), the summary.
     const next = () => {
-        if (index + 1 >= cards.length) { close(); return; }
+        if (review) {
+            if (review.pos + 1 < review.list.length) {
+                setReview({ ...review, pos: review.pos + 1 });
+                show(review.list[review.pos + 1]);
+            } else {
+                endRound(review.round);
+            }
+            return;
+        }
+        const round = roundAt(rounds, index);
+        if (index + 1 >= rounds[round][1]) { endRound(round); return; }
         goTo(index + 1);
+    };
+    // Previous (swipe right, ←): the card before, in this quiz or review.
+    const previous = () => {
+        if (review) {
+            if (review.pos === 0) return;
+            setReview({ ...review, pos: review.pos - 1 });
+            show(review.list[review.pos - 1], 'prev');
+            return;
+        }
+        if (index > 0) goTo(index - 1);
+    };
+
+    // A swipe on the card: sideways, far enough, and more across than down.
+    const onTouchStart = (e) => {
+        const t = e.touches[0];
+        touch.current = { x: t.clientX, y: t.clientY };
+        swiped.current = false;
+    };
+    const onTouchEnd = (e) => {
+        if (!touch.current) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touch.current.x;
+        const dy = t.clientY - touch.current.y;
+        touch.current = null;
+        if (Math.abs(dx) < SWIPE || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        swiped.current = true;
+        setTimeout(() => { swiped.current = false; }, 400); // in case no tap follows
+        if (dx < 0) next(); else previous();
     };
 
     // ---- Spoken answers (iPhone app) ----
     // The answer to the card's front is its other side.
     const answerTo = (c) => sideOf(c, true);
+    // Which of the card's sides that is: 'english' or 'foreign'.
+    const answerSideKey = (c) => (toEnglishFor(c) ? 'english' : 'foreign');
     const runStore = () => runKey(saved, runName);
+    const rightFor = (c, text) => {
+        const target = answerTo(c);
+        return isRightAnswer(text, target.text, target.lang, target.also || []);
+    };
+    const reply = (correct) => {
+        sayReply(correct ? 'Correct' : 'Not quite');
+        feel(correct ? 'success' : 'error');
+    };
+
+    // Mark a card's answer: the one its score counts.
+    const mark = (c, text) => {
+        const correct = rightFor(c, text);
+        const nextRun = { ...run, [cardKey(c)]: { heard: text, correct } };
+        setRun(nextRun);
+        saveRun(runStore(), nextRun);
+        setAnswer(null);
+        reply(correct);
+    };
 
     // 🎤: hear an answer for this card (tapping it while listening stops).
-    // Before Check it's only shown; after Check it's practice, marked at once.
+    // The first answer is marked at once; after that (and in a review) it's
+    // practice, shown and said but not counted.
     const listen = async () => {
         if (listeningFor.current) { stopListening().catch(() => {}); return; }
-        const c = cards[index];
+        const c = cards[cur];
         const key = cardKey(c);
         const target = answerTo(c);
-        const practice = !!run[key];
+        const practice = !!run[key] || !!review;
         stopAudio(); // so the card's own audio isn't heard as the answer
         listeningFor.current = key;
         setAnswer({ status: 'listening', text: '', practice });
         try {
-            const text = await listenForAnswer(target.lang, [target.text], (words) => {
+            const text = await listenForAnswer(target.lang, [target.text, ...(target.also || [])], (words) => {
                 if (listeningFor.current === key) setAnswer((a) => (a && a.status === 'listening' ? { ...a, text: words } : a));
             });
             if (listeningFor.current !== key) return;
-            if (practice) {
-                const correct = isRightAnswer(text, target.text, target.lang);
+            if (!text) {
+                setAnswer({ status: 'heard', text: '', practice });
+            } else if (practice) {
+                const correct = rightFor(c, text);
                 setAnswer({ status: 'heard', text, practice, correct });
-                if (text) sayReply(correct ? 'Correct' : 'Not quite');
+                reply(correct);
             } else {
-                setAnswer({ status: 'heard', text });
+                mark(c, text);
             }
         } catch (err) {
             if (listeningFor.current !== key) return;
@@ -265,25 +394,13 @@ function NotebookQuiz() {
             setAnswer({
                 status: 'error', text: '', practice,
                 error: code === 'DENIED' ? 'Remembrancer isn’t allowed to use the microphone or speech recognition. You can turn them on in Settings → Remembrancer.'
-                    : code === 'UNAVAILABLE' ? 'Your iPhone can’t recognise this language right now.'
+                    : code === 'UNAVAILABLE' ? 'Your iPhone can’t recognize this language right now.'
                         : code === 'UNIMPLEMENTED' ? 'Update the app to answer by speaking.'
                             : 'Couldn’t listen. Try again.',
             });
         } finally {
             if (listeningFor.current === key) listeningFor.current = null;
         }
-    };
-
-    // ✓ Check: mark the answer; this is the one the score counts.
-    const check = () => {
-        const c = cards[index];
-        const target = answerTo(c);
-        const correct = isRightAnswer(answer.text, target.text, target.lang);
-        const nextRun = { ...run, [cardKey(c)]: { heard: answer.text, correct } };
-        setRun(nextRun);
-        saveRun(runStore(), nextRun);
-        setAnswer(null);
-        sayReply(correct ? 'Correct' : 'Not quite');
     };
 
     // Score › Start over: forget this run's answers and begin at card 1.
@@ -293,13 +410,15 @@ function NotebookQuiz() {
         saveRun(runStore(), {});
         setShowScore(false);
         setAnswer(null);
+        setSummary(null);
+        setReview(null);
         let d = deal;
         if (direction === 'mixed') {
             d = dealDirections(cards, share);
             setDeal(d);
             saveDeal(saved, share, d);
         }
-        goTo(0, cards, d);
+        goTo(0, cards, d, 'next');
     };
 
     // Save to My Quizzes (a copy of these cards). Throws if it couldn't.
@@ -323,41 +442,77 @@ function NotebookQuiz() {
             setSaveError('Couldn’t save the quiz. Check your connection and try again.');
         }
     };
-
-    // Drop this card from the quiz (the note keeps its line), and show the
-    // next one (the one before, if it was the last).
-    const remove = () => {
-        const list = cards.filter((c, i) => i !== index);
+    // The cards changed (Remove, colour, I was right): keep them, and in a
+    // saved quiz, save them again.
+    const changeCards = (list) => {
         setLoaded({ ...loaded, cards: list });
         if (saved) {
             setSaveError('');
             store(saved, list).catch(() => setSaveError('Couldn’t save the change to this quiz. Check your connection.'));
         }
-        if (!list.length) { stopAudio(); setAudioError(''); return; }
-        goTo(Math.min(index, list.length - 1), list);
+    };
+    // Change the showing card (a function from the card to its new self).
+    const changeCard = (fn) => changeCards(cards.map((c, i) => (i === cur ? fn(c) : c)));
+
+    // "I was right": what was heard is another right answer for this card
+    // (kept in its answer side's `also`), and the mark becomes Correct. A
+    // practice try is only marked; the counted answer stays as it was.
+    const iWasRight = (heard, practice) => {
+        const c = cards[cur];
+        const sideKey = answerSideKey(c);
+        changeCard((card) => {
+            const also = card[sideKey].also || [];
+            return also.includes(heard) ? card : { ...card, [sideKey]: { ...card[sideKey], also: [...also, heard] } };
+        });
+        if (practice) {
+            setAnswer({ ...answer, correct: true, marked: true });
+        } else {
+            const nextRun = { ...run, [cardKey(c)]: { heard, correct: true, marked: true } };
+            setRun(nextRun);
+            saveRun(runStore(), nextRun);
+        }
+        feel('success');
+    };
+    // Undo "I was right": back to Not quite, and that answer isn't right any more.
+    const undoRight = () => {
+        const c = cards[cur];
+        const result = run[cardKey(c)];
+        const sideKey = answerSideKey(c);
+        changeCard((card) => {
+            const also = (card[sideKey].also || []).filter((a) => a !== result.heard);
+            const { also: dropped, ...rest } = card[sideKey];
+            return { ...card, [sideKey]: also.length ? { ...rest, also } : rest };
+        });
+        const nextRun = { ...run, [cardKey(c)]: { heard: result.heard, correct: false } };
+        setRun(nextRun);
+        saveRun(runStore(), nextRun);
     };
 
-    // Colour this card (one of the notes' colours, utils/itemColors.js), or
-    // none. It belongs to this quiz's card, not the note: kept in the card,
-    // so a saved quiz saves it (again, like Remove).
-    const setCardColor = (e, key) => {
-        e.stopPropagation();
-        setColoring(false);
-        const list = cards.map((c, i) => {
-            if (i !== index) return c;
+    // ⋯ › Remove: drop this card from the quiz (the note keeps its line), and
+    // show the next one (the one before, if it was the last).
+    const remove = () => {
+        const list = cards.filter((c, i) => i !== index);
+        changeCards(list);
+        if (!list.length) { stopAudio(); setAudioError(''); return; }
+        const i = Math.min(index, list.length - 1);
+        setIndex(i);
+        show(i, 'next', list);
+    };
+    // ⋯ › colour: this card's colour (one of the notes' colours,
+    // utils/itemColors.js), or none. It belongs to this quiz's card, not the
+    // note: kept in the card, so a saved quiz saves it.
+    const setCardColor = (key) => {
+        changeCard((c) => {
             const { color, ...rest } = c;
             return key ? { ...rest, color: key } : rest;
         });
-        setLoaded({ ...loaded, cards: list });
-        if (saved) {
-            setSaveError('');
-            store(saved, list).catch(() => setSaveError('Couldn’t save the change to this quiz. Check your connection.'));
-        }
     };
+    const copy = (text) => copyText(text).then(() => setCopied('done'), () => setCopied('failed'));
 
     // "See note": go to the card's note, keeping the quiz for "Back to quiz".
     const openSource = (source) => {
         stopAudio();
+        setMenu(false);
         setAway(true);
         // A quiz from one notebook opens the note there; one across
         // notebooks (a note and its links, a tag) through the note's own
@@ -366,7 +521,7 @@ function NotebookQuiz() {
     };
     const comeBack = () => {
         setAway(false);
-        if (index >= 0 && cards[index]) say(sideOf(cards[index], flipped));
+        if (summary === null && cur >= 0 && cards[cur]) say(sideOf(cards[cur], flipped));
     };
 
     if (away) {
@@ -440,6 +595,9 @@ function NotebookQuiz() {
                                     </button>
                                 </div>
                             )}
+                            {cards.length > rounds[0][1] && (
+                                <div className="add-sheet__hint">In {rounds.length} rounds of about 20 cards.</div>
+                            )}
                         </div>
                     )}
                     {loaded && loaded.missing > 0 && (
@@ -452,82 +610,267 @@ function NotebookQuiz() {
         );
     }
 
-    const card = cards[index];
+    const card = cards[cur];
+    const lang = quizLanguage(cards);
+    // The card's counted answer (a review starts each card afresh: its tries
+    // are practice).
+    const result = card && !review ? run[cardKey(card)] : null;
+    // What was just heard as practice (after the counted answer, or in a review).
+    const tried = answer && answer.status === 'heard' && answer.practice && answer.text ? answer : null;
+    const answered = !!(result || tried);
+    // After an answer the card shows both sides (unless you flip it).
+    const revealed = card && answered && !flipped;
     const side = card && sideOf(card, flipped);
+    const target = card && answerTo(card);
     // The card's own colour, if it was given one ({ key, label, tint, ink }).
     const cardColor = card && card.color ? ITEM_COLORS.find((c) => c.key === card.color) || null : null;
-    const last = index + 1 >= cards.length;
-    // Mixed: which language to answer the front in ("→ English", "→ Spanish").
-    const answerIn = card && direction === 'mixed' && !flipped
-        ? (toEnglishFor(card) ? 'English' : languageLabel(card.foreign.lang).replace(/ \(.*\)$/, ''))
-        : null;
+    // "Spanish → English": the way this card is asked.
+    const way = card && (toEnglishFor(card) ? `${lang} → English` : `English → ${lang}`);
+    const round = summary !== null ? summary : roundAt(rounds, index);
+    const [roundStart, roundEnd] = rounds[round] || [0, 0];
+    const lastInRound = review ? review.pos + 1 >= review.list.length : index + 1 >= roundEnd;
+    const nextLabel = lastInRound ? 'Finish round' : 'Next';
+    // Where we are: "3/20" in the round (or in the review).
+    const pos = review ? review.pos + 1 : index - roundStart + 1;
+    const of = review ? review.list.length : roundEnd - roundStart;
 
-    // Under the front of the card (iPhone app): 🎤, what was heard, Again /
-    // Check, and once checked, the mark.
-    const answerRow = () => {
-        const target = answerTo(card);
-        const result = run[cardKey(card)];
-        const mic = (label, extra = '') => (
-            <button type="button" className={`quiz__mic${extra}`} onClick={listen}>
-                <i className="microphone icon" aria-hidden="true"></i>{label}
+    // The menu (⋯): everything that isn't answering.
+    const menuSheet = () => (
+        <>
+            <div className="quiz-menu__scrim" onMouseDown={() => setMenu(false)} aria-hidden="true" />
+            <div className="quiz-menu" role="menu" aria-label="Quiz menu">
+                {speech && (
+                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setShowScore(true); }}>
+                        <i className="chart bar outline icon" aria-hidden="true"></i>Score
+                    </button>
+                )}
+                {saved ? (
+                    <div className="quiz-menu__note"><i className="check icon" aria-hidden="true"></i>Saved as “{saved.name}”</div>
+                ) : (
+                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setNaming(`${quiz.title} quiz`); }}>
+                        <i className="save outline icon" aria-hidden="true"></i>Save quiz
+                    </button>
+                )}
+                {card && card.source && (
+                    <button type="button" role="menuitem" onClick={() => openSource(card.source)}>
+                        {/* Not the note's title: it could give the answer away. */}
+                        <i className="file alternate outline icon" aria-hidden="true"></i>See note
+                    </button>
+                )}
+                {card && (
+                    <button type="button" role="menuitem" onClick={() => copy(side.text)}>
+                        <i className={`${copied === 'done' ? 'check' : copied === 'failed' ? 'exclamation' : 'copy outline'} icon`}
+                            aria-hidden="true"></i>
+                        {copied === 'done' ? 'Copied' : copied === 'failed' ? 'Couldn’t copy' : 'Copy text'}
+                    </button>
+                )}
+                {card && (
+                    <div className="quiz-menu__colors" role="group" aria-label="Card color">
+                        <span className="quiz-menu__label">Card color</span>
+                        <span className="quiz-menu__swatches">
+                            {ITEM_COLORS.map((c) => (
+                                <button type="button" key={c.key} aria-label={c.label} title={c.label}
+                                    aria-pressed={cardColor ? cardColor.key === c.key : false}
+                                    className={`quiz__swatch${cardColor && cardColor.key === c.key ? ' on' : ''}`}
+                                    style={{ background: c.ink }} onClick={() => setCardColor(c.key)} />
+                            ))}
+                            <button type="button" className="quiz__swatch quiz__swatch--none" aria-label="No color"
+                                title="No color" onClick={() => setCardColor(null)}>
+                                <i className="ban icon" aria-hidden="true"></i>
+                            </button>
+                        </span>
+                    </div>
+                )}
+                {card && !review && (
+                    <button type="button" role="menuitem" className="quiz-menu__danger"
+                        onClick={() => { setMenu(false); remove(); }}>
+                        <i className="trash alternate outline icon" aria-hidden="true"></i>Remove card from quiz
+                    </button>
+                )}
+            </div>
+        </>
+    );
+
+    // ✕, the round's progress, ⋯.
+    const topBar = () => (
+        <div className="quiz__top">
+            <button type="button" className="quiz__icon" aria-label="End the quiz" title="End the quiz" onClick={close}>
+                <i className="times icon" aria-hidden="true"></i>
             </button>
-        );
-        const mark = (correct) => (correct
-            ? <span className="quiz__mark quiz__mark--right"><i className="check icon" aria-hidden="true"></i>Correct</span>
-            : <span className="quiz__mark quiz__mark--wrong"><i className="times icon" aria-hidden="true"></i>Not quite</span>);
-        const heardLine = (text) => (text
-            ? <div className="quiz__heard">Heard: <span lang={target.lang}>“{text}”</span></div>
-            : <div className="quiz__heard quiz__heard--none">Didn’t catch that.</div>);
-
-        if (answer && answer.status === 'listening') {
-            return (
-                <div className="quiz__answer" aria-live="polite">
-                    {mic('Listening… tap to stop', ' quiz__mic--on')}
-                    {answer.text && heardLine(answer.text)}
+            <div className="quiz__progress">
+                <div className="quiz__bar" role="progressbar" aria-valuemin={0} aria-valuemax={of} aria-valuenow={summary !== null ? of : pos}
+                    aria-label={review ? 'Review' : `Round ${round + 1}`}>
+                    <div className="quiz__barfill" style={{ width: `${of ? ((summary !== null ? of : pos) / of) * 100 : 0}%` }} />
                 </div>
-            );
+                <span className="quiz__where">
+                    {review ? 'Review' : rounds.length > 1 ? `Round ${round + 1} of ${rounds.length}` : ''}
+                </span>
+            </div>
+            <span className="quiz__count">{summary !== null ? `${of}/${of}` : card ? `${pos}/${of}` : ''}</span>
+            <span className="quiz__menuwrap">
+                <button type="button" className={`quiz__icon${menu ? ' on' : ''}`} aria-label="Menu" title="Menu"
+                    aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+                    <i className="ellipsis horizontal icon" aria-hidden="true"></i>
+                </button>
+                {menu && menuSheet()}
+            </span>
+        </div>
+    );
+
+    // ‹ and › beside the main button (swiping does the same).
+    const sideButtons = (main) => (
+        <div className="quiz__controls">
+            <button type="button" className="quiz__step" aria-label="Previous card" title="Previous card" onClick={previous}
+                disabled={review ? review.pos === 0 : index === 0}>
+                <i className="angle left icon" aria-hidden="true"></i>
+            </button>
+            {main}
+            <button type="button" className="quiz__step" aria-label={nextLabel} title={nextLabel} onClick={next}>
+                <i className="angle right icon" aria-hidden="true"></i>
+            </button>
+        </div>
+    );
+
+    // The coloured panel after an answer: Correct / Not quite, what you
+    // said, and Continue, I was right, Try again.
+    const feedback = (said, correct, { marked = false, practice = false } = {}) => (
+        <div className={`quiz-feedback quiz-feedback--${correct ? 'right' : 'wrong'}`} aria-live="polite">
+            <div className="quiz-feedback__title">
+                <i className={`${correct ? 'check circle' : 'exclamation circle'} icon`} aria-hidden="true"></i>
+                {practice ? 'Practice: ' : ''}{correct ? 'Correct' : 'Not quite'}
+                {marked && <span className="quiz-feedback__marked">you marked it</span>}
+            </div>
+            <div className="quiz-feedback__said">
+                You said “<span lang={target.lang}>{said}</span>”
+                {!correct && <> · the card says “<span lang={target.lang}>{target.text}</span>”</>}
+            </div>
+            <button type="button" className="quiz-feedback__go" onClick={next}>
+                {lastInRound ? 'Finish round' : 'Continue'}
+            </button>
+            <div className="quiz-feedback__more">
+                {!correct && (
+                    <button type="button" onClick={() => iWasRight(said, practice)}>
+                        <i className="check icon" aria-hidden="true"></i>I was right
+                    </button>
+                )}
+                {marked && !practice && (
+                    <button type="button" onClick={undoRight}>
+                        <i className="undo icon" aria-hidden="true"></i>Undo
+                    </button>
+                )}
+                <button type="button" onClick={listen}>
+                    <i className="microphone icon" aria-hidden="true"></i>Try again
+                </button>
+            </div>
+        </div>
+    );
+
+    // Under the card: the mic (iPhone) or Show answer / Next (website), or
+    // after an answer, its feedback.
+    const bottom = () => {
+        const listening = answer && answer.status === 'listening';
+        if (tried && !listening) return feedback(tried.text, tried.correct, { practice: true, marked: tried.marked });
+        if (result && !listening && !(answer && answer.status !== 'heard')) {
+            return feedback(result.heard, result.correct, { marked: result.marked });
         }
-        if (answer && answer.status === 'error') {
+        if (speech && !flipped) {
+            const heardNothing = answer && answer.status === 'heard' && !answer.text;
             return (
                 <div className="quiz__answer">
-                    <div className="quiz__heard quiz__heard--none">{answer.error}</div>
-                    {mic('Try again')}
+                    {sideButtons(
+                        <button type="button" className={`quiz__mic${listening ? ' quiz__mic--on' : ''}`} onClick={listen}
+                            aria-label={listening ? 'Stop listening' : `Say it in ${languageLabel(target.lang).replace(/ \(.*\)$/, '')}`}>
+                            <i className={`${listening ? 'stop' : 'microphone'} icon`} aria-hidden="true"></i>
+                        </button>,
+                    )}
+                    <div className={`quiz__miclabel${answer && answer.status === 'error' ? ' quiz__miclabel--error' : ''}`}
+                        aria-live="polite">
+                        {listening ? (answer.text ? <span lang={target.lang}>“{answer.text}”</span> : 'Listening… tap to stop')
+                            : answer && answer.status === 'error' ? answer.error
+                                : heardNothing ? 'Didn’t catch that. Tap to try again.'
+                                    : `Say it in ${languageLabel(target.lang).replace(/ \(.*\)$/, '')}`}
+                    </div>
                 </div>
             );
         }
-        if (answer && !answer.practice) {
-            return (
-                <div className="quiz__answer" aria-live="polite">
-                    {heardLine(answer.text)}
-                    <div className="quiz__answerbtns">
-                        {mic('Again', ' quiz__mic--small')}
-                        <button type="button" className="cb-btn cb-btn--accent quiz__check" onClick={check}
-                            disabled={!answer.text}>
-                            <i className="check icon" aria-hidden="true"></i>Check
+        return (
+            <div className="quiz__answer">
+                {sideButtons(
+                    flipped ? (
+                        <button type="button" className="quiz__main" onClick={next}>
+                            {nextLabel}<i className="arrow right icon" aria-hidden="true"></i>
                         </button>
-                    </div>
-                </div>
-            );
+                    ) : (
+                        <button type="button" className="quiz__main" onClick={flip}>Show answer</button>
+                    ),
+                )}
+            </div>
+        );
+    };
+
+    // The end of a round: how it went, the streak, and what's next.
+    const summarySheet = () => {
+        const inRound = cards.slice(roundStart, roundEnd);
+        const s = scoreOf(run, inRound);
+        const missed = [];
+        for (let i = roundStart; i < roundEnd; i += 1) {
+            const r = run[cardKey(cards[i])];
+            if (r && !r.correct) missed.push(i);
         }
-        if (result) {
-            const shown = answer && answer.practice ? answer : null; // a practice try after Check
-            return (
-                <div className="quiz__answer" aria-live="polite">
-                    {heardLine(result.heard)}
-                    <div className="quiz__result">
-                        {mark(result.correct)}
-                        {!result.correct && <span className="quiz__solution">Answer: <span lang={target.lang}>{target.text}</span></span>}
+        const streak = dayStreak();
+        const lastRound = round + 1 >= rounds.length;
+        const whole = scoreOf(run, cards);
+        return (
+            <div className="quiz-summary">
+                {speech ? (
+                    <ScoreRing percent={s.score} label={s.answered ? `${s.correct}/${s.answered}` : '–'} />
+                ) : (
+                    <div className="quiz-summary__done" aria-hidden="true"><i className="check icon"></i></div>
+                )}
+                <h3 className="quiz-summary__title">
+                    {lastRound ? 'Quiz done' : rounds.length > 1 ? `Round ${round + 1} done` : 'Done'}
+                </h3>
+                {speech && !s.answered && <div className="quiz-summary__line">No answers this round.</div>}
+                <div className="quiz-summary__tiles">
+                    <div className="quiz-summary__tile">
+                        <span className="quiz-summary__tilelabel">Day streak</span>
+                        <span className="quiz-summary__tilenum">{streak} day{streak === 1 ? '' : 's'}</span>
                     </div>
-                    {shown && (
-                        <div className="quiz__practice">
-                            Practice: {shown.text ? <>“<span lang={target.lang}>{shown.text}</span>” {mark(shown.correct)}</> : 'didn’t catch that.'}
+                    {speech ? (
+                        <div className="quiz-summary__tile">
+                            <span className="quiz-summary__tilelabel">To review</span>
+                            <span className="quiz-summary__tilenum">{missed.length}</span>
+                        </div>
+                    ) : (
+                        <div className="quiz-summary__tile">
+                            <span className="quiz-summary__tilelabel">Cards</span>
+                            <span className="quiz-summary__tilenum">{inRound.length}</span>
                         </div>
                     )}
-                    {mic('Practise', ' quiz__mic--small')}
                 </div>
-            );
-        }
-        return <div className="quiz__answer">{mic('Say it')}</div>;
+                {speech && rounds.length > 1 && whole.score !== null && (
+                    <div className="quiz-summary__line">Whole quiz so far: {whole.score} / 100</div>
+                )}
+                <div className="quiz-summary__btns">
+                    <button type="button" className="quiz__main" onClick={() => {
+                        setSummary(null);
+                        if (lastRound) { close(); return; }
+                        goTo(rounds[round + 1][0], cards, deal, 'next');
+                    }}>
+                        {lastRound ? 'Finish' : 'Next round'}
+                    </button>
+                    {missed.length > 0 && (
+                        <button type="button" className="quiz__second" onClick={() => {
+                            setSummary(null);
+                            setReview({ round, list: missed, pos: 0 });
+                            show(missed[0]);
+                        }}>
+                            Review the {missed.length} missed
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
     };
 
     const scoreSheet = () => {
@@ -543,7 +886,7 @@ function NotebookQuiz() {
                         </button>
                     </div>
                     {s.score === null ? (
-                        <div className="quiz-score__line">No answers checked yet. Tap Say it on a card, then Check.</div>
+                        <div className="quiz-score__line">No answers yet. Tap the microphone on a card and say the answer.</div>
                     ) : (
                         <>
                             <div className="quiz-score__big">{s.score}<span className="quiz-score__of"> / 100</span></div>
@@ -565,28 +908,7 @@ function NotebookQuiz() {
     return (
         <div className="quiz__overlay">
             <div className="quiz" role="dialog" aria-modal="true" aria-label={`Quiz on ${title}`}>
-                <div className="quiz__head">
-                    <span className="quiz__count">{card ? `${index + 1} of ${cards.length}` : 'No cards left'}</span>
-                    <span className="quiz__headbtns">
-                        {card && canAnswerBySpeech() && (
-                            <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setShowScore(true)}>
-                                <i className="chart bar outline icon" aria-hidden="true"></i>Score
-                            </button>
-                        )}
-                        {saved ? (
-                            <span className="quiz__saved" title={`Saved in My Quizzes as “${saved.name}”`}>
-                                <i className="check icon" aria-hidden="true"></i>Saved
-                            </span>
-                        ) : card && naming === null && (
-                            <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setNaming(`${quiz.title} quiz`)}>
-                                <i className="save outline icon" aria-hidden="true"></i>Save
-                            </button>
-                        )}
-                        <button type="button" className="cb-btn cb-btn--ghost" onClick={close}>
-                            <i className="stop icon" aria-hidden="true"></i>Stop
-                        </button>
-                    </span>
-                </div>
+                {topBar()}
                 {naming !== null && (
                     <form className="quiz__name" onSubmit={saveAs}>
                         <label className="quiz__namelabel" htmlFor="quiz-name">Save in My Quizzes as</label>
@@ -599,86 +921,44 @@ function NotebookQuiz() {
                         </span>
                     </form>
                 )}
-                {card ? (
-                    <div className="quiz__cardwrap">
-                        {/* A tappable box rather than a button, so the Copy
-                            button can sit beside the text (a button can't
-                            hold another one). */}
-                        <div role="button" tabIndex={0} className={`quiz__card${flipped ? ' quiz__card--back' : ''}`}
+                {summary !== null ? summarySheet() : card ? (
+                    <>
+                        {/* A tappable box rather than a button, so the 🔊
+                            button can sit inside it (a button can't hold
+                            another one). Its key changes with the card and
+                            side, so it's drawn afresh and animates in. */}
+                        <div key={`${cur}:${flipped}`} role="button" tabIndex={0}
+                            className={`quiz__card quiz__card--${motion}${flipped ? ' quiz__card--back' : ''}`}
                             style={cardColor ? { background: cardColor.tint, borderColor: cardColor.ink } : undefined}
                             data-color={cardColor ? cardColor.key : undefined}
-                            onClick={flip}
+                            onClick={flip} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } }}>
-                            {answerIn && <span className="quiz__toward">→ {answerIn}</span>}
-                            <span className="quiz__textrow">
-                                <span className="quiz__text" lang={side.lang}>{side.text}</span>
-                                <button type="button" className={`quiz__copy${copied ? ` quiz__copy--${copied}` : ''}`}
-                                    aria-label="Copy the text" title={copied === 'failed' ? 'Couldn’t copy' : 'Copy the text'}
-                                    onClick={(e) => copy(e, side.text)}>
-                                    <i className={`${copied === 'done' ? 'check' : copied === 'failed' ? 'exclamation' : 'copy outline'} icon`}
-                                        aria-hidden="true"></i>
-                                </button>
-                                <button type="button" className={`quiz__copy quiz__colorbtn${coloring ? ' on' : ''}`}
-                                    aria-label="Colour this card" title="Colour this card" aria-expanded={coloring}
-                                    onClick={(e) => { e.stopPropagation(); setColoring(!coloring); }}>
-                                    <span className="quiz__dot" style={cardColor ? { background: cardColor.ink } : undefined}
-                                        aria-hidden="true" />
-                                </button>
-                            </span>
-                            {coloring && (
-                                <span className="quiz__colors" role="group" aria-label="Card colour">
-                                    {ITEM_COLORS.map((c) => (
-                                        <button type="button" key={c.key} aria-label={c.label} title={c.label}
-                                            aria-pressed={cardColor ? cardColor.key === c.key : false}
-                                            className={`quiz__swatch${cardColor && cardColor.key === c.key ? ' on' : ''}`}
-                                            style={{ background: c.ink }} onClick={(e) => setCardColor(e, c.key)} />
-                                    ))}
-                                    <button type="button" className="quiz__swatch quiz__swatch--none" aria-label="No colour"
-                                        title="No colour" onClick={(e) => setCardColor(e, null)}>
-                                        <i className="ban icon" aria-hidden="true"></i>
-                                    </button>
+                            <span className="quiz__way">{flipped ? 'Answer' : way}</span>
+                            <span className="quiz__text" lang={side.lang}>{side.text}</span>
+                            {revealed && (
+                                <span className="quiz__reveal" lang={target.lang}>{target.text}</span>
+                            )}
+                            <button type="button" className="quiz__again" aria-label="Read aloud" title="Read aloud"
+                                onClick={(e) => { e.stopPropagation(); say(revealed ? target : side); }}>
+                                <i className="volume up icon" aria-hidden="true"></i>
+                            </button>
+                            {!review && index < 3 && !flipped && !answered && (
+                                <span className="quiz__hint">
+                                    {touchScreen ? 'Tap the card to flip · swipe for the next one'
+                                        : 'Click the card to flip · ← → for the next one'}
                                 </span>
                             )}
-                            <span className="quiz__hint">tap to flip</span>
                         </div>
-                        {/* Beside the card, not in it: tapping the card flips it. */}
-                        <button type="button" className="quiz__again" aria-label="Read again" title="Read again"
-                            onClick={() => say(side)}>
-                            <i className="volume up icon" aria-hidden="true"></i>
-                        </button>
-                    </div>
+                        {bottom()}
+                    </>
                 ) : (
                     <div className="quiz__empty">You removed every card.</div>
                 )}
-                {card && canAnswerBySpeech() && !flipped && answerRow()}
-                {card && card.source && (
-                    <button type="button" className="quiz__from" onClick={() => openSource(card.source)}>
-                        {/* Not the note's title: it could give the answer away. */}
-                        <span className="quiz__fromname">See note</span>
-                        <i className="angle right icon" aria-hidden="true"></i>
-                    </button>
-                )}
                 {audioError && <div className="quiz__error">{audioError}</div>}
                 {saveError && <div className="quiz__error">{saveError}</div>}
-                <div className="quiz__foot">
-                    {card ? (
-                        <>
-                            <button type="button" className="cb-btn cb-btn--ghost" onClick={() => goTo(index - 1)}
-                                disabled={index === 0}>
-                                <i className="arrow left icon" aria-hidden="true"></i>Previous
-                            </button>
-                            <button type="button" className="quiz__remove" onClick={remove}
-                                title="Remove this card from the quiz (the note keeps it)">
-                                <i className="trash alternate outline icon" aria-hidden="true"></i>Remove
-                            </button>
-                            <button type="button" className="cb-btn cb-btn--accent" onClick={next}>
-                                {last ? 'Done' : <>Next<i className="arrow right icon" aria-hidden="true"></i></>}
-                            </button>
-                        </>
-                    ) : (
-                        <button type="button" className="cb-btn cb-btn--accent quiz__done" onClick={close}>Done</button>
-                    )}
-                </div>
+                {!card && summary === null && (
+                    <button type="button" className="quiz__main quiz__done" onClick={close}>Done</button>
+                )}
             </div>
             {showScore && scoreSheet()}
         </div>
