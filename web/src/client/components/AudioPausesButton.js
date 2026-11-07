@@ -13,7 +13,8 @@ import NoteChangeToast from './NoteChangeToast';
 //
 //   Set all pauses (12)                    [1s] [2s] [3s] [5s]
 //   Add between foreign language lines     [1s] [2s] [3s] [5s]
-//     (and before a "—" that follows foreign words)
+//     (and, on a line with foreign words before its "—", a pause before
+//     the "—" and one at the line's end)
 //   Add at the end of every line           [1s] [2s] [3s] [5s]
 //   Remove pauses between foreign language lines
 //   Remove all pauses
@@ -65,7 +66,7 @@ export default function AudioPausesButton({ card }) {
                         <div className="pause-menu__row">
                             <span className="pause-menu__label">
                                 Add between foreign language lines
-                                <span className="pause-menu__hint">after a line not in English, before the next — and before its “—”</span>
+                                <span className="pause-menu__hint">after a line not in English, before the next — and around “—” after foreign words</span>
                             </span>
                             {lengths((s) => run((h) => addForeignPauses(h, s),
                                 (n) => `Added ${pauses(n)} of ${s}s to foreign language lines.`,
