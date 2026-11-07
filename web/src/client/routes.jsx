@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { useRoutes, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import App from './App';
@@ -19,6 +19,7 @@ import { COGNITO_LOGIN, COGNITO_SIGNUP } from './utils/cognito';
 import { isNativeApp } from './native/platform';
 import { nativeSignIn } from './native/auth';
 import { isRemembrancer } from './utils/site';
+import { placeToRestore } from './utils/lastPlace';
 
 // The original /login and /signup "routes" ran window.location during render,
 // which is a render-time side effect. Do the redirect in an effect instead.
@@ -53,11 +54,19 @@ const AdminsListPage = loadOnDemand(() => import('./pages/AdminsListPage'));
 // The site's home page (utils/site.js). Make Your Wordbook opens on the Words
 // search; Remembrancer opens on My Notebooks once signed in (its Words search
 // is at /words). Signed out, both show the Words page's intro (Landing).
+// The iPhone app, signed in, opens where you were last time instead (once
+// per launch: utils/lastPlace.js).
 const SiteHome = () => {
   const auth = useSelector((state) => state.auth);
+  // Asked once and kept, so a second render (the sign-in check's answer
+  // arriving) goes to the same place.
+  const place = useRef(undefined);
   if (!isRemembrancer) return <HomePage />;
   if (auth === null) return <Spinner label="Loading…" />;
-  if (auth) return <Navigate to="/account" replace />;
+  if (auth) {
+    if (place.current === undefined) place.current = placeToRestore() || '/account';
+    return <Navigate to={place.current} replace />;
+  }
   return <HomePage />;
 };
 

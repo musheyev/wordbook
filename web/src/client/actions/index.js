@@ -5,6 +5,10 @@ import { isNativeApp } from '../native/platform';
 import { nativeSignOut } from '../native/auth';
 import { rememberScheduledNotice } from '../utils/deletionDate';
 import { clearOfflineData, itemDeleted, notebookDeleted, notebookRenamed } from '../offline/downloads';
+// What the first screen needs is asked with requestSavedFirst: in the iPhone
+// app, just after it opens, the phone's saved copy shows at once and the
+// server's answer follows (offline/apiCache.js). Elsewhere it's a plain request.
+import { requestSavedFirst } from '../offline/apiCache';
 import {
   isQueueing, queueCardCreate, queueCardUpdate, queueItemColors, queueItemTags, queueQuizSave, queueQuizDelete,
   queueBookmark, queueBookmarksClear,
@@ -23,12 +27,8 @@ export const fetchUsers = () => async (dispatch, getState, api) => {
 
 export const FETCH_CURRENT_USER = 'fetch_current_user';
 export const fetchCurrentUser = () => async (dispatch, getState, api) => {
-  const res = await api.get('/auth/current_user');
-
-  dispatch({
-    type: FETCH_CURRENT_USER,
-    payload: res
-  });
+  await requestSavedFirst(api, { method: 'get', url: '/auth/current_user' },
+    (res) => dispatch({ type: FETCH_CURRENT_USER, payload: res }));
 };
 
 export const SET_CURRENT_WORD = "set_current_word";
@@ -223,15 +223,22 @@ export const fetchCardData = (cardId) => async (dispatch, getState, api) => {
   dispatch({ type: FETCH_WORD_DATA, payload: { data: { word: cardId, definitions: {}, images: [] } } });
 
   const selection = latestSelection;
-  let card;
+  // Shown once, or twice in the iPhone app (the phone's copy, then the
+  // server's). `noteOpened` puts it among the recent notes, whose copies are
+  // kept (offline/recent.js).
+  const show = (card) => {
+    if (selection !== latestSelection) return; // a newer word or note was picked
+    dispatch({ type: FETCH_CARD_DATA, payload: card });
+  };
   try {
-    card = (await api.post('/wordbook/card/get', { card_id: cardId }, JSON_HEADERS)).data;
+    await requestSavedFirst(api, {
+      method: 'post', url: '/wordbook/card/get', data: { card_id: cardId }, ...JSON_HEADERS, noteOpened: true,
+    }, (res) => show(res.data));
   } catch (err) {
     // The note view shows this with "Try again" instead of a spinner forever.
-    card = { card_id: cardId, loadError: requestErrorMessage(err, "Couldn't load this note. Try again.") };
+    show({ card_id: cardId, loadError: requestErrorMessage(err, "Couldn't load this note. Try again.") });
   }
-  if (selection !== latestSelection) return; // a newer word or note was picked
-  dispatch({ type: FETCH_CARD_DATA, payload: card });
+  if (selection !== latestSelection) return;
 
   // Which wordbooks currently contain this card (drives the selection popup).
   dispatch(fetchWordWordbooks(cardId));
@@ -558,25 +565,16 @@ export const deleteWordbook = (name) => async (dispatch, getState, api) => {
 
 export const FETCH_WORDBOOKS = 'fetch_wordbooks';
 export const fetchWordbooks = () => async (dispatch, getState, api) => {
-  //console.log("fetchWordbooks called");
-  const res = await api.get('/wordbook/list');
-
-  dispatch({
-    type: FETCH_WORDBOOKS,
-    payload: res
-  });
+  await requestSavedFirst(api, { method: 'get', url: '/wordbook/list' },
+    (res) => dispatch({ type: FETCH_WORDBOOKS, payload: res }));
 };
 
 // Preview = wordbook name -> comma-joined first few words. Stored separately so
 // the plain `wordbooks` name array (used elsewhere) keeps its shape.
 export const FETCH_WORDBOOK_PREVIEWS = 'fetch_wordbook_previews';
 export const fetchWordbookPreviews = () => async (dispatch, getState, api) => {
-  const res = await api.get('/wordbook/list?preview=y');
-
-  dispatch({
-    type: FETCH_WORDBOOK_PREVIEWS,
-    payload: res
-  });
+  await requestSavedFirst(api, { method: 'get', url: '/wordbook/list?preview=y' },
+    (res) => dispatch({ type: FETCH_WORDBOOK_PREVIEWS, payload: res }));
 };
 
 // ---------------------------------------------------------------------------
@@ -592,35 +590,33 @@ export const FETCH_WORDBOOK_KINDS = 'fetch_wordbook_kinds';
 export const SET_WORDBOOK_KIND = 'set_wordbook_kind';
 export const WORDBOOK_KIND_RENAMED = 'wordbook_kind_renamed';
 export const fetchWordbookUpdated = () => async (dispatch, getState, api) => {
-  let rows;
+  const show = (rows) => {
+    const updated = {};
+    const kinds = {};
+    (Array.isArray(rows) ? rows : []).forEach(({ name, updated: time, kind }) => {
+      updated[name] = time;
+      kinds[name] = kind === 'wordbook' ? 'wordbook' : 'notebook';
+    });
+    dispatch({ type: FETCH_WORDBOOK_UPDATED, payload: updated });
+    dispatch({ type: FETCH_WORDBOOK_KINDS, payload: kinds });
+  };
   try {
-    rows = (await api.get('/wordbook/list?meta=y')).data;
+    await requestSavedFirst(api, { method: 'get', url: '/wordbook/list?meta=y' }, (res) => show(res.data));
   } catch (err) {
     // Without kinds, everything counts as a notebook, so My Notebooks still
     // shows rather than waiting forever.
     if (getState().wordbookKinds === null) dispatch({ type: FETCH_WORDBOOK_KINDS, payload: {} });
-    return;
   }
-  const updated = {};
-  const kinds = {};
-  (Array.isArray(rows) ? rows : []).forEach(({ name, updated: time, kind }) => {
-    updated[name] = time;
-    kinds[name] = kind === 'wordbook' ? 'wordbook' : 'notebook';
-  });
-  dispatch({ type: FETCH_WORDBOOK_UPDATED, payload: updated });
-  dispatch({ type: FETCH_WORDBOOK_KINDS, payload: kinds });
 };
 
 // How My Notebooks is sorted ("az" | "updated" | "custom"), saved on the
 // account so every device opens with the last one used.
 export const SET_NOTEBOOK_SORT = 'set_notebook_sort';
 export const fetchNotebookSort = () => async (dispatch, getState, api) => {
-  let sort = 'az';
+  const show = (data) => dispatch({ type: SET_NOTEBOOK_SORT, payload: (data && data.sort) || 'az' });
   try {
-    const res = await api.get('/wordbook/sort');
-    if (res.data && res.data.sort) sort = res.data.sort;
-  } catch (err) { /* keep the default; a preference never breaks the page */ }
-  dispatch({ type: SET_NOTEBOOK_SORT, payload: sort });
+    await requestSavedFirst(api, { method: 'get', url: '/wordbook/sort' }, (res) => show(res.data));
+  } catch (err) { show(null); /* the default; a preference never breaks the page */ }
 };
 
 export const saveNotebookSort = (sort) => async (dispatch, getState, api) => {
@@ -634,12 +630,10 @@ export const saveNotebookSort = (sort) => async (dispatch, getState, api) => {
 // account: { [notebook]: sort }. Loaded once; null until then.
 export const SET_ITEM_SORTS = 'set_item_sorts';
 export const fetchItemSorts = () => async (dispatch, getState, api) => {
-  let sorts = {};
+  const show = (data) => dispatch({ type: SET_ITEM_SORTS, payload: (data && data.sorts) || {} });
   try {
-    const res = await api.get('/wordbook/item-sorts');
-    if (res.data && res.data.sorts) sorts = res.data.sorts;
-  } catch (err) { /* My order everywhere; a preference never breaks the page */ }
-  dispatch({ type: SET_ITEM_SORTS, payload: sorts });
+    await requestSavedFirst(api, { method: 'get', url: '/wordbook/item-sorts' }, (res) => show(res.data));
+  } catch (err) { show(null); /* My order everywhere; a preference never breaks the page */ }
 };
 
 export const saveItemSort = (wordbook, sort) => async (dispatch, getState, api) => {
@@ -653,12 +647,10 @@ export const saveItemSort = (wordbook, sort) => async (dispatch, getState, api) 
 // account: { "<type>#<id>": colour }. Loaded once; null until then.
 export const SET_ITEM_COLORS = 'set_item_colors';
 export const fetchItemColors = () => async (dispatch, getState, api) => {
-  let colors = {};
+  const show = (data) => dispatch({ type: SET_ITEM_COLORS, payload: (data && data.colors) || {} });
   try {
-    const res = await api.get('/wordbook/item-colors');
-    if (res.data && res.data.colors) colors = res.data.colors;
-  } catch (err) { /* no colours shown; never breaks the page */ }
-  dispatch({ type: SET_ITEM_COLORS, payload: colors });
+    await requestSavedFirst(api, { method: 'get', url: '/wordbook/item-colors' }, (res) => show(res.data));
+  } catch (err) { show(null); /* no colours shown; never breaks the page */ }
 };
 
 // Colour items (color null = none). Shown at once; if saving fails, the
@@ -830,26 +822,25 @@ export const FETCH_WORDBOOK_WORDS_FAILED = 'fetch_wordbook_words_failed';
 export const fetchWordbookWords = (wordbookName) => async (dispatch, getState, api) => {
   dispatch({ type: FETCH_WORDBOOK_WORDS_IN_PROGRESS, payload: true });
 
-  let res;
+  // Items are typed objects: { type: 'word'|'card', id, title, preview? }.
+  // Nothing is auto-selected: the notebook opens on its item list, and the
+  // item in the URL (if any) is loaded by WordbookPage. Shown once, or twice
+  // just after the iPhone app opens (the phone's copy, then the server's).
+  // While the copy shows, the list still counts as loading, so the page
+  // doesn't decide "the open note is gone" from an old list.
+  const done = () => dispatch({ type: FETCH_WORDBOOK_WORDS_IN_PROGRESS, payload: false });
+  const show = (res) => {
+    dispatch({ type: FETCH_WORDBOOK_WORDS_IN_PROGRESS, payload: !!res.fromSavedCopy });
+    if (getState().currentWordbook && getState().currentWordbook !== wordbookName) return;
+    dispatch({ type: FETCH_WORDBOOK_WORDS, payload: res, wordbook: wordbookName });
+  };
   try {
-    res = await api.post('/wordbook/words', { wordbook: wordbookName }, JSON_HEADERS);
+    await requestSavedFirst(api,
+      { method: 'post', url: '/wordbook/words', data: { wordbook: wordbookName }, ...JSON_HEADERS }, show, done);
   } catch (err) {
     dispatch({ type: FETCH_WORDBOOK_WORDS_IN_PROGRESS, payload: false });
     dispatch({ type: FETCH_WORDBOOK_WORDS_FAILED, payload: { wordbook: wordbookName, message: requestErrorMessage(err) } });
-    return;
   }
-
-  dispatch({ type: FETCH_WORDBOOK_WORDS_IN_PROGRESS, payload: false });
-  if (getState().currentWordbook && getState().currentWordbook !== wordbookName) return;
-
-  // Items are typed objects: { type: 'word'|'card', id, title, preview? }.
-  // Nothing is auto-selected: the notebook opens on its item list, and the
-  // item in the URL (if any) is loaded by WordbookPage.
-  dispatch({
-    type: FETCH_WORDBOOK_WORDS,
-    payload: res,
-    wordbook: wordbookName,
-  });
 };
 
 // ---------------------------------------------------------------------------

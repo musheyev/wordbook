@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { connect } from 'react-redux';
 import Header from './components/Header';
 import NoteWindows from './components/NoteWindows';
@@ -11,6 +11,7 @@ import PlayerPanel from './components/PlayerPanel';
 import { fetchCurrentUser, fetchInbox } from './actions';
 import { preloadRichTextEditor } from './components/LazyRichTextEditor';
 import { applyShowTtsMarks } from './utils/ttsMarks';
+import { rememberPlace } from './utils/lastPlace';
 
 // Notes show read-aloud marks if this device chose so (utils/ttsMarks.js).
 applyShowTtsMarks();
@@ -23,6 +24,13 @@ const App = ({ auth, accountDeletion, fetchCurrentUser, fetchInbox }) => {
     useEffect(() => {
         fetchCurrentUser();
     }, [fetchCurrentUser]);
+
+    // In the iPhone app, remember each screen, so the app opens there again
+    // next time (utils/lastPlace.js). Nothing on the website.
+    const location = useLocation();
+    useEffect(() => {
+        rememberPlace(location.pathname, location.search);
+    }, [location.pathname, location.search]);
 
     // Stop mobile keyboards from auto-capitalizing the first letter in any text
     // box. Applied globally (once, plus a MutationObserver for fields mounted

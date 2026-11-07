@@ -5,6 +5,8 @@ import { dbClear, dbDeleteWhere, STORES } from './db';
 import { saveNoteImages } from './images';
 import { isOnline, offlineEnabled, onConnectionChange } from './network';
 import { installOutbox, pendingKeys, syncOutbox } from './outbox';
+import { loadRecent, recentKeys, resetRecent } from './recent';
+import { forgetPlace } from '../utils/lastPlace';
 import {
     coveredKeys, getRegistry, isCovered, loadRegistry, onRegistryChange, resetRegistry, updateRegistry,
 } from './registry';
@@ -81,6 +83,9 @@ export async function installOffline(store, axiosInstance) {
     // it may clear when the device is short of space (best effort).
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     await loadRegistry();
+    // The last notes opened keep their copies (offline/recent.js); one that
+    // drops off that list loses its copy, unless a download needs it.
+    await loadRecent({ dropped: () => collectGarbage() });
     await installOutbox({
         api,
         publish: (payload) => dispatch({ type: OFFLINE_STATE, payload }),
@@ -309,8 +314,11 @@ export function dismissDownloadError(target) {
 async function collectGarbage() {
     const covered = coveredKeys();
     pendingKeys().forEach((key) => covered.add(key)); // changes not yet sent
+    // The last notes opened (offline/recent.js) keep their saved copies too,
+    // but they don't count as downloaded ("saved", below).
+    const keep = new Set([...covered, ...recentKeys()]);
     const unused = (record) => Array.isArray(record.items) && record.items.length > 0
-        && !record.items.some((key) => covered.has(key));
+        && !record.items.some((key) => keep.has(key));
     // Items no download needs any more aren't "on the device" either.
     if (Object.keys(getRegistry().saved || {}).some((key) => !covered.has(key))) {
         updateRegistry((draft) => {
@@ -439,5 +447,7 @@ export async function clearOfflineData({ send = true } = {}) {
     if (!offlineEnabled()) return;
     if (send) await syncOutbox().catch(() => {});
     resetRegistry();
+    resetRecent();
+    forgetPlace(); // the next person to sign in starts on My Notebooks
     await Promise.all(STORES.map((store) => dbClear(store).catch(() => {})));
 }
