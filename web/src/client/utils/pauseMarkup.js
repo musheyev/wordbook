@@ -9,13 +9,19 @@
 //                          • Yo estoy — I am ⏸
 //                          • Tú estás — You are ⏸
 //                          • Ustedes están — You all are     (next: English)
+//                        and a pause before a line's "—" when the words in
+//                        front of it are foreign — time to say them before
+//                        hearing the English (any such line, the last too):
+//                          • Yo estoy ⏸ — I am ⏸
+//                          • Cuántas paradas ⏸ — How many stops
 //   addLinePauses        a pause at the end of every line that's followed
 //                        by another, in any language — English too:
 //                          Greetings ⏸
 //                          • Hola — Hello ⏸
 //                          • Adiós — Goodbye                 (the last line)
-//   removeForeignPauses  the pauses between such lines (at a line's end, or
-//                        on a line of their own between them)
+//   removeForeignPauses  the pauses addForeignPauses adds: between such
+//                        lines (at a line's end, or on a line of their own
+//                        between them), and before a "—" after foreign words
 //   removeAllPauses      every pause
 //
 // A "line" is a paragraph, heading or list item — or each part of one split
@@ -50,9 +56,11 @@ const hebrewLetters = (s) => (s.match(HEBREW_LETTERS) || []).length;
 /** A text's letters, with each Hebrew letter counted twice (see above). */
 const weight = (s) => letters(s) + hebrewLetters(s);
 
-/** How much of a text node (by weight) is read aloud in a foreign language. */
-const foreignWeight = (node) => {
-    const text = node.nodeValue;
+/**
+ * How much of a text node (by weight) is read aloud in a foreign language.
+ * `text` is the part of the node to count (all of it unless given).
+ */
+const foreignWeight = (node, text = node.nodeValue) => {
     const marked = node.parentElement && node.parentElement.closest('.tts-lang[lang]');
     const lang = marked ? marked.getAttribute('lang') || '' : '';
     if (lang) return /^en-/i.test(lang) ? 0 : weight(text);
@@ -65,25 +73,30 @@ const foreignWeight = (node) => {
 //   text      its text; foreign = how much of it (by weight) is read in a
 //             foreign language
 //   pauses    pause chips in it; trailing = those at its very end
+//   parts     its text nodes and pause chips, in order (to find a spot
+//             inside the line, like its "—")
 function linesOf(doc) {
     const out = [];
+    const newLine = (block) => ({ block, br: null, text: '', foreign: 0, pauses: [], trailing: [], parts: [] });
     [...doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')]
         .filter((el) => !el.closest('pre, code'))
         .forEach((block) => {
-            let line = { block, br: null, text: '', foreign: 0, pauses: [], trailing: [] };
+            let line = newLine(block);
             const walker = doc.createTreeWalker(block, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
             for (let n = walker.nextNode(); n; n = walker.nextNode()) {
                 if (n.nodeType === Node.TEXT_NODE) {
                     line.text += n.nodeValue;
                     line.foreign += foreignWeight(n);
+                    line.parts.push(n);
                     if (n.nodeValue.trim()) line.trailing = [];
                 } else if (n.tagName === 'BR') {
                     line.br = n;
                     out.push(line);
-                    line = { block, br: null, text: '', foreign: 0, pauses: [], trailing: [] };
+                    line = newLine(block);
                 } else if (n.matches(PAUSE)) {
                     line.pauses.push(n);
                     line.trailing.push(n);
+                    line.parts.push(n);
                 }
             }
             out.push(line);
@@ -93,7 +106,55 @@ function linesOf(doc) {
 
 const isBlank = (line) => !line.text.trim() && !line.pauses.length;
 const isPauseOnly = (line) => !line.text.trim() && line.pauses.length > 0;
-const isForeignLine = (line) => line.foreign > 0 && line.foreign >= FOREIGN_SHARE * weight(line.text);
+const isForeign = (foreign, text) => foreign > 0 && foreign >= FOREIGN_SHARE * weight(text);
+const isForeignLine = (line) => isForeign(line.foreign, line.text);
+
+const DASH = '—';
+
+/**
+ * A line's first "—", when the words in front of it are foreign (the same
+ * one-third rule as a whole line, counted on just those words) and some
+ * words follow it:
+ *
+ *   Cuántas paradas — How many stops     → { node, at, pauses: [] }
+ *   Cuántas paradas ⏸ — How many stops   → pauses: [that chip]
+ *   Greetings — Saludos                  → null (English in front)
+ *
+ * node/at: the text node holding the dash, and where in it a pause would go
+ * — just before the spaces in front of the dash ("paradas⏸ — How"); 0 when
+ * only spaces come before the dash in that node.
+ * pauses: the chips already between those words and the dash.
+ */
+function dashAfterForeign(line) {
+    let text = '';
+    let foreign = 0;
+    let pauses = [];
+    for (const part of line.parts) {
+        if (part.nodeType !== Node.TEXT_NODE) { pauses.push(part); continue; }
+        const value = part.nodeValue;
+        const i = value.indexOf(DASH);
+        const head = i < 0 ? value : value.slice(0, i);
+        text += head;
+        foreign += foreignWeight(part, head);
+        if (head.trim()) pauses = [];
+        if (i < 0) continue;
+        const after = line.text.slice(line.text.indexOf(DASH) + 1);
+        if (!letters(after) || !isForeign(foreign, text)) return null;
+        return { node: part, at: head.replace(/\s+$/, '').length, pauses };
+    }
+    return null;
+}
+
+// Put a pause chip of `s` seconds at a dash spot found by dashAfterForeign:
+// split the text node there (unless the spot is its start) and slip the chip
+// in between.
+function insertPauseAt(doc, { node, at }, s) {
+    const pause = doc.createElement('span');
+    pause.className = 'tts-pause';
+    pause.setAttribute('data-seconds', s);
+    const rest = at > 0 ? node.splitText(at) : node;
+    rest.parentNode.insertBefore(pause, rest);
+}
 
 // Pairs of foreign-language lines that follow each other: { line, next, between }
 // where `between` are the pause-only lines in between (blank lines skipped).
@@ -148,14 +209,25 @@ function appendPause(doc, line, s) {
     else line.block.appendChild(pause);
 }
 
-/** A pause after each foreign-language line followed by another; count = added. */
+/**
+ * A pause after each foreign-language line followed by another, and one
+ * before a "—" that follows foreign words (dashAfterForeign); count = added.
+ * Spots that already have a pause are left as they are.
+ */
 export function addForeignPauses(html, seconds) {
     const doc = parse(html);
     const s = String(validPause(seconds) || DEFAULT_PAUSE);
+    const lines = linesOf(doc);
     let count = 0;
-    foreignNeighbours(linesOf(doc)).forEach(({ line, between }) => {
+    foreignNeighbours(lines).forEach(({ line, between }) => {
         if (between.length || line.trailing.length) return; // already has one
         appendPause(doc, line, s);
+        count += 1;
+    });
+    lines.forEach((line) => {
+        const dash = dashAfterForeign(line);
+        if (!dash || dash.pauses.length) return; // none, or already has one
+        insertPauseAt(doc, dash, s);
         count += 1;
     });
     return result(doc, count);
@@ -181,11 +253,19 @@ export function addLinePauses(html, seconds) {
     return result(doc, count);
 }
 
-/** Remove the pauses between foreign-language lines; count = removed. */
+/**
+ * Remove the pauses addForeignPauses adds: between foreign-language lines,
+ * and before a "—" after foreign words; count = removed.
+ */
 export function removeForeignPauses(html) {
     const doc = parse(html);
+    const lines = linesOf(doc);
     let count = 0;
-    foreignNeighbours(linesOf(doc)).forEach(({ line, between }) => {
+    lines.forEach((line) => {
+        const dash = dashAfterForeign(line);
+        if (dash) dash.pauses.forEach((p) => { p.remove(); count += 1; });
+    });
+    foreignNeighbours(lines).forEach(({ line, between }) => {
         line.trailing.forEach((p) => { p.remove(); count += 1; });
         between.forEach((l) => { count += l.pauses.length; removeLine(l); });
     });
