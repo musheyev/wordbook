@@ -17,6 +17,7 @@ import { TtsSkip } from './editor/ttsSkip';
 import { TtsLang } from './editor/ttsLang';
 import { TtsPause } from './editor/ttsPause';
 import { TtsBookmark } from './editor/ttsBookmark';
+import { EmDash } from './editor/emDash';
 import { MARKABLE_LANGUAGES, TTS_PAUSES, TTS_SPEEDS, htmlToChunks, languageLabel, voiceLabel } from '../utils/tts';
 import VoicePickerDialog from './VoicePickerDialog';
 import NoteLinkPicker from './NoteLinkPicker';
@@ -102,6 +103,7 @@ const renderTex = (tex) => {
 //                 editor/markdownPaste.js and the "M↓" toggle below
 //   FindReplace   find and replace in the note (🔍 or Cmd/Ctrl+F); see
 //                 editor/findReplace.js and FindBar below
+//   EmDash        typing "--" gives "—"; see editor/emDash.js
 // Pale highlight colors — light enough that black text stays easy to read.
 const HIGHLIGHTS = [
     { name: 'Yellow', color: '#FEF3C7' },
@@ -266,6 +268,7 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
                 blockOptions: { katexOptions: { throwOnError: false } },
             }),
             MathInputRules,
+            EmDash, // "--" -> "—" (editor/emDash.js)
             // Column resizing is off: widths set by dragging would be saved into
             // the note and fight the reader's screen width on phones.
             // Its cells are swapped for ones that ignore a broken colspan
