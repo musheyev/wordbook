@@ -239,18 +239,34 @@ export const fetchCardData = (cardId) => async (dispatch, getState, api) => {
 
 // Create a new card and add it to the given wordbooks in one request.
 // Resolves to the new card ({ card_id, title, content }) so the caller can open it.
+//
+// The editor stays open ("Saving…") until the caller has opened the new note
+// and closes it (CardEditorInline.js). Closing it here, before the note was
+// open, showed the notebook for a moment in between. The new note is made
+// the open one right away, from what the save returned, so it's there the
+// moment the editor closes (the notebook page then loads it again by its
+// address, as for any note).
 export const createCard = (title, content, wordbooks = []) => async (dispatch, getState, api) => {
   // Offline in the iPhone app: kept on the phone and sent later (offline/outbox.js).
   const res = isQueueing()
     ? { data: await queueCardCreate(title, content, wordbooks) }
     : await api.post('/wordbook/card/create', { title, content, wordbooks }, JSON_HEADERS);
-  dispatch(closeCardEditor());
+  const card = res.data;
+  if (card && card.card_id) {
+    latestSelection++; // a word or note still loading is now out of date
+    dispatch({ type: SET_CURRENT_WORD, payload: card.card_id });
+    dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'card' });
+    dispatch({ type: FETCH_CARD_DATA, payload: card });
+  }
 
+  // The notebook's list, with the new note in it, before the note opens:
+  // otherwise the notebook would think the open note isn't in it and go
+  // back to the list (WordbookPage.js).
   const currentWordbook = getState().currentWordbook;
   if (currentWordbook) {
     await dispatch(fetchWordbookWords(currentWordbook));
   }
-  return res.data;
+  return card;
 };
 
 // Edit an existing card. Because a card is stored once, this updates it in

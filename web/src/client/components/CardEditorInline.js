@@ -100,7 +100,11 @@ function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, 
                 const created = await createCard(title, content, targets);
                 draft.clear();
                 if (created && created.card_id) reportNoteAudio(`card:${created.card_id}`, content);
+                // Open the new note first, then close the editor, so it goes
+                // straight from the editor to the note (closing first showed
+                // the notebook for a moment in between).
                 if (created && onCreated) onCreated(created);
+                closeCardEditor();
             }
         } catch (err) {
             setSaveError(requestErrorMessage(err, "Couldn't save the note."));
