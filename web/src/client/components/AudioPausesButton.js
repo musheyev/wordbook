@@ -13,6 +13,7 @@ import NoteChangeToast from './NoteChangeToast';
 //
 //   Set all pauses (12)                    [1s] [2s] [3s] [5s]
 //   Add between foreign language lines     [1s] [2s] [3s] [5s]
+//     (and before a "—" that follows foreign words)
 //   Add at the end of every line           [1s] [2s] [3s] [5s]
 //   Remove pauses between foreign language lines
 //   Remove all pauses
@@ -64,11 +65,11 @@ export default function AudioPausesButton({ card }) {
                         <div className="pause-menu__row">
                             <span className="pause-menu__label">
                                 Add between foreign language lines
-                                <span className="pause-menu__hint">after a line not in English, before the next</span>
+                                <span className="pause-menu__hint">after a line not in English, before the next — and before its “—”</span>
                             </span>
                             {lengths((s) => run((h) => addForeignPauses(h, s),
-                                (n) => `Added ${pauses(n)} of ${s}s between foreign language lines.`,
-                                'No foreign language lines without a pause between them.'))}
+                                (n) => `Added ${pauses(n)} of ${s}s to foreign language lines.`,
+                                'Foreign language lines already have their pauses.'))}
                         </div>
                         <div className="pause-menu__row">
                             <span className="pause-menu__label">
@@ -81,8 +82,8 @@ export default function AudioPausesButton({ card }) {
                         </div>
                         <div className="pause-menu__sep" role="separator" />
                         <button type="button" role="menuitem"
-                            onClick={() => run(removeForeignPauses, (n) => `Removed ${pauses(n)} between foreign language lines.`,
-                                'No pauses between foreign language lines.')}>
+                            onClick={() => run(removeForeignPauses, (n) => `Removed ${pauses(n)} from foreign language lines.`,
+                                'No pauses on foreign language lines.')}>
                             Remove pauses between foreign language lines
                         </button>
                         <button type="button" role="menuitem" className="cb-menu__danger"
