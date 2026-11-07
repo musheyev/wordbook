@@ -1,5 +1,6 @@
 import { dbGet, dbPut } from './db';
 import { isOnline, offlineEnabled } from './network';
+import { isRecent, noteOpened } from './recent';
 
 // Saved copies of API answers, so the app can show them with no connection.
 //
@@ -25,8 +26,15 @@ import { isOnline, offlineEnabled } from './network';
 //             signed in, the notebook names, each notebook's item list
 //             (titles), sorts, colours, tags, saved quizzes, bookmarks.
 //   per item  a note's or word's content (and its tags and note links), only when that note or word is
-//             downloaded (offline/downloads.js decides, through `isCovered`).
-//             The download itself sends its requests with `offlineSave: true`.
+//             downloaded (offline/downloads.js decides, through `isCovered`)
+//             or is one of the last notes opened (offline/recent.js; the
+//             note view asks with `noteOpened: true`). The download itself
+//             sends its requests with `offlineSave: true`.
+//
+// Opening the app: saved copy first (requestSavedFirst, below). The first
+// time this visit that the app asks for something it has a copy of, the
+// screen gets the copy at once and then the server's answer when it comes,
+// instead of waiting for the server.
 
 /**
  * Which requests are kept, and what they belong to. Each rule gets the
@@ -110,6 +118,7 @@ const savedAnswer = (config, saved) => ({
  */
 export function installApiCache(api, { isCovered, onNotebookList, isPending }) {
     if (!offlineEnabled()) return;
+    installed = true;
 
     api.interceptors.request.use((config) => {
         const { key, rule } = describeRequest(config);
@@ -132,7 +141,11 @@ export function installApiCache(api, { isCovered, onNotebookList, isPending }) {
         // A note with offline changes not yet sent keeps the phone's copy
         // (offline/outbox.js), until they're sent.
         if (rule.item && isPending(rule.item)) return res;
-        if (rule.always || isCovered(rule.item) || res.config.offlineSave) {
+        // A note opened in the note view joins the recent notes (recent.js),
+        // so its copy is kept — before the check below, so this answer is
+        // the first one saved.
+        if (rule.item && res.config.noteOpened) noteOpened(rule.item);
+        if (rule.always || isCovered(rule.item) || isRecent(rule.item) || res.config.offlineSave) {
             const record = { data: res.data, savedAt: Date.now(), items: rule.item ? [rule.item] : [] };
             dbPut('responses', key, record).catch(() => { /* storage full: just not saved */ });
         }
@@ -146,4 +159,70 @@ export function installApiCache(api, { isCovered, onNotebookList, isPending }) {
         }
         throw error;
     });
+}
+
+// --- Opening the app: the saved copy first, then the server's answer --------
+
+let installed = false; // installApiCache ran (offline features are on)
+const askedThisVisit = new Set(); // request keys already asked since the app opened
+
+/**
+ * Ask the server, but show the phone's saved copy first if this is the first
+ * time this visit the app asks for it. Used for what the first screen needs
+ * (actions/index.js: who's signed in, My Notebooks, a notebook's list, the
+ * open note), so reopening the app shows where you were straight away
+ * instead of waiting for the server — which may first need to renew the
+ * sign-in and wake up.
+ *
+ *   saved copy, first ask    show(copy) at once, then show(server's answer)
+ *                            when it comes, unless it's the same
+ *   asked before this visit, just the server, as usual: after a change (a
+ *   no copy, offline, or     new note, an edit) the screen must get the new
+ *   on the website           answer, not an old copy
+ *
+ * If the server can't be reached after the copy was shown, the copy stays
+ * (the answer is the saved one, and no error). If the server answers with
+ * an error (say, the note was deleted on the website), the caller gets that
+ * error, as without a copy, so the screen can say so.
+ *
+ * @param {import('axios').AxiosInstance} api
+ * @param {import('axios').AxiosRequestConfig} config method, url, data… as for api.request
+ * @param {(res: object) => void} show puts an answer on screen (dispatches it);
+ *   called once or twice. A saved copy's answer has `fromSavedCopy: true`.
+ * @param {() => void} [copyKept] called when the copy turned out to be the
+ *   final answer (the server's was the same, or it couldn't be reached), so a
+ *   screen that treats the copy as "still refreshing" can stop
+ * @returns {Promise<object>} the server's answer (or the copy, see above)
+ */
+export async function requestSavedFirst(api, config, show, copyKept = () => {}) {
+    const { key, rule } = describeRequest(config);
+    const first = !askedThisVisit.has(key);
+    askedThisVisit.add(key);
+    if (!installed || !first || !rule || !isOnline()) {
+        const res = await api.request(config);
+        show(res);
+        return res;
+    }
+    let arrived = false;
+    const fresh = api.request(config).then((res) => { arrived = true; return res; });
+    fresh.catch(() => { /* handled below; this only marks it as handled meanwhile */ });
+    const saved = await dbGet('responses', key).catch(() => null);
+    if (!saved || arrived) {
+        const res = await fresh;
+        show(res);
+        return res;
+    }
+    const copy = savedAnswer(config, saved);
+    show(copy);
+    let res;
+    try {
+        res = await fresh;
+    } catch (err) {
+        if (err.response) throw err; // the server said no
+        copyKept();
+        return copy;
+    }
+    if (JSON.stringify(res.data) !== JSON.stringify(saved.data)) show(res);
+    else copyKept();
+    return res;
 }
