@@ -9,11 +9,16 @@
 // line with two marked phrases ("Fue" - was, from "ser", …) or with no
 // English is skipped.
 //
-// The two must also be joined by a separator (— – - : = →), the English
-// all on one side of the phrase (after it, or before it: "I am — Yo estoy").
+// The two must also be joined the way a translation is, with the English
+// all on one side of the phrase:
+//   - by a separator (— – - : = →), the English after the phrase or before
+//     it ("I am — Yo estoy"); or
+//   - the phrase starting the line and the English straight after it
+//     starting with a capital letter ("Yo me lavo. I wash myself.").
 // That's what tells a translation from a sentence that only mentions a
-// Spanish word: "Never pronounce the H in hacer" has none, so it isn't a
-// card. The separator isn't shown.
+// Spanish word: "Never pronounce the H in hacer" (English first, no
+// separator) and "Ser is generally used for…" (goes on in lowercase) aren't
+// cards. The separator isn't shown.
 //
 // Each side carries the chunks Play all reads for that part of the line
 // (tts.js htmlToLines / chunksOfStretch), so it plays the same audio — and
@@ -34,24 +39,32 @@ const SEPARATOR = /[—–\-:=→]/;
 const leadingMarks = (s) => s.match(/^[^\p{L}\p{N}]*/u)[0];
 const trailingMarks = (s) => s.match(/[^\p{L}\p{N}]*$/u)[0];
 
+// Whether some text's first letter is a capital (I, Where, Él).
+const startsWithCapital = (s) => /^\p{Lu}/u.test(s.slice(leadingMarks(s).length));
+
 /**
- * Whether a line's foreign phrase and its English are joined by a separator,
- * with the English on one side only: the marks between them (from the end of
- * one and the start of the other) hold a dash, colon, equals sign or arrow.
+ * Whether a line reads as a foreign phrase and its translation, with the
+ * English on one side only, and either
+ * - the marks between them (from the end of one and the start of the other)
+ *   hold a dash, colon, equals sign or arrow, or
+ * - the phrase starts the line and the English after it starts with a
+ *   capital letter: "Yo me lavo. I wash myself."
  *
  * @param {Array<{text: string}>} line the line's stretches (htmlToLines)
  * @param {number} at where the foreign stretch is in the line
  * @returns {boolean}
  */
-function joinedBySeparator(line, at) {
+function readsAsTranslation(line, at) {
     const before = line.slice(0, at).map((s) => s.text).join('');
     const after = line.slice(at + 1).map((s) => s.text).join('');
     const phrase = line[at].text;
     if (hasLetters(before) && hasLetters(after)) return false; // English on both sides: a sentence
-    const between = hasLetters(after)
+    const englishAfter = hasLetters(after);
+    const between = englishAfter
         ? trailingMarks(phrase) + leadingMarks(after)
         : trailingMarks(before) + leadingMarks(phrase);
-    return SEPARATOR.test(between);
+    if (SEPARATOR.test(between)) return true;
+    return englishAfter && startsWithCapital(after); // the phrase starts the line (no letters before it)
 }
 
 /**
@@ -70,7 +83,7 @@ export function quizCardsOf(html) {
         const english = clean(rest.map((s) => s.text).join(' '));
         const front = clean(foreign[0].text);
         if (!hasLetters(english) || !front) return;
-        if (!joinedBySeparator(line, line.indexOf(foreign[0]))) return;
+        if (!readsAsTranslation(line, line.indexOf(foreign[0]))) return;
         cards.push({
             foreign: { text: front, lang: foreign[0].reading.lang, chunks: chunksOfStretch(foreign[0]) },
             english: { text: english, lang: 'en-US', chunks: rest.flatMap(chunksOfStretch) },
