@@ -4,7 +4,12 @@
 //
 //   - Capitals, punctuation and accents don't matter: the recogniser may
 //     write "adonde" for "Adónde", or add a "?".
-//   - Either side of a slash or semicolon is enough: "to take" or "catch".
+//   - Either side of a slash, semicolon or "or" is enough: "To take / Catch"
+//     and "Continue or keep going" accept each one alone, and the whole.
+//     In Spanish "o" / "u" work the same, in French "ou", in Italian "o",
+//     in German "oder". An "or" inside brackets doesn't split.
+//   - Answers you said were right ("I was right" in the quiz) are right
+//     from then on too (the card side's `also`).
 //   - Words in brackets are optional: "Que (part of tener que)" accepts
 //     "que" and the whole thing.
 //   - In English, a leading "to" is optional ("to go" or "go"), "a / an /
@@ -39,6 +44,25 @@ const EN_SKIP = new Set(['a', 'an', 'the']);
 
 const isEnglish = (lang) => /^en/i.test(lang || 'en');
 
+// The word for "or" in each language, which separates answers like "/".
+const OR_WORDS = { en: 'or', es: 'o|u', fr: 'ou', it: 'o|oppure', de: 'oder' };
+
+/**
+ * An answer's alternatives: split at "/", ";" and the language's "or", but
+ * not inside brackets ("(from ver, to see or watch)" stays whole).
+ * @param {string} answer
+ * @param {string} lang
+ * @returns {string[]}
+ */
+function alternativesOf(answer, lang) {
+    const or = OR_WORDS[(lang || 'en').slice(0, 2).toLowerCase()];
+    const separator = new RegExp(`[/;]${or ? `|\\s+(?:${or})\\s+` : ''}`, 'iu');
+    const brackets = [];
+    // Brackets out of the way (as \u0000<n>\u0000), split, then put back.
+    const masked = String(answer || '').replace(/\([^)]*\)/g, (m) => `\u0000${brackets.push(m) - 1}\u0000`);
+    return masked.split(separator).map((part) => part.replace(/\u0000(\d+)\u0000/g, (m, i) => brackets[Number(i)]));
+}
+
 /**
  * The words of an answer, compared form: lower case, no accents or
  * punctuation, English contractions spelled out, small numbers as words.
@@ -63,10 +87,11 @@ export function answerWords(text, lang) {
  * Every acceptable way to say the answer, as word lists.
  * @param {string} answer the card's hidden side
  * @param {string} lang
+ * @param {string[]} [also] answers marked right before ("I was right")
  * @returns {string[][]}
  */
-function acceptedAnswers(answer, lang) {
-    const parts = [answer, ...String(answer || '').split(/[/;]/)];
+function acceptedAnswers(answer, lang, also = []) {
+    const parts = [answer, ...alternativesOf(answer, lang), ...also];
     const out = [];
     parts.forEach((part) => {
         [part.replace(/\([^)]*\)/g, ' '), part.replace(/[()]/g, ' ')].forEach((variant) => {
@@ -104,14 +129,15 @@ function sameWord(heard, expected, english) {
  * @param {string} heard what speech recognition wrote
  * @param {string} answer the card's hidden side, e.g. "To take / Catch"
  * @param {string} lang the answer's language, e.g. "en-US", "es-ES"
+ * @param {string[]} [also] other answers marked right before ("I was right")
  * @returns {boolean}
  */
-export function isRightAnswer(heard, answer, lang) {
+export function isRightAnswer(heard, answer, lang, also = []) {
     const said = answerWords(heard, lang);
     if (!said.length) return false;
     const english = isEnglish(lang);
     const same = (a, b) => sameWord(a, b, english);
-    return acceptedAnswers(answer, lang).some((expected) => {
+    return acceptedAnswers(answer, lang, also).some((expected) => {
         const slips = expected.length <= 3 ? 0 : Math.floor(expected.length / 4);
         return distance(said, expected, same) <= slips;
     });

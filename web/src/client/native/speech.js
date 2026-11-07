@@ -62,3 +62,17 @@ export async function sayReply(text, lang = 'en-US') {
         await speech.speak({ text, lang });
     } catch (e) { /* the reply is on screen too */ }
 }
+
+/**
+ * A short buzz in the hand (iPhone app): "success" for a right answer,
+ * "error" for a wrong one, "light" for a small tap. Does nothing on the
+ * website or in an older app build without it.
+ * @param {'success'|'error'|'light'} kind
+ */
+export async function feel(kind) {
+    if (!isNativeApp()) return;
+    try {
+        const { speech } = await speechPlugin();
+        await speech.feel({ kind });
+    } catch (e) { /* an older app build, or no vibration motor */ }
+}

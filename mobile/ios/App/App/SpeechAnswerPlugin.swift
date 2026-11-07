@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import AVFoundation
 import Speech
 import Capacitor
@@ -11,7 +12,8 @@ import Capacitor
 /// iPhone can do that by itself — Spanish, English, French, Italian, German
 /// on recent iPhones — it's told to (`requiresOnDeviceRecognition`): nothing
 /// leaves the phone, it costs nothing and it works offline. speak() says a
-/// short reply ("Correct") with the iPhone's built-in voice.
+/// short reply ("Correct") with the iPhone's built-in voice, and feel()
+/// gives the little buzz that goes with it.
 ///
 /// How the listening works:
 ///   - AVAudioEngine gives the microphone's sound in small buffers; each one
@@ -35,7 +37,8 @@ public class SpeechAnswerPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "listen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "speak", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "speak", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "feel", returnType: CAPPluginReturnPromise)
     ]
 
     private let engine = AVAudioEngine()
@@ -86,6 +89,23 @@ public class SpeechAnswerPlugin: CAPPlugin, CAPBridgedPlugin {
             utterance.voice = AVSpeechSynthesisVoice(language: lang)
             self.synthesizer.stopSpeaking(at: .immediate)
             self.synthesizer.speak(utterance)
+            call.resolve()
+        }
+    }
+
+    /// feel({ kind: "success" | "error" | "light" }): a short buzz you feel
+    /// in your hand (the iPhone's "haptic" feedback): success and error are
+    /// the two- and three-tap patterns iOS uses for them, light a single soft
+    /// tap. Phones without the vibration motor (or with it turned off in
+    /// Settings) just do nothing.
+    @objc func feel(_ call: CAPPluginCall) {
+        let kind = call.getString("kind") ?? "light"
+        DispatchQueue.main.async {
+            switch kind {
+            case "success": UINotificationFeedbackGenerator().notificationOccurred(.success)
+            case "error": UINotificationFeedbackGenerator().notificationOccurred(.error)
+            default: UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
             call.resolve()
         }
     }
