@@ -50,6 +50,13 @@ const AdminAudioCleanupPage = loadOnDemand(() => import('./pages/AdminAudioClean
 const UsersListPage = loadOnDemand(() => import('./pages/UsersListPage'));
 const AdminsListPage = loadOnDemand(() => import('./pages/AdminsListPage'));
 
+// The Spanish sales page and checkout (sales/SalesRoutes.js): on localhost
+// only for now. import.meta.env.DEV is true only under `npm run dev`; in the
+// website and iPhone app builds it's false, so Vite drops this whole entry
+// and never builds the pages — they don't exist there at all.
+const SalesRoutes = import.meta.env.DEV ? loadOnDemand(() => import('./sales/SalesRoutes')) : null;
+const localhostOnlyRoutes = SalesRoutes ? [{ path: '/learn-spanish/*', Component: SalesRoutes }] : [];
+
 // The site's home page (utils/site.js). Make Your Wordbook opens on the Words
 // search; Remembrancer opens on My Notebooks once signed in (its Words search
 // is at /words). Signed out, both show the Words page's intro (Landing).
@@ -68,6 +75,7 @@ const LoginRedirect = () => <ExternalRedirect to={COGNITO_LOGIN} />;
 const SignupRedirect = () => <ExternalRedirect to={COGNITO_SIGNUP} />;
 
 export const routes = [
+  ...localhostOnlyRoutes,
   {
     path: '/',
     Component: App,

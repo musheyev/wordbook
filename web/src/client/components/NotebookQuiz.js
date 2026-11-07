@@ -84,7 +84,14 @@ async function copyText(text) {
     if (!ok) throw new Error('Copy failed');
 }
 
-function NotebookQuiz() {
+/**
+ * @param {object} [props]
+ * @param {(notebook: string, source: {type, id, title}) => string|null} [props.notePath]
+ *        where "See note" goes, for a quiz shown outside the app (the
+ *        Spanish buyer's library, sales/library/); null or none: the app's
+ *        own notebook page.
+ */
+function NotebookQuiz({ notePath } = {}) {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [quiz, setQuiz] = useState(null); // what openQuiz() was given; null: closed
@@ -362,7 +369,8 @@ function NotebookQuiz() {
         // A quiz from one notebook opens the note there; one across
         // notebooks (a note and its links, a tag) through the note's own
         // address, which finds a notebook that has it (pages/NoteLinkPage.js).
-        navigate(quiz.notebook ? itemPath(quiz.notebook, source) : noteLinkHref(source.type, source.id));
+        const own = notePath && notePath(quiz.notebook, source);
+        navigate(own || (quiz.notebook ? itemPath(quiz.notebook, source) : noteLinkHref(source.type, source.id)));
     };
     const comeBack = () => {
         setAway(false);
