@@ -20,6 +20,8 @@ const changeListeners = new Set();
  * @param {{id: string, name: string}} [quiz.saved] set for a quiz from My Quizzes
  * @param {boolean} [quiz.oneGo] ask every card in one round, not rounds of
  *        20 (a quiz on one note)
+ * @param {boolean} [quiz.stretch] a Stretch quiz (utils/stretch.js): `load`
+ *        gives { cards: [], missing, material } and the cards are written on Start
  */
 export function openQuiz(quiz) {
     openListeners.forEach((fn) => fn(quiz));

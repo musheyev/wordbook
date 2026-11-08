@@ -5,7 +5,7 @@ import requireAuth from '../components/hocs/requireAuth';
 import {
     SET_CURRENT_WORDBOOK, fetchWordbookWords, fetchCardData, fetchWordData,
     clearCurrentSelection, closeCardEditor, getCardContent, fetchItemSorts, saveItemSort, fetchItemColors,
-    fetchWordbookUpdated, quizCardsForItems, fetchBookmarks,
+    fetchWordbookUpdated, quizCardsForItems, stretchMaterialForItems, fetchBookmarks,
 } from '../actions';
 import SearchResult from '../components/SearchResult';
 import CardEditorInline from '../components/CardEditorInline';
@@ -262,6 +262,14 @@ function WordbookPage({
     const startQuiz = (list) => openQuiz({ title: name, notebook: name, load: () => quizCards(list) });
     // Quiz selected (admins), next to Play selected: the quiz on the ticked items.
     const quizSelected = isAdmin ? () => startQuiz(pickedItems) : null;
+    // Stretch (admins): a quiz written from the same notes (utils/stretch.js).
+    const startStretch = (list) => openQuiz({
+        title: name,
+        notebook: name,
+        stretch: true,
+        load: () => dispatch(stretchMaterialForItems(list.filter((i) => i.type === 'card'))),
+    });
+    const stretchSelected = isAdmin ? () => startStretch(pickedItems) : null;
 
     // Phones (the desktop overview shows its own, under its toolbar).
     const emptyMessage = listReady && items.length === 0 && !missing ? (
@@ -360,7 +368,7 @@ function WordbookPage({
                     {listReady ? (
                         items.length > 0 && (
                             <NotebookItemList wordbook={name} items={items} search={search} sort={sort} onSort={setSort}
-                                selection={selection} playSelected={() => notebookChunks(pickedItems)} quizSelected={quizSelected}
+                                selection={selection} playSelected={() => notebookChunks(pickedItems)} quizSelected={quizSelected} stretchSelected={stretchSelected}
                                 lastKey={getLastVisited(name)} colors={itemColors} />
                         )
                     ) : loadError ? (
@@ -373,9 +381,9 @@ function WordbookPage({
                 {listReady && <div className="nb-missing--phone"><MissingLine text={missing} /></div>}
                 {listReady ? (
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
-                        selection={selection} playSelected={() => notebookChunks(pickedItems)} quizSelected={quizSelected}
+                        selection={selection} playSelected={() => notebookChunks(pickedItems)} quizSelected={quizSelected} stretchSelected={stretchSelected}
                         lastKey={getLastVisited(name)} colors={itemColors} missing={missing}
-                        onAdd={() => setAddOpen(true)} onQuiz={startQuiz} getReadAloudChunks={notebookChunks} />
+                        onAdd={() => setAddOpen(true)} onQuiz={startQuiz} onStretch={startStretch} getReadAloudChunks={notebookChunks} />
                 ) : (
                     <div className="nb-overview-loading">
                         {loadError

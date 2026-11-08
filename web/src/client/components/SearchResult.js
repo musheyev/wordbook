@@ -17,7 +17,7 @@ import NoteLinkLists from './NoteLinkLists';
 import NoteLinksRow from './NoteLinksRow';
 import BookmarkButton from './BookmarkButton';
 import CopyNoteButton from './CopyNoteButton';
-import { quizCardsForLinked } from '../actions';
+import { quizCardsForLinked, stretchMaterialForLinked } from '../actions';
 import { openQuiz } from '../utils/quizLauncher';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { showApiImages } from '../offline/images';
@@ -251,17 +251,30 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
 
     // Quiz (admins): this note (or this word's note) and the notes and words
     // it links to, whichever notebooks they're in (actions: quizCardsForLinked).
+    // Beside it, Stretch: a quiz written from the same notes (utils/stretch.js).
     const quizControl = (item) => isAdmin && (
-        <button className="card-tool" title="Quiz: this note and the notes it links to"
-            aria-label="Quiz this note and its links"
-            onClick={() => openQuiz({
-                title: item.title,
-                notebook: '',
-                oneGo: true,
-                load: () => dispatch(quizCardsForLinked(item)),
-            })}>
-            <i className="question circle outline icon"></i>
-        </button>
+        <>
+            <button className="card-tool" title="Quiz: this note and the notes it links to"
+                aria-label="Quiz this note and its links"
+                onClick={() => openQuiz({
+                    title: item.title,
+                    notebook: '',
+                    oneGo: true,
+                    load: () => dispatch(quizCardsForLinked(item)),
+                })}>
+                <i className="question circle outline icon"></i>
+            </button>
+            <button className="card-tool" title="Stretch: a quiz written from this note and its links"
+                aria-label="Stretch quiz on this note and its links"
+                onClick={() => openQuiz({
+                    title: item.title,
+                    notebook: '',
+                    stretch: true,
+                    load: () => dispatch(stretchMaterialForLinked(item)),
+                })}>
+                <i className="comments outline icon"></i>
+            </button>
+        </>
     );
 
     // The note's colour, if it has one (ItemColorButton): its stripe and tint.

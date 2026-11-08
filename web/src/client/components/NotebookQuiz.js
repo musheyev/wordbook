@@ -6,7 +6,7 @@ import { quizLanguage } from '../utils/quizCards';
 import { onOpenQuiz, quizzesChanged, newQuizId } from '../utils/quizLauncher';
 import { itemPath } from '../utils/notebookPaths';
 import { noteLinkHref } from '../utils/noteLinks';
-import { saveQuiz } from '../actions';
+import { saveQuiz, requestStretchCards, requestSecondOpinion } from '../actions';
 import Spinner from './Spinner';
 import { ITEM_COLORS } from '../utils/itemColors';
 import { canAnswerBySpeech, listenForAnswer, stopListening, sayReply, feel } from '../native/speech';
@@ -15,6 +15,11 @@ import { runKey, cardKey, loadRun, saveRun, scoreOf } from '../utils/quizResults
 import { MIX_SHARES, lastShare, rememberShare, dealDirections, loadDeal, saveDeal } from '../utils/quizMix';
 import { roundsOf, roundAt, recordQuizDay, dayStreak } from '../utils/quizRounds';
 import { languageLabel } from '../utils/tts';
+import { isOnline } from '../offline/network';
+import {
+    STRETCH_LEVELS, STRETCH_COUNTS, PER_REQUEST, SECOND_OPINION, lastLevel, rememberLevel, lastCount, rememberCount,
+    lastSecondOpinion, rememberSecondOpinion, pickMaterial, cardsFromReply, stretchRounds, languageName,
+} from '../utils/stretch';
 
 // The quiz (admins): started by the Quiz buttons of a notebook, of a note
 // (the note and the notes it links to), of a tag (Tags), or from My
@@ -64,6 +69,23 @@ import { languageLabel } from '../utils/tts';
 // Remove (in ⋯) drops a card from this quiz only (never from the note). Save
 // keeps the cards left under a name in My Quizzes; once saved, each Remove,
 // colour or "I was right" saves again.
+//
+// Stretch (openQuiz's `stretch`; utils/stretch.js, api/stretch.js): the
+// same quiz, but its cards are written by OpenAI's model from the notes, on
+// Start. The sheet first asks how far to stretch (0 As written · 1 Remix ·
+// 2 Conversation · 3 Street) and how many questions (5 / 10 / 20). A card
+// can carry a scene above it ("At a café. The waiter asks: …") and, once
+// answered, says whether it's from your notes or written for this quiz, and
+// which words in it are new. Each Start or "10 more" (at the end) is a
+// round. Needs a connection to start; once saved, it works offline.
+//
+// Second opinion (iPhone app, chosen on the sheet before starting: Off, Ask
+// me, Automatic). The rules (utils/answerCheck.js) always mark first; only
+// after "Not quite" is the model asked, by a button (Ask me) or at once
+// (Automatic). If it says the answer is right, that's like "I was right":
+// the answer is kept in the card's `also`, so next time the rules accept it
+// with no need to ask (in a saved quiz, for good). A "no" is remembered while
+// the quiz is open, so the same answer isn't asked about twice.
 //
 // Drawn once at the app's root (App.js) and opened with openQuiz()
 // (utils/quizLauncher.js), so "See note" can leave for the note and a "Back to
@@ -149,6 +171,21 @@ function NotebookQuiz() {
     // { status: 'listening'|'heard'|'error', text, practice?, correct?, marked?, error? }
     const [answer, setAnswer] = useState(null);
     const [showScore, setShowScore] = useState(false);
+    // Stretch: the dial (0–3), how many questions, and whether cards are
+    // being written (on Start or "10 more") or that failed.
+    const [level, setLevel] = useState(lastLevel);
+    const [count, setCount] = useState(lastCount);
+    const [writing, setWriting] = useState(false);
+    const [writeError, setWriteError] = useState('');
+    // Second opinion: 'off' | 'ask' | 'auto' (SECOND_OPINION), and the one
+    // being asked or answered for the showing card:
+    // { key, heard, status: 'asking'|'wrong'|'error', why?, error? }
+    const [secondMode, setSecondMode] = useState(lastSecondOpinion);
+    const [opinion, setOpinion] = useState(null);
+    const verdicts = useRef(new Map()); // "no" verdicts while the quiz is open
+    // The latest cards and answers, for code that finishes after a wait (a
+    // second opinion): what it captured when it started may be out of date.
+    const now = useRef({});
     const latest = useRef(null); // the quiz being loaded (a newer one wins)
     const listeningFor = useRef(null); // the card key being listened for, while listening
     const touch = useRef(null); // where a finger went down on the card { x, y }
@@ -173,6 +210,13 @@ function NotebookQuiz() {
         setRun({});
         setAnswer(null);
         setShowScore(false);
+        setLevel(lastLevel());
+        setCount(lastCount());
+        setWriting(false);
+        setWriteError('');
+        setSecondMode(lastSecondOpinion());
+        setOpinion(null);
+        verdicts.current = new Map();
         latest.current = next;
         Promise.resolve(next.load())
             .then((r) => { if (latest.current === next) setLoaded(r); })
@@ -210,6 +254,7 @@ function NotebookQuiz() {
         setCopied('');
         setMenu(false);
         setAnswer(null);
+        setOpinion(null);
         stopHearing();
     }, [cur, flipped, summary]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -234,9 +279,9 @@ function NotebookQuiz() {
     if (!quiz) return null;
 
     const cards = loaded ? loaded.cards : [];
-    // Rounds of 20 (utils/quizRounds.js), or one round of them all for a
-    // quiz on one note (openQuiz's `oneGo`).
-    const rounds = quiz.oneGo ? [[0, cards.length]] : roundsOf(cards.length);
+    // Rounds of 20 (utils/quizRounds.js), one round of them all for a quiz
+    // on one note (openQuiz's `oneGo`), or for Stretch, one per batch written.
+    const rounds = quiz.stretch ? stretchRounds(cards) : quiz.oneGo ? [[0, cards.length]] : roundsOf(cards.length);
     // Whether a card is asked to English (its front is the foreign side).
     const toEnglishFor = (card, dir = direction, d = deal) => (dir === 'mixed' ? !d || d[cardKey(card)] !== false : dir === 'to-en');
     const sideOf = (card, back, english = toEnglishFor(card)) => ((english !== back) ? card.foreign : card.english);
@@ -244,6 +289,10 @@ function NotebookQuiz() {
     const runName = direction === 'mixed' ? `mixed-${share}` : direction;
     const title = saved ? saved.name : quiz.title;
     const speech = canAnswerBySpeech();
+    // Whether there's a connection (offline/network.js; a request can still fail).
+    const online = isOnline;
+    const secondOn = speech && secondMode !== 'off';
+    now.current = { cards, run, loaded, curKey: cur >= 0 && cards[cur] ? cardKey(cards[cur]) : null };
 
     // Read a card's side. Called straight from the tap (iOS plays audio only
     // when it starts in a tap).
@@ -261,11 +310,12 @@ function NotebookQuiz() {
         say(sideOf(list[i], false, toEnglishFor(list[i], direction, d)));
     };
     // dir: 'to-en', 'from-en' or 'mixed' (in the share picked on the sheet).
-    const start = (dir) => {
+    // list: the cards (a Stretch quiz's, just written).
+    const start = (dir, list = cards) => {
         let d = null;
         if (dir === 'mixed') {
             rememberShare(share);
-            d = loadDeal(saved, share, cards); // a saved quiz asks each card the same way again
+            d = loadDeal(saved, share, list); // a saved quiz asks each card the same way again
             saveDeal(saved, share, d);
         }
         setDirection(dir);
@@ -274,7 +324,95 @@ function NotebookQuiz() {
         setIndex(0);
         setFlipped(false);
         setMotion('next');
-        say(sideOf(cards[0], false, toEnglishFor(cards[0], dir, d)));
+        say(sideOf(list[0], false, toEnglishFor(list[0], dir, d)));
+    };
+
+    // ---- Stretch: writing cards ----
+    // The same question twice (two requests at once may write it) is asked once.
+    const plainQuestion = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    /**
+     * Have the server write n cards, PER_REQUEST at a time, side by side
+     * (20 is two requests, each from a different random part of the notes).
+     * @param {number} n how many
+     * @param {string[]} avoid questions already asked
+     * @param {number} batch the round they'll make
+     * @returns {Promise<Array>} quiz cards
+     */
+    const writeCards = async (n, avoid, batch) => {
+        const material = loaded.material;
+        const sizes = [];
+        for (let left = n; left > 0; left -= PER_REQUEST) sizes.push(Math.min(PER_REQUEST, left));
+        const lists = await Promise.all(sizes.map(async (size) => {
+            const sent = pickMaterial(material.notes);
+            const reply = await dispatch(requestStretchCards({
+                notes: sent.map((note) => ({ title: note.title, lines: note.lines })),
+                language: languageName(material.lang),
+                level,
+                count: size,
+                avoid,
+            }));
+            return cardsFromReply(reply, sent, material, level, batch);
+        }));
+        const seen = new Set(avoid.map(plainQuestion));
+        return lists.flat().filter((c) => {
+            const k = plainQuestion(c.foreign.text);
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+        });
+    };
+    // A direction button on a Stretch quiz's sheet: write the cards, then start.
+    const startStretch = async (dir) => {
+        if (writing) return;
+        ttsPlayer.prime(); // in the tap, so iOS lets the first card be read aloud
+        rememberLevel(level);
+        rememberCount(count);
+        setWriting(true);
+        setWriteError('');
+        try {
+            const list = await writeCards(count, [], 1);
+            if (latest.current !== quiz) return; // closed or replaced meanwhile
+            if (!list.length) throw new Error('No questions came back. Try again.');
+            setLoaded({ ...loaded, cards: list });
+            start(dir, list);
+        } catch (err) {
+            if (latest.current === quiz) setWriteError(err.message);
+        } finally {
+            if (latest.current === quiz) setWriting(false);
+        }
+    };
+    // Start, from the sheet: a Stretch quiz writes its cards first. Without
+    // a connection there's no second opinion this time.
+    const go = (dir) => {
+        if (!online()) setSecondMode('off');
+        if (quiz.stretch) startStretch(dir); else start(dir);
+    };
+    // "10 more" at the end of a Stretch quiz: a new round, new questions.
+    const writeMore = async () => {
+        if (writing) return;
+        ttsPlayer.prime();
+        setWriting(true);
+        setWriteError('');
+        try {
+            const batch = Math.max(0, ...cards.map((c) => (c.stretch ? c.stretch.batch : 0))) + 1;
+            const extra = await writeCards(PER_REQUEST, cards.map((c) => c.foreign.text), batch);
+            if (latest.current !== quiz) return;
+            if (!extra.length) throw new Error('No new questions came back. Try again.');
+            const list = [...cards, ...extra];
+            let d = deal;
+            if (direction === 'mixed') {
+                d = { ...dealDirections(extra, share), ...deal };
+                setDeal(d);
+                saveDeal(saved, share, d);
+            }
+            changeCards(list); // eslint-disable-line no-use-before-define
+            setSummary(null);
+            goTo(cards.length, list, d, 'next');
+        } catch (err) {
+            if (latest.current === quiz) setWriteError(err.message);
+        } finally {
+            if (latest.current === quiz) setWriting(false);
+        }
     };
     const flip = () => {
         if (swiped.current) { swiped.current = false; return; } // the end of a swipe, not a tap
@@ -356,14 +494,16 @@ function NotebookQuiz() {
         feel(correct ? 'success' : 'error');
     };
 
-    // Mark a card's answer: the one its score counts.
+    // Mark a card's answer: the one its score counts. With the second
+    // opinion on Automatic, a "Not quite" is checked before it's said.
     const mark = (c, text) => {
         const correct = rightFor(c, text);
         const nextRun = { ...run, [cardKey(c)]: { heard: text, correct } };
         setRun(nextRun);
         saveRun(runStore(), nextRun);
         setAnswer(null);
-        reply(correct);
+        if (!correct && secondOn && secondMode === 'auto') askSecond(c, text, false); // eslint-disable-line no-use-before-define
+        else reply(correct);
     };
 
     // 🎤: hear an answer for this card (tapping it while listening stops).
@@ -377,6 +517,7 @@ function NotebookQuiz() {
         const practice = !!run[key] || !!review;
         stopAudio(); // so the card's own audio isn't heard as the answer
         listeningFor.current = key;
+        setOpinion(null);
         setAnswer({ status: 'listening', text: '', practice });
         try {
             const text = await listenForAnswer(target.lang, [target.text, ...(target.also || [])], (words) => {
@@ -388,7 +529,8 @@ function NotebookQuiz() {
             } else if (practice) {
                 const correct = rightFor(c, text);
                 setAnswer({ status: 'heard', text, practice, correct });
-                reply(correct);
+                if (!correct && secondOn && secondMode === 'auto') askSecond(c, text, true); // eslint-disable-line no-use-before-define
+                else reply(correct);
             } else {
                 mark(c, text);
             }
@@ -449,7 +591,7 @@ function NotebookQuiz() {
     // The cards changed (Remove, colour, I was right): keep them, and in a
     // saved quiz, save them again.
     const changeCards = (list) => {
-        setLoaded({ ...loaded, cards: list });
+        setLoaded((l) => ({ ...l, cards: list }));
         if (saved) {
             setSaveError('');
             store(saved, list).catch(() => setSaveError('Couldn’t save the change to this quiz. Check your connection.'));
@@ -461,21 +603,85 @@ function NotebookQuiz() {
     // "I was right": what was heard is another right answer for this card
     // (kept in its answer side's `also`), and the mark becomes Correct. A
     // practice try is only marked; the counted answer stays as it was.
-    const iWasRight = (heard, practice) => {
-        const c = cards[cur];
-        const sideKey = answerSideKey(c);
-        changeCard((card) => {
+    //
+    // acceptAnswer does it for the card with that key (the one showing, or
+    // for a second opinion, the one it was asked about), from the latest
+    // cards and answers. extra: { by: 'second', why } for a second opinion.
+    const acceptAnswer = (key, sideKey, heard, practice, extra = {}) => {
+        const { cards: list, run: latestRun } = now.current;
+        changeCards(list.map((card) => {
+            if (cardKey(card) !== key) return card;
             const also = card[sideKey].also || [];
             return also.includes(heard) ? card : { ...card, [sideKey]: { ...card[sideKey], also: [...also, heard] } };
-        });
+        }));
         if (practice) {
-            setAnswer({ ...answer, correct: true, marked: true });
+            setAnswer((a) => (a && a.practice && a.text === heard ? { ...a, correct: true, marked: true, ...extra } : a));
         } else {
-            const nextRun = { ...run, [cardKey(c)]: { heard, correct: true, marked: true } };
+            const nextRun = { ...latestRun, [key]: { heard, correct: true, marked: true, ...extra } };
             setRun(nextRun);
             saveRun(runStore(), nextRun);
         }
+    };
+    const iWasRight = (heard, practice) => {
+        const c = cards[cur];
+        acceptAnswer(cardKey(c), answerSideKey(c), heard, practice);
         feel('success');
+    };
+
+    // ---- Second opinion ----
+    // A "no" is remembered by card, answer side and what was heard.
+    const verdictKey = (c, heard) => `${cardKey(c)}\u0002${answerSideKey(c)}\u0002${plainQuestion(heard)}`;
+    /**
+     * Ask the model whether what was heard is right after all (the rules
+     * said "Not quite"), then say the verdict. A "yes" counts it as right
+     * and keeps the answer (acceptAnswer); a "no" shows why.
+     * @param {object} c the card
+     * @param {string} heard what speech recognition heard
+     * @param {boolean} practice a practice try, not the counted answer
+     */
+    const askSecond = async (c, heard, practice) => {
+        const key = cardKey(c);
+        const sideKey = answerSideKey(c);
+        const vkey = verdictKey(c, heard);
+        const stillHere = () => now.current.curKey === key;
+        const known = verdicts.current.get(vkey);
+        if (known) {
+            setOpinion({ key, heard, status: 'wrong', why: known.why });
+            reply(false);
+            return;
+        }
+        if (!online()) {
+            setOpinion({ key, heard, status: 'error', error: 'A second opinion needs a connection.' });
+            reply(false);
+            return;
+        }
+        const target = answerTo(c);
+        setOpinion({ key, heard, status: 'asking' });
+        let verdict;
+        try {
+            verdict = await dispatch(requestSecondOpinion({
+                asked: sideOf(c, false).text,
+                answer: target.text,
+                also: target.also || [],
+                language: languageName(target.lang),
+                scene: c.scene || '',
+                heard,
+            }));
+        } catch (err) {
+            if (stillHere()) {
+                setOpinion({ key, heard, status: 'error', error: err.message });
+                reply(false);
+            }
+            return;
+        }
+        if (latest.current !== quiz) return; // the quiz was closed meanwhile
+        if (verdict.correct) {
+            acceptAnswer(key, sideKey, heard, practice, { by: 'second', why: verdict.why });
+            if (stillHere()) { setOpinion(null); reply(true); }
+        } else {
+            verdicts.current.set(vkey, { why: verdict.why });
+            if (stillHere()) { setOpinion({ key, heard, status: 'wrong', why: verdict.why }); reply(false); }
+        }
     };
     // Undo "I was right": back to Not quite, and that answer isn't right any more.
     const undoRight = () => {
@@ -543,63 +749,110 @@ function NotebookQuiz() {
     }
 
     if (index < 0) {
-        const lang = quizLanguage(cards);
+        const material = loaded && loaded.material;
+        const lang = quiz.stretch ? languageName(material && material.lang) : quizLanguage(cards);
+        // Something to quiz on: cards, or for Stretch, notes in a foreign language.
+        const ready = quiz.stretch ? !!(material && material.lang && material.notes.length) : cards.length > 0;
+        // A row of choices on the sheet (the Mixed shares' look).
+        // grid: two by two (the four Stretch levels).
+        const pills = (label, options, value, pick, grid = false) => (
+            <div className={`quiz-mix__shares${grid ? ' quiz-mix__shares--grid' : ''}`} role="radiogroup" aria-label={label}>
+                {options.map((o) => (
+                    <button type="button" key={o.key} role="radio" aria-checked={value === o.key}
+                        className={`quiz-mix__share${value === o.key ? ' on' : ''}`} onClick={() => pick(o.key)}>
+                        {o.name}
+                    </button>
+                ))}
+            </div>
+        );
         return (
             <div className="cb-sheet__overlay" onMouseDown={close}>
-                <div className="cb-sheet" role="dialog" aria-modal="true" aria-label={`Quiz on ${title}`}
+                <div className="cb-sheet" role="dialog" aria-modal="true" aria-label={`${quiz.stretch ? 'Stretch' : 'Quiz'} on ${title}`}
                     onMouseDown={(e) => e.stopPropagation()}>
                     <div className="cb-sheet__grab" aria-hidden="true" />
                     <div className="cb-sheet__head">
                         <h3 className="cb-sheet__title">
-                            {saved ? saved.name : 'Quiz'}
-                            {loaded && cards.length > 0 ? ` · ${cards.length} card${cards.length === 1 ? '' : 's'}` : ''}
+                            {quiz.stretch ? `Stretch · ${title}` : saved ? saved.name : 'Quiz'}
+                            {!quiz.stretch && loaded && cards.length > 0 ? ` · ${cards.length} card${cards.length === 1 ? '' : 's'}` : ''}
                         </h3>
                         <button type="button" className="a2c__close" aria-label="Close" onClick={close}>
                             <i className="times icon"></i>
                         </button>
                     </div>
                     {!loaded ? (
-                        <Spinner label="Finding cards…" />
+                        <Spinner label={quiz.stretch ? 'Reading the notes…' : 'Finding cards…'} />
                     ) : loaded.failed ? (
                         <div className="cb-sheet__error">Couldn't load the notes. Check your connection and try again.</div>
-                    ) : cards.length === 0 ? (
+                    ) : !ready ? (
                         <div className="add-sheet__hint">
-                            {saved ? 'This quiz has no cards left.'
-                                : `No foreign phrases with English found in ${quiz.notebook ? 'this notebook' : 'these notes'}.`}
+                            {quiz.stretch ? `No ${quiz.notebook ? 'notes in this notebook have' : 'note here has'} phrases marked in a foreign language.`
+                                : saved ? 'This quiz has no cards left.'
+                                    : `No foreign phrases with English found in ${quiz.notebook ? 'this notebook' : 'these notes'}.`}
                         </div>
                     ) : (
                         <div className="quiz-sheet__choices">
-                            <button type="button" className="cb-btn cb-btn--accent" onClick={() => start('to-en')}>
-                                {lang} → English
-                            </button>
-                            <button type="button" className="cb-btn cb-btn--ghost" onClick={() => start('from-en')}>
-                                English → {lang}
-                            </button>
-                            <button type="button" className={`cb-btn cb-btn--ghost${mixing ? ' is-active' : ''}`}
-                                aria-expanded={mixing} onClick={() => setMixing(!mixing)}>
-                                Mixed <i className={`angle ${mixing ? 'up' : 'down'} icon`} aria-hidden="true"></i>
-                            </button>
-                            {mixing && (
-                                <div className="quiz-mix">
+                            {quiz.stretch && (
+                                <>
+                                    <div className="quiz-opt">
+                                        <div className="quiz-mix__label">
+                                            Stretch
+                                            <span className="quiz-mix__legend">{STRETCH_LEVELS[level].hint}</span>
+                                        </div>
+                                        {pills('Stretch', STRETCH_LEVELS.map((l, i) => ({ key: i, name: `${i} · ${l.name}` })),
+                                            level, setLevel, true)}
+                                    </div>
+                                    <div className="quiz-opt">
+                                        <div className="quiz-mix__label">Questions</div>
+                                        {pills('Questions', STRETCH_COUNTS.map((n) => ({ key: n, name: String(n) })), count, setCount)}
+                                    </div>
+                                </>
+                            )}
+                            {speech && (
+                                <div className="quiz-opt">
                                     <div className="quiz-mix__label">
-                                        How much each way?
-                                        <span className="quiz-mix__legend">{lang} → English / English → {lang}</span>
+                                        Second opinion
+                                        <span className="quiz-mix__legend">
+                                            {online() ? SECOND_OPINION.find((o) => o.key === secondMode).hint
+                                                : 'Needs a connection: the rules alone will decide.'}
+                                        </span>
                                     </div>
-                                    <div className="quiz-mix__shares" role="radiogroup" aria-label="How much each way">
-                                        {MIX_SHARES.map((s) => (
-                                            <button type="button" key={s} role="radio" aria-checked={share === s}
-                                                className={`quiz-mix__share${share === s ? ' on' : ''}`}
-                                                onClick={() => setShare(s)}>
-                                                {s} / {100 - s}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <button type="button" className="cb-btn cb-btn--accent" onClick={() => start('mixed')}>
-                                        Start
-                                    </button>
+                                    {pills('Second opinion', SECOND_OPINION, secondMode, (v) => { setSecondMode(v); rememberSecondOpinion(v); })}
                                 </div>
                             )}
-                            {cards.length > rounds[0][1] && (
+                            {writing ? (
+                                <Spinner label={`Writing ${count} questions…`} />
+                            ) : (
+                                <>
+                                    <button type="button" className="cb-btn cb-btn--accent" onClick={() => go('to-en')}>
+                                        {lang} → English
+                                    </button>
+                                    <button type="button" className="cb-btn cb-btn--ghost" onClick={() => go('from-en')}>
+                                        English → {lang}
+                                    </button>
+                                    <button type="button" className={`cb-btn cb-btn--ghost${mixing ? ' is-active' : ''}`}
+                                        aria-expanded={mixing} onClick={() => setMixing(!mixing)}>
+                                        Mixed <i className={`angle ${mixing ? 'up' : 'down'} icon`} aria-hidden="true"></i>
+                                    </button>
+                                    {mixing && (
+                                        <div className="quiz-mix">
+                                            <div className="quiz-mix__label">
+                                                How much each way?
+                                                <span className="quiz-mix__legend">{lang} → English / English → {lang}</span>
+                                            </div>
+                                            {pills('How much each way', MIX_SHARES.map((v) => ({ key: v, name: `${v} / ${100 - v}` })),
+                                                share, setShare)}
+                                            <button type="button" className="cb-btn cb-btn--accent" onClick={() => go('mixed')}>
+                                                Start
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                            {writeError && <div className="cb-sheet__error">{writeError}</div>}
+                            {quiz.stretch && !online() && (
+                                <div className="add-sheet__hint">Stretch needs a connection to write the questions.</div>
+                            )}
+                            {!quiz.stretch && cards.length > rounds[0][1] && (
                                 <div className="add-sheet__hint">In {rounds.length} rounds of about 20 cards.</div>
                             )}
                         </div>
@@ -653,7 +906,7 @@ function NotebookQuiz() {
                 {saved ? (
                     <div className="quiz-menu__note"><i className="check icon" aria-hidden="true"></i>Saved as “{saved.name}”</div>
                 ) : (
-                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setNaming(`${quiz.title} quiz`); }}>
+                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setNaming(`${quiz.title} ${quiz.stretch ? 'stretch' : 'quiz'}`); }}>
                         <i className="save outline icon" aria-hidden="true"></i>Save quiz
                     </button>
                 )}
@@ -739,22 +992,37 @@ function NotebookQuiz() {
 
     // The coloured panel after an answer: Correct / Not quite, what you
     // said, and Continue, I was right, Try again.
-    const feedback = (said, correct, { marked = false, practice = false } = {}) => (
-        <div className={`quiz-feedback quiz-feedback--${correct ? 'right' : 'wrong'}`} aria-live="polite">
+    //
+    // With a second opinion: "Checking…" while it's asked; once it said
+    // yes, "second opinion" and its reason; once it said no, its reason; and
+    // on Ask me, a "Second opinion" button after "Not quite".
+    const feedback = (said, correct, { marked = false, practice = false, by = '', why = '' } = {}) => {
+        const op = opinion && card && opinion.key === cardKey(card) && opinion.heard === said ? opinion : null;
+        const asking = !!(op && op.status === 'asking');
+        return (
+        <div className={`quiz-feedback quiz-feedback--${asking ? 'checking' : correct ? 'right' : 'wrong'}`} aria-live="polite">
             <div className="quiz-feedback__title">
-                <i className={`${correct ? 'check circle' : 'exclamation circle'} icon`} aria-hidden="true"></i>
-                {practice ? 'Practice: ' : ''}{correct ? 'Correct' : 'Not quite'}
-                {marked && <span className="quiz-feedback__marked">you marked it</span>}
+                <i className={`${asking ? 'hourglass half' : correct ? 'check circle' : 'exclamation circle'} icon`} aria-hidden="true"></i>
+                {asking ? 'Getting a second opinion…' : <>{practice ? 'Practice: ' : ''}{correct ? 'Correct' : 'Not quite'}</>}
+                {marked && !asking && <span className="quiz-feedback__marked">{by === 'second' ? 'second opinion' : 'you marked it'}</span>}
             </div>
             <div className="quiz-feedback__said">
                 You said “<span lang={target.lang}>{said}</span>”
                 {!correct && <> · the card says “<span lang={target.lang}>{target.text}</span>”</>}
             </div>
+            {correct && why && <div className="quiz-feedback__why">{why}</div>}
+            {!correct && op && op.status === 'wrong' && <div className="quiz-feedback__why">Second opinion: {op.why || 'not right.'}</div>}
+            {!correct && op && op.status === 'error' && <div className="quiz-feedback__why">{op.error}</div>}
             <button type="button" className="quiz-feedback__go" onClick={next}>
                 {lastInRound ? 'Finish round' : 'Continue'}
             </button>
             <div className="quiz-feedback__more">
-                {!correct && (
+                {!correct && !asking && secondOn && (secondMode === 'ask' || (op && op.status === 'error')) && !(op && op.status === 'wrong') && (
+                    <button type="button" onClick={() => askSecond(card, said, practice)}>
+                        <i className="balance scale icon" aria-hidden="true"></i>{op ? 'Ask again' : 'Second opinion'}
+                    </button>
+                )}
+                {!correct && !asking && (
                     <button type="button" onClick={() => iWasRight(said, practice)}>
                         <i className="check icon" aria-hidden="true"></i>I was right
                     </button>
@@ -769,15 +1037,18 @@ function NotebookQuiz() {
                 </button>
             </div>
         </div>
-    );
+        );
+    };
 
     // Under the card: the mic (iPhone) or Show answer / Next (website), or
     // after an answer, its feedback.
     const bottom = () => {
         const listening = answer && answer.status === 'listening';
-        if (tried && !listening) return feedback(tried.text, tried.correct, { practice: true, marked: tried.marked });
+        if (tried && !listening) {
+            return feedback(tried.text, tried.correct, { practice: true, marked: tried.marked, by: tried.by, why: tried.why });
+        }
         if (result && !listening && !(answer && answer.status !== 'heard')) {
-            return feedback(result.heard, result.correct, { marked: result.marked });
+            return feedback(result.heard, result.correct, { marked: result.marked, by: result.by, why: result.why });
         }
         if (speech && !flipped) {
             const heardNothing = answer && answer.status === 'heard' && !answer.text;
@@ -865,6 +1136,13 @@ function NotebookQuiz() {
                     }}>
                         {lastRound ? 'Finish' : 'Next round'}
                     </button>
+                    {quiz.stretch && lastRound && !writing && (
+                        <button type="button" className="quiz__second" onClick={writeMore}>
+                            {PER_REQUEST} more
+                        </button>
+                    )}
+                    {writing && <Spinner label={`Writing ${PER_REQUEST} more…`} />}
+                    {writeError && <div className="quiz__error">{writeError}</div>}
                     {missed.length > 0 && (
                         <button type="button" className="quiz__second" onClick={() => {
                             setSummary(null);
@@ -940,9 +1218,18 @@ function NotebookQuiz() {
                             onClick={flip} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } }}>
                             <span className="quiz__way">{flipped ? 'Answer' : way}</span>
+                            {card.scene && <span className="quiz__scene">{card.scene}</span>}
                             <span className="quiz__text" lang={side.lang}>{side.text}</span>
                             {revealed && (
                                 <span className="quiz__reveal" lang={target.lang}>{target.text}</span>
+                            )}
+                            {card.stretch && (revealed || flipped) && (
+                                <span className="quiz__stretchinfo">
+                                    {card.stretch.own ? 'From your notes' : 'Written for this quiz'}
+                                    {card.stretch.newWords && card.stretch.newWords.length > 0 && (
+                                        <> · New: <span lang={card.foreign.lang}>{card.stretch.newWords.join(', ')}</span></>
+                                    )}
+                                </span>
                             )}
                             <button type="button" className="quiz__again" aria-label="Read aloud" title="Read aloud"
                                 onClick={(e) => { e.stopPropagation(); say(revealed ? target : side); }}>
