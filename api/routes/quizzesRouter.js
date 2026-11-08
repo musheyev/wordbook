@@ -6,6 +6,10 @@
  *   PUT    /quizzes/:id   { name, notebook, cards } -> { id, name, updatedAt }
  *   DELETE /quizzes/:id   -> { ok: true }
  *
+ * Admins only, using OpenAI (../stretch.js):
+ *   POST   /quizzes/stretch         { notes, language, level, count, avoid } -> { cards }
+ *   POST   /quizzes/second-opinion  { asked, answer, also, language, scene, heard } -> { correct, why }
+ *
  * PUT both creates and replaces: the app makes the id, so saving the same
  * quiz twice (say, once offline and again when sent) does no harm.
  */
@@ -13,6 +17,8 @@ const express = require("express");
 const { getCurentUserFromToken } = require("../auth");
 const quizzes = require("../quizzes");
 const log = require("../logger");
+const { isAdmin } = require("../cognitoUsers");
+const { makeStretchCards, secondOpinion, StretchError } = require("../stretch");
 
 const quizzesRouter = express.Router();
 
@@ -41,6 +47,33 @@ const handle = (fn) => async (req, res) => {
         res.status(500).json({ error: "Something went wrong." });
     }
 };
+
+// ---- Stretch and second opinion (../stretch.js) ----
+// These cost money (OpenAI), so they're for admins only, like the quiz.
+const adminOnly = async (req, res, next) => {
+    if (await isAdmin(req.cookies.id_token)) return next();
+    res.status(403).json({ error: "This is only for admins." });
+};
+const handleStretch = (fn) => async (req, res) => {
+    try {
+        await fn(req, res);
+    } catch (err) {
+        if (err instanceof StretchError) {
+            res.status(err.status).json({ error: err.message });
+            return;
+        }
+        log("stretch error: " + err);
+        res.status(500).json({ error: "Something went wrong." });
+    }
+};
+
+quizzesRouter.post("/stretch", adminOnly, handleStretch(async (req, res) => {
+    res.json({ cards: await makeStretchCards(req.userName, req.body || {}) });
+}));
+
+quizzesRouter.post("/second-opinion", adminOnly, handleStretch(async (req, res) => {
+    res.json(await secondOpinion(req.userName, req.body || {}));
+}));
 
 quizzesRouter.get("/", handle(async (req, res) => {
     res.json(await quizzes.listQuizzes(req.userName));

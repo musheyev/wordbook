@@ -979,6 +979,12 @@ nav-button-as-link {
   background: var(--cb-surface); color: var(--cb-ink); font: inherit; font-size: 1rem; cursor: pointer;
 }
 .quiz-mix__share.on { border-color: var(--cb-accent); background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 600; }
+/* Stretch and second-opinion choices on the sheet (NotebookQuiz.js): a
+   label, then the same pills; the four Stretch levels two by two. */
+.quiz-opt { display: flex; flex-direction: column; gap: 8px; }
+.quiz-opt .quiz-mix__share { flex: 1 1 0; min-width: 0; font-size: 0.92rem; padding: 0 8px; }
+.quiz-mix__shares--grid { flex-wrap: wrap; }
+.quiz-mix__shares--grid .quiz-mix__share { flex-basis: calc(50% - 8px); }
 /* The quiz screen: ✕, the round's progress and ⋯ on top; the card; the
    microphone (iPhone) or Show answer / Next under it, with ‹ › beside; after
    an answer, a green or amber panel. A centred panel on a computer, the
@@ -1050,6 +1056,10 @@ nav-button-as-link {
   background: var(--cb-accent-weak); color: var(--cb-accent);
 }
 .quiz__card--back .quiz__way { background: var(--cb-surface); color: var(--cb-ink-2); }
+/* A Stretch card's situation, above its text ("At a café. …"). */
+.quiz__scene { max-width: 32em; font-size: 0.95rem; line-height: 1.4; color: var(--cb-ink-2); font-style: italic; }
+/* Once answered: from your notes or written for this quiz, and new words. */
+.quiz__stretchinfo { font-size: 0.82rem; color: var(--cb-ink-3); }
 .quiz__text { font-size: 2.2rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; letter-spacing: -0.01em; }
 .quiz__reveal {
   font-size: 1.35rem; font-weight: 600; color: var(--cb-accent); overflow-wrap: anywhere;
@@ -1114,6 +1124,10 @@ nav-button-as-link {
 }
 .quiz-feedback--right { background: var(--quiz-right-bg); border-color: var(--quiz-right-line); color: var(--quiz-right); }
 .quiz-feedback--wrong { background: var(--quiz-wrong-bg); border-color: var(--quiz-wrong-line); color: var(--quiz-wrong); }
+/* While a second opinion is asked: neither green nor amber yet. */
+.quiz-feedback--checking { background: var(--cb-surface-2); border-color: var(--cb-border); color: var(--cb-ink-2); }
+.quiz-feedback--checking .quiz-feedback__go { background: var(--cb-ink-3); }
+.quiz-feedback__why { font-size: 0.9rem; font-style: italic; overflow-wrap: anywhere; }
 .quiz-feedback__title { display: flex; align-items: center; gap: 8px; font-size: 1.2rem; font-weight: 700; animation: quiz-pop 0.35s ease; }
 .quiz-feedback__title i.icon { margin: 0; height: auto; }
 .quiz-feedback__marked { font-size: 0.8rem; font-weight: 500; opacity: 0.85; }
@@ -1240,6 +1254,13 @@ nav-button-as-link {
 }
 .quiz-list__delete:hover { color: var(--cb-danger); }
 .quiz-list__delete i.icon { margin: 0; }
+/* Stretch on a saved quiz: new questions from its cards. */
+.quiz-list__stretch {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: none; background: none;
+  font: inherit; font-size: 0.85rem; color: var(--cb-ink-3); cursor: pointer;
+}
+.quiz-list__stretch:hover { color: var(--cb-accent); }
+.quiz-list__stretch i.icon { margin: 0; }
 @media (max-width: 768px), (max-height: 500px) {
   .quiz-back { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); left: 12px; transform: none; }
 }

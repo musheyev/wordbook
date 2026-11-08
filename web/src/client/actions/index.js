@@ -1,5 +1,6 @@
 import shrinkImage from '../utils/shrinkImage';
 import { quizCardsOf, oneNoteCards } from '../utils/quizCards';
+import { materialOf } from '../utils/stretch';
 import axios from 'axios';
 import { isNativeApp } from '../native/platform';
 import { nativeSignOut } from '../native/auth';
@@ -1281,6 +1282,79 @@ export const quizCardsForLinked = (item) => async (dispatch) => {
   const { cards, missing } = await dispatch(quizCardsForItems([item, ...linked]));
   // Each question once, sentences before single words (utils/quizCards.js).
   return { cards: oneNoteCards(cards), missing };
+};
+
+// ---- Stretch quizzes and second opinions (utils/stretch.js, api/stretch.js) ----
+
+/**
+ * Notes' contents, for a Stretch quiz: [{ source, html }] in the order
+ * given, and how many couldn't be loaded (offline, not downloaded).
+ * @param {Array<{type: 'card'|'word', id: string, title?: string}>} items
+ */
+const notesOfItems = (items) => async (dispatch) => {
+  const notes = [];
+  let missing = 0;
+  for (const item of items) {
+    try {
+      const html = item.type === 'card'
+        ? await dispatch(getCardContent(item.id))
+        : await dispatch(getWordNoteContent(item.id));
+      notes.push({ source: { type: item.type, id: item.id, title: item.title || item.id }, html });
+    } catch (e) { missing += 1; }
+  }
+  return { notes, missing };
+};
+
+/**
+ * What a Stretch quiz on these notes is made from: openQuiz's `load` for a
+ * Stretch quiz. No cards yet; the quiz asks for them on Start.
+ * @returns {Promise<{cards: [], missing: number, material: object}>}
+ */
+export const stretchMaterialForItems = (items) => async (dispatch) => {
+  const { notes, missing } = await dispatch(notesOfItems(items));
+  return { cards: [], missing, material: materialOf(notes) };
+};
+
+/** The same for a note and the notes it links to (the Stretch button on a note). */
+export const stretchMaterialForLinked = (item) => async (dispatch) => {
+  let linked = [];
+  try {
+    linked = (await dispatch(fetchNoteLinks(item.type, item.id))).linksTo.filter((l) => !l.missing);
+  } catch (e) { /* offline and not saved: just this note */ }
+  return dispatch(stretchMaterialForItems([item, ...linked]));
+};
+
+// The server's message for a refusal ("That's today's limit…"), or a
+// general one when there's no answer at all (offline).
+const stretchErrorOf = (err) => new Error(
+  (err && err.response && err.response.data && err.response.data.error)
+  || 'Couldn’t reach the server. Check your connection and try again.',
+);
+
+/**
+ * Ask the server to write Stretch cards (api/stretch.js makeStretchCards).
+ * @param {{notes, language, level, count, avoid}} body
+ * @returns {Promise<Array>} the server's cards
+ * @throws {Error} with a message for the user
+ */
+export const requestStretchCards = (body) => async (dispatch, getState, api) => {
+  try {
+    const res = await api.post('/quizzes/stretch', body, JSON_HEADERS);
+    return Array.isArray(res.data && res.data.cards) ? res.data.cards : [];
+  } catch (err) { throw stretchErrorOf(err); }
+};
+
+/**
+ * Ask for a second opinion on a spoken answer (api/stretch.js secondOpinion).
+ * @param {{asked, answer, also, language, scene, heard}} body
+ * @returns {Promise<{correct: boolean, why: string}>}
+ * @throws {Error} with a message for the user
+ */
+export const requestSecondOpinion = (body) => async (dispatch, getState, api) => {
+  try {
+    const res = await api.post('/quizzes/second-opinion', body, JSON_HEADERS);
+    return { correct: !!(res.data && res.data.correct), why: (res.data && res.data.why) || '' };
+  } catch (err) { throw stretchErrorOf(err); }
 };
 
 // The server's answer as { linksTo, linkedFrom }, each a list.

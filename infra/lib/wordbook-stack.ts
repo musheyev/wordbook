@@ -180,6 +180,8 @@ export class WordbookStack extends cdk.Stack {
         GOOGLE_TRANSLATE_KEY: process.env.GOOGLE_TRANSLATE_KEY ?? '',
         // Read-aloud (api/tts.js): Google TTS key + the audio cache bucket.
         GOOGLE_TTS_KEY: process.env.GOOGLE_TTS_KEY ?? '',
+        // Stretch quizzes and second opinions (api/stretch.js): OpenAI key.
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? '',
         TTS_BUCKET: ttsBucket.bucketName,
         // Public URLs used by the Cognito auth redirect flow. Only correct once
         // APP_URL is known; harmless for the (non-auth) dictionary/wordbook APIs.

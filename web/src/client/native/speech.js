@@ -20,8 +20,27 @@ async function speechPlugin() {
     return plugin;
 }
 
+// Testing in a browser, from the developer console (like offlineTest,
+// offline/network.js), with no microphone:
+//
+//   speechTest.on()               the quiz shows 🎤, as in the app
+//   speechTest.next('I am tired') what the next 🎤 "hears"
+//   speechTest.off()              back to the normal website
+//
+// The replies the app would say ("Correct") go to the console instead.
+const TEST_KEY = 'speech-test';
+const testing = () => { try { return !isNativeApp() && localStorage.getItem(TEST_KEY) === '1'; } catch (e) { return false; } };
+let testHeard = '';
+if (typeof window !== 'undefined') {
+    window.speechTest = {
+        on() { try { localStorage.setItem(TEST_KEY, '1'); } catch (e) { /* no storage */ } },
+        off() { try { localStorage.removeItem(TEST_KEY); } catch (e) { /* no storage */ } },
+        next(text) { testHeard = String(text || ''); },
+    };
+}
+
 /** Whether this is the iPhone app, where the quiz can hear answers. */
-export const canAnswerBySpeech = () => isNativeApp();
+export const canAnswerBySpeech = () => isNativeApp() || testing();
 
 /**
  * Hear one answer. Ends by itself when you pause (or stopListening()).
@@ -35,6 +54,12 @@ export const canAnswerBySpeech = () => isNativeApp();
  *   language not supported, or an older app build without the plugin
  */
 export async function listenForAnswer(lang, hints, onPartial) {
+    if (testing()) { // speechTest: "hear" what speechTest.next() was given
+        await new Promise((r) => setTimeout(r, 400));
+        const text = testHeard;
+        testHeard = '';
+        return text;
+    }
     const { speech } = await speechPlugin();
     const sub = onPartial ? await speech.addListener('partial', (e) => onPartial(e.text || '')) : null;
     try {
@@ -47,6 +72,7 @@ export async function listenForAnswer(lang, hints, onPartial) {
 
 /** Stop listening now; the waiting listenForAnswer() gets what was heard. */
 export async function stopListening() {
+    if (testing()) return;
     const { speech } = await speechPlugin();
     await speech.stop();
 }
@@ -57,6 +83,7 @@ export async function stopListening() {
  * @param {string} [lang]
  */
 export async function sayReply(text, lang = 'en-US') {
+    if (testing()) { console.log(`[speechTest] says: ${text}`); return; } // eslint-disable-line no-console
     try {
         const { speech } = await speechPlugin();
         await speech.speak({ text, lang });
