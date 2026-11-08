@@ -63,7 +63,10 @@ export default function NoteLinksRow({ type, id, title, version }) {
     const remove = (item) => save(added.filter((l) => !same(l, item)));
 
     return (
-        <div className="item-links" aria-label="Linked notes">
+        // With no links yet it's just "🔗 Add a link", which fits beside
+        // "Add a tag" even on a phone; once there are links, a phone gives
+        // them a line of their own (styles.css, item-links--some).
+        <div className={`item-links${links.length ? ' item-links--some' : ''}`} aria-label="Linked notes">
             <i className="linkify icon" aria-hidden="true"></i>
             {links.map((l) => (
                 <span key={`${l.type}:${l.id}`} className="item-link"

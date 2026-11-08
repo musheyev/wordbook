@@ -257,6 +257,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
             onClick={() => openQuiz({
                 title: item.title,
                 notebook: '',
+                oneGo: true,
                 load: () => dispatch(quizCardsForLinked(item)),
             })}>
             <i className="question circle outline icon"></i>

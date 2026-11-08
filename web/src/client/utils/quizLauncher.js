@@ -18,6 +18,8 @@ const changeListeners = new Set();
  * @param {() => Promise<{cards: object[], missing: number}>|{cards, missing}} quiz.load
  *        the cards: made from the notes, or a saved quiz's copy
  * @param {{id: string, name: string}} [quiz.saved] set for a quiz from My Quizzes
+ * @param {boolean} [quiz.oneGo] ask every card in one round, not rounds of
+ *        20 (a quiz on one note)
  */
 export function openQuiz(quiz) {
     openListeners.forEach((fn) => fn(quiz));

@@ -200,6 +200,9 @@ export class WordbookStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: [
           'dynamodb:GetItem',
+          // Several items in one call: note titles for a note's links
+          // (note-links.js) and tags for a notebook's items (tags.js).
+          'dynamodb:BatchGetItem',
           'dynamodb:PutItem',
           'dynamodb:Query',
           'dynamodb:Scan',

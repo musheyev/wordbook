@@ -3252,7 +3252,8 @@ ul.cb-grid { list-style: none; padding: 0; }
 }
 .item-tags__add input::placeholder { color: var(--cb-ink-3); }
 /* Tags, then the notes this one links to (NoteLinksRow.js), on one line
-   while they fit. On a phone the links get a line of their own. */
+   while they fit. On a phone the links get a line of their own once there
+   are some; "Add a tag  Add a link" alone stays on one line. */
 .item-meta { display: flex; flex-wrap: wrap; align-items: center; column-gap: 22px; row-gap: 4px; margin: 10px 0 4px; }
 .item-meta .item-tags { margin: 0; }
 .item-links { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
@@ -3269,7 +3270,7 @@ ul.cb-grid { list-style: none; padding: 0; }
 .item-links__add:hover { color: var(--cb-accent); }
 .item-links__error { flex-basis: 100%; font-size: 0.8rem; color: var(--cb-danger); }
 @media (max-width: 768px), (max-height: 500px) {
-  .item-links { flex-basis: 100%; }
+  .item-links--some { flex-basis: 100%; }
   .item-links__add { padding: 6px 4px; }
 }
 
