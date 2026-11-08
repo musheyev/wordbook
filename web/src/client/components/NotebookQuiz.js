@@ -55,7 +55,9 @@ import { languageLabel } from '../utils/tts';
 // On the website (no microphone) the button under the card is "Show answer",
 // then "Next".
 //
-// The end of each round shows its summary: the round's score (iPhone), the
+// A quiz on one note asks all its cards in one round (each question once,
+// sentences first: utils/quizCards.js oneNoteCards); other quizzes ask 20
+// at a time. The end of each round shows its summary: the round's score (iPhone), the
 // day streak, and "Review the N missed" (those cards again, as practice), then
 // "Next round".
 //
@@ -232,7 +234,9 @@ function NotebookQuiz() {
     if (!quiz) return null;
 
     const cards = loaded ? loaded.cards : [];
-    const rounds = roundsOf(cards.length);
+    // Rounds of 20 (utils/quizRounds.js), or one round of them all for a
+    // quiz on one note (openQuiz's `oneGo`).
+    const rounds = quiz.oneGo ? [[0, cards.length]] : roundsOf(cards.length);
     // Whether a card is asked to English (its front is the foreign side).
     const toEnglishFor = (card, dir = direction, d = deal) => (dir === 'mixed' ? !d || d[cardKey(card)] !== false : dir === 'to-en');
     const sideOf = (card, back, english = toEnglishFor(card)) => ((english !== back) ? card.foreign : card.english);
@@ -618,8 +622,10 @@ function NotebookQuiz() {
     // What was just heard as practice (after the counted answer, or in a review).
     const tried = answer && answer.status === 'heard' && answer.practice && answer.text ? answer : null;
     const answered = !!(result || tried);
-    // After an answer the card shows both sides (unless you flip it).
-    const revealed = card && answered && !flipped;
+    // After an answer the card shows both sides (unless you flip it), but
+    // not while 🎤 listens to another try: the answer would give it away.
+    const listeningNow = !!(answer && answer.status === 'listening');
+    const revealed = card && answered && !flipped && !listeningNow;
     const side = card && sideOf(card, flipped);
     const target = card && answerTo(card);
     // The card's own colour, if it was given one ({ key, label, tint, ink }).

@@ -20,6 +20,10 @@
 // separator) and "Ser is generally used for…" (goes on in lowercase) aren't
 // cards. The separator isn't shown.
 //
+// The English is cut to as many sentences as the phrase has, so a note
+// that explains after the translation ("Dónde — Where. It asks about a
+// location.") asks for "Where." only.
+//
 // Each side carries the chunks Play all reads for that part of the line
 // (tts.js htmlToLines / chunksOfStretch), so it plays the same audio — and
 // on the phone, the audio a download already saved, with no connection.
@@ -67,6 +71,27 @@ function readsAsTranslation(line, at) {
     return englishAfter && startsWithCapital(after); // the phrase starts the line (no letters before it)
 }
 
+// The sentences in some text: a split after . ! ? or … where the next
+// sentence starts with a capital ("Where. It asks about a location." is two).
+const sentencesIn = (s) => s.split(/(?<=[.!?…])\s+(?=[¿¡"“‘(]?\p{Lu})/u).filter(hasLetters);
+
+/**
+ * The English as long as the phrase: as many sentences as the foreign side
+ * has, so an explanation after the translation isn't part of the answer.
+ *
+ *   Dónde — Where. It asks about a location.        ->  "Where."
+ *   En metro. Sigue recto. — By subway. Go straight. ->  both sentences
+ *
+ * @param {string} english the cleaned English
+ * @param {string} foreign the cleaned foreign phrase
+ * @returns {string} the English, or its first sentences
+ */
+function englishAsLongAs(english, foreign) {
+    const keep = Math.max(1, sentencesIn(foreign).length);
+    const sentences = sentencesIn(english);
+    return sentences.length > keep ? sentences.slice(0, keep).join(' ') : english;
+}
+
 /**
  * A note's quiz cards, in the note's order.
  *
@@ -80,13 +105,20 @@ export function quizCardsOf(html) {
         if (foreign.length !== 1) return;
         const rest = line.filter((s) => s !== foreign[0]);
         if (rest.some((s) => isForeign(s.reading) || HEBREW.test(s.text))) return;
-        const english = clean(rest.map((s) => s.text).join(' '));
+        const whole = clean(rest.map((s) => s.text).join(' '));
         const front = clean(foreign[0].text);
-        if (!hasLetters(english) || !front) return;
+        if (!hasLetters(whole) || !front) return;
         if (!readsAsTranslation(line, line.indexOf(foreign[0]))) return;
+        const english = englishAsLongAs(whole, front);
+        // Its audio: the line's English as marked, or (when trimmed) just
+        // the part kept, read the way the English is marked.
+        const englishReading = (rest.find((s) => hasLetters(s.text)) || {}).reading || null;
+        const englishChunks = english === whole
+            ? rest.flatMap(chunksOfStretch)
+            : chunksOfStretch({ text: english, reading: englishReading });
         cards.push({
             foreign: { text: front, lang: foreign[0].reading.lang, chunks: chunksOfStretch(foreign[0]) },
-            english: { text: english, lang: 'en-US', chunks: rest.flatMap(chunksOfStretch) },
+            english: { text: english, lang: 'en-US', chunks: englishChunks },
         });
     });
     return cards;
@@ -102,4 +134,31 @@ export function quizCardsOf(html) {
 export function quizLanguage(cards) {
     const labels = [...new Set(cards.map((c) => languageLabel(c.foreign.lang).replace(/ \(.*\)$/, '')))];
     return labels.length === 1 ? labels[0] : 'Foreign';
+}
+
+// A single word: the foreign side with no space in it ("Metro", "¿Dónde?").
+const isOneWord = (card) => !/\s/.test(card.foreign.text.trim());
+
+/**
+ * A quiz on one note (the Quiz button on a note, with the notes it links
+ * to): each question once, and the sentences and phrases before the single
+ * words, so "¿Dónde está la estación?" comes before "Metro — Subway".
+ * Otherwise the notes' order is kept. (The quiz also asks them all in one
+ * go, without rounds: NotebookQuiz's `oneGo`.)
+ *
+ * @param {Array} cards from quizCardsOf, in the notes' order
+ * @returns {Array} the cards to ask
+ */
+export function oneNoteCards(cards) {
+    // The same question, even with a different capital or full stop:
+    // "La estación más cercana" and "La estación más cercana." are one.
+    const plain = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const seen = new Set();
+    const once = cards.filter((c) => {
+        const key = plain(c.foreign.text) + '\u0001' + plain(c.english.text);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+    return [...once.filter((c) => !isOneWord(c)), ...once.filter(isOneWord)];
 }

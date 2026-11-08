@@ -1,5 +1,5 @@
 import shrinkImage from '../utils/shrinkImage';
-import { quizCardsOf } from '../utils/quizCards';
+import { quizCardsOf, oneNoteCards } from '../utils/quizCards';
 import axios from 'axios';
 import { isNativeApp } from '../native/platform';
 import { nativeSignOut } from '../native/auth';
@@ -1278,7 +1278,9 @@ export const quizCardsForLinked = (item) => async (dispatch) => {
   try {
     linked = (await dispatch(fetchNoteLinks(item.type, item.id))).linksTo.filter((l) => !l.missing);
   } catch (e) { /* offline and not saved: just this note */ }
-  return dispatch(quizCardsForItems([item, ...linked]));
+  const { cards, missing } = await dispatch(quizCardsForItems([item, ...linked]));
+  // Each question once, sentences before single words (utils/quizCards.js).
+  return { cards: oneNoteCards(cards), missing };
 };
 
 // The server's answer as { linksTo, linkedFrom }, each a list.
