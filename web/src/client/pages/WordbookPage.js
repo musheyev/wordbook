@@ -259,7 +259,7 @@ function WordbookPage({
     // "From" link). Notes that can't be loaded (offline, not downloaded) are
     // counted and left out.
     const quizCards = (list) => dispatch(quizCardsForItems(list.filter((i) => i.type === 'card')));
-    const startQuiz = (list) => openQuiz({ title: name, notebook: name, load: () => quizCards(list) });
+    const startQuiz = (list) => openQuiz({ title: name, notebook: name, spot: `nb:${name}`, load: () => quizCards(list) });
     // Quiz selected (admins), next to Play selected: the quiz on the ticked items.
     const quizSelected = isAdmin ? () => startQuiz(pickedItems) : null;
 

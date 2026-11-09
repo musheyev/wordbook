@@ -15,13 +15,15 @@ const changeListeners = new Set();
  * @param {object} quiz
  * @param {string} quiz.title     shown on the direction sheet ("Spanish", "Spanish verbs")
  * @param {string} quiz.notebook  the notebook the cards came from ("From" links open notes there)
- * @param {() => Promise<{cards: object[], missing: number}>|{cards, missing}} quiz.load
- *        the cards: made from the notes, or a saved quiz's copy
+ * @param {() => Promise<{cards: object[], missing: number, material: object}>|{cards, missing, material}} quiz.load
+ *        the cards (made from the notes, or a saved quiz's copy) and the
+ *        notes' lines, for questions written from them (utils/stretch.js)
  * @param {{id: string, name: string}} [quiz.saved] set for a quiz from My Quizzes
  * @param {boolean} [quiz.oneGo] ask every card in one round, not rounds of
  *        20 (a quiz on one note)
- * @param {boolean} [quiz.stretch] a Stretch quiz (utils/stretch.js): `load`
- *        gives { cards: [], missing, material } and the cards are written on Start
+ * @param {string} [quiz.spot] where it's started from ("nb:Spanish", "tag:verbs",
+ *        "note:card:123", "saved:q-…"): an unfinished quiz from there can be
+ *        continued (utils/quizSpots.js)
  */
 export function openQuiz(quiz) {
     openListeners.forEach((fn) => fn(quiz));

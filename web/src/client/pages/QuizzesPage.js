@@ -44,6 +44,7 @@ function QuizzesPage() {
     const start = (quiz) => openQuiz({
         title: quiz.name,
         notebook: quiz.notebook,
+        spot: `saved:${quiz.id}`,
         load: () => ({ cards: quiz.cards, missing: 0, material: materialFromCards(quiz.cards) }),
         saved: { id: quiz.id, name: quiz.name },
     });

@@ -8,6 +8,8 @@ import { itemPath } from '../utils/notebookPaths';
 import { noteLinkHref } from '../utils/noteLinks';
 import { saveQuiz, requestStretchCards, requestSecondOpinion } from '../actions';
 import Spinner from './Spinner';
+import ConfirmDialog from './ConfirmDialog';
+import { loadSpot, saveSpot, clearSpot } from '../utils/quizSpots';
 import { ITEM_COLORS } from '../utils/itemColors';
 import { canAnswerBySpeech, listenForAnswer, stopListening, sayReply, feel } from '../native/speech';
 import { isRightAnswer } from '../utils/answerCheck';
@@ -97,6 +99,13 @@ import {
 // the answer is kept in the card's `also`, so next time the rules accept it
 // with no need to ask (in a saved quiz, for good). A "no" is remembered while
 // the quiz is open, so the same answer isn't asked about twice.
+//
+// Continue (utils/quizSpots.js): where you are in a quiz is kept on the
+// phone, one per place it's started from (a notebook, tag, note or saved
+// quiz; openQuiz's `spot`), with its cards, directions and answers. Next
+// time the sheet offers "Continue where you left off" above the choices for
+// a new one. Finishing the last round forgets it; starting a new one there
+// replaces it. So ✕ (or Esc) in the middle asks first: "Leave the quiz?".
 //
 // Drawn once at the app's root (App.js) and opened with openQuiz()
 // (utils/quizLauncher.js), so "See note" can leave for the note and a "Back to
@@ -220,6 +229,10 @@ function NotebookQuiz() {
     // { status: 'listening'|'heard'|'error', text, practice?, correct?, marked?, error? }
     const [answer, setAnswer] = useState(null);
     const [showScore, setShowScore] = useState(false);
+    // Where you left off last time in a quiz from here (utils/quizSpots.js;
+    // null: none), and whether "Leave the quiz?" is asking.
+    const [spotFound, setSpotFound] = useState(null);
+    const [leaving, setLeaving] = useState(false);
     // The sheet's kind of question (QUIZ_KINDS: 0 My cards, 1–3 written),
     // how many to write (count) or to ask of My cards (cardCount: 'all' or
     // a number), whether this quiz's cards were written, and whether cards
@@ -275,6 +288,8 @@ function NotebookQuiz() {
         setWriteError('');
         setSecondMode(lastSecondOpinion());
         setOpinion(null);
+        setSpotFound(loadSpot(next.spot));
+        setLeaving(false);
         verdicts.current = new Map();
         latest.current = next;
         Promise.resolve(next.load())
@@ -300,6 +315,7 @@ function NotebookQuiz() {
         stopAudio();
         stopHearing();
         latest.current = null;
+        setLeaving(false);
         setQuiz(null);
     };
 
@@ -321,11 +337,11 @@ function NotebookQuiz() {
     useEffect(() => {
         if (!showing) return undefined;
         const onKey = (e) => {
-            if (naming !== null) return;
+            if (naming !== null || leaving) return; // "Leave the quiz?" handles its own keys
             if (e.key === 'Escape') {
                 if (menu) setMenu(false);
                 else if (showScore) setShowScore(false);
-                else close();
+                else requestClose(); // eslint-disable-line no-use-before-define
             } else if (index >= 0 && summary === null && !menu && !showScore) {
                 if (e.key === 'ArrowRight') next(); // eslint-disable-line no-use-before-define
                 if (e.key === 'ArrowLeft') previous(); // eslint-disable-line no-use-before-define
@@ -334,6 +350,28 @@ function NotebookQuiz() {
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Keep where you are (utils/quizSpots.js) whenever it changes; at the
+    // last round's summary the quiz is finished, so its spot is forgotten.
+    useEffect(() => {
+        if (!quiz || !quiz.spot || index < 0 || !loaded) return;
+        const list = loaded.cards;
+        const all = written ? stretchRounds(list) : quiz.oneGo ? [[0, list.length]] : roundsOf(list.length);
+        if (!list.length || (summary !== null && summary + 1 >= all.length)) {
+            clearSpot(quiz.spot);
+            return;
+        }
+        saveSpot(quiz.spot, {
+            cards: list,
+            index,
+            summary: summary !== null ? summary : review ? review.round : null,
+            direction, share, deal, run,
+            kind: written ? kind : 0,
+            written,
+            saved,
+            subset: !!allCards.current,
+        });
+    }, [quiz, loaded, index, summary, review, direction, share, deal, run, kind, written, saved]);
 
     if (!quiz) return null;
 
@@ -477,6 +515,51 @@ function NotebookQuiz() {
         }
         start(direction, list);
     };
+    // Continue: back to where you left off (spotFound), with its cards,
+    // directions and answers; at a round's end, that round's summary.
+    const resume = () => {
+        const sp = spotFound;
+        const list = sp.cards;
+        if (!online()) setSecondMode('off');
+        // Some of a saved quiz's cards: changes still go into the whole quiz.
+        allCards.current = sp.subset && sp.saved && loaded && loaded.cards.length ? loaded.cards : null;
+        setLoaded({ ...(loaded || { missing: 0 }), failed: false, cards: list });
+        setSaved(sp.saved || null);
+        setWritten(!!sp.written);
+        if (sp.written) setKind(sp.kind);
+        setDirection(sp.direction);
+        if (sp.share) setShare(sp.share);
+        setDeal(sp.deal || null);
+        setRun(sp.run || {});
+        setReview(null);
+        const all = sp.written ? stretchRounds(list) : quiz.oneGo ? [[0, list.length]] : roundsOf(list.length);
+        const i = Math.min(Math.max(0, sp.index), list.length - 1);
+        setIndex(i);
+        setFlipped(false);
+        setMotion('next');
+        if (Number.isInteger(sp.summary) && sp.summary < all.length) {
+            setSummary(sp.summary);
+            ttsPlayer.prime();
+        } else {
+            say(sideOf(list[i], false, toEnglishFor(list[i], sp.direction, sp.deal)));
+        }
+    };
+    // ✕ or Esc: in the middle of a quiz, ask first ("Leave the quiz?"); it
+    // can be continued later. Before it starts, or once it's done, just close.
+    const requestClose = () => {
+        const done = summary !== null && summary + 1 >= rounds.length;
+        if (index >= 0 && cards.length && !done) setLeaving(true);
+        else close();
+    };
+    const leaveDialog = (
+        <div className="quiz-leave">
+            <ConfirmDialog open={leaving} title="Leave the quiz?"
+                message="You can continue where you left off next time."
+                confirmLabel="Leave" cancelLabel="Stay"
+                onConfirm={close} onCancel={() => setLeaving(false)} />
+        </div>
+    );
+
     // "10 more" at the end of a written quiz: a new round, new questions.
     const writeMore = async () => {
         if (writing) return;
@@ -840,9 +923,10 @@ function NotebookQuiz() {
                     <i className="arrow left icon" aria-hidden="true"></i>Back to quiz
                 </button>
                 <button type="button" className="quiz-back__close" aria-label="End the quiz" title="End the quiz"
-                    onClick={close}>
+                    onClick={requestClose}>
                     <i className="times icon" aria-hidden="true"></i>
                 </button>
+                {leaveDialog}
             </div>
         );
     }
@@ -870,6 +954,31 @@ function NotebookQuiz() {
                 ))}
             </div>
         );
+        // "Continue where you left off": the card you were on, the round,
+        // and how many you got right (iPhone).
+        const continueBox = () => {
+            const sp = spotFound;
+            const n = sp.cards.length;
+            const all = sp.written ? stretchRounds(sp.cards) : quiz.oneGo ? [[0, n]] : roundsOf(n);
+            const atEnd = Number.isInteger(sp.summary);
+            const r = atEnd ? sp.summary : roundAt(all, sp.index);
+            const right = scoreOf(sp.run || {}, sp.cards).correct;
+            const what = [
+                sp.written ? (QUIZ_KINDS.find((q) => q.key === sp.kind) || QUIZ_KINDS[1]).name : null,
+                atEnd ? `End of round ${r + 1}` : `Card ${Math.min(sp.index, n - 1) + 1} of ${n}`,
+                all.length > 1 && !atEnd ? `Round ${r + 1} of ${all.length}` : null,
+                speech && right ? `${right} right` : null,
+            ].filter(Boolean).join(' · ');
+            return (
+                <div className="quiz-continue">
+                    <div className="quiz-mix__label">
+                        Continue where you left off
+                        <span className="quiz-mix__legend">{what}</span>
+                    </div>
+                    <button type="button" className="cb-btn cb-btn--accent" onClick={resume}>Continue</button>
+                </div>
+            );
+        };
         const answerIn = {
             'to-en': `You see ${lang}, you answer in English.`,
             'from-en': `You see English, you answer in ${lang}.`,
@@ -894,6 +1003,7 @@ function NotebookQuiz() {
                             <i className="times icon"></i>
                         </button>
                     </div>
+                    {loaded && spotFound && continueBox()}
                     {!loaded ? (
                         <Spinner label="Finding cards…" />
                     ) : loaded.failed ? (
@@ -905,6 +1015,7 @@ function NotebookQuiz() {
                         </div>
                     ) : (
                         <div className="quiz-sheet__choices">
+                            {spotFound && <div className="quiz-sheet__or">Or start a new one</div>}
                             {canWrite && (
                                 <div className="quiz-opt">
                                     <div className="quiz-mix__label">
@@ -970,7 +1081,8 @@ function NotebookQuiz() {
                             {writing ? (
                                 <Spinner label={`Writing ${asked} questions…`} />
                             ) : ready && (
-                                <button type="button" className="cb-btn cb-btn--accent quiz-sheet__start" onClick={() => go(k, asked)}>
+                                <button type="button" className={`cb-btn ${spotFound ? 'cb-btn--ghost' : 'cb-btn--accent'} quiz-sheet__start`}
+                                    onClick={() => go(k, asked)}>
                                     Start
                                 </button>
                             )}
@@ -1073,7 +1185,7 @@ function NotebookQuiz() {
     // ✕, the round's progress, ⋯.
     const topBar = () => (
         <div className="quiz__top">
-            <button type="button" className="quiz__icon" aria-label="End the quiz" title="End the quiz" onClick={close}>
+            <button type="button" className="quiz__icon" aria-label="End the quiz" title="End the quiz" onClick={requestClose}>
                 <i className="times icon" aria-hidden="true"></i>
             </button>
             <div className="quiz__progress">
@@ -1374,6 +1486,7 @@ function NotebookQuiz() {
                 )}
             </div>
             {showScore && scoreSheet()}
+            {leaveDialog}
         </div>
     );
 }
