@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { connect, useDispatch, useSelector } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
-import { fetchAllTags, fetchWordData, fetchItemNotebooks, quizCardsForItems, stretchMaterialForItems } from '../actions';
+import { fetchAllTags, fetchWordData, fetchItemNotebooks, quizCardsForItems } from '../actions';
 import { openQuiz } from '../utils/quizLauncher';
 import { itemPath } from '../utils/notebookPaths';
 import { site } from '../utils/site';
@@ -80,18 +80,6 @@ function TagsPage({ allTags, fetchAllTags, fetchWordData, fetchItemNotebooks }) 
                                                 load: () => dispatch(quizCardsForItems(byTag[t])),
                                             })}>
                                             <i className="question circle outline icon" aria-hidden="true"></i>Quiz
-                                        </button>
-                                    )}
-                                    {isAdmin && (
-                                        <button type="button" className="tags-section__quiz"
-                                            title={`Stretch: a quiz written from the notes tagged “${t}”`}
-                                            onClick={() => openQuiz({
-                                                title: t,
-                                                notebook: '',
-                                                stretch: true,
-                                                load: () => dispatch(stretchMaterialForItems(byTag[t])),
-                                            })}>
-                                            <i className="comments outline icon" aria-hidden="true"></i>Stretch
                                         </button>
                                     )}
                                 </div>

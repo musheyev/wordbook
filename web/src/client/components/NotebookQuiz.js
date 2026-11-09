@@ -12,25 +12,36 @@ import { ITEM_COLORS } from '../utils/itemColors';
 import { canAnswerBySpeech, listenForAnswer, stopListening, sayReply, feel } from '../native/speech';
 import { isRightAnswer } from '../utils/answerCheck';
 import { runKey, cardKey, loadRun, saveRun, scoreOf } from '../utils/quizResults';
-import { MIX_SHARES, lastShare, rememberShare, dealDirections, loadDeal, saveDeal } from '../utils/quizMix';
+import {
+    MIX_SHARES, lastShare, rememberShare, lastDirection, rememberDirection, dealDirections, loadDeal, saveDeal,
+} from '../utils/quizMix';
 import { roundsOf, roundAt, recordQuizDay, dayStreak } from '../utils/quizRounds';
 import { languageLabel } from '../utils/tts';
 import { isOnline } from '../offline/network';
 import {
-    STRETCH_LEVELS, STRETCH_COUNTS, PER_REQUEST, SECOND_OPINION, lastLevel, rememberLevel, lastCount, rememberCount,
-    lastSecondOpinion, rememberSecondOpinion, pickMaterial, cardsFromReply, stretchRounds, languageName,
+    QUIZ_KINDS, MAX_WRITTEN, PER_REQUEST, SECOND_OPINION, lastKind, rememberKind, lastCount, rememberCount,
+    lastCardCount, rememberCardCount, lastSecondOpinion, rememberSecondOpinion, pickMaterial, cardsFromReply, stretchRounds, languageName,
 } from '../utils/stretch';
 
 // The quiz (admins): started by the Quiz buttons of a notebook, of a note
 // (the note and the notes it links to), of a tag (Tags), or from My
-// Quizzes. First a sheet to pick the direction:
+// Quizzes. First a sheet of choices, then one Start:
 //
-//   [ Spanish → English ]  [ English → Spanish ]  [ Mixed ]
+//   Quiz · Spanish                       ✕
+//   130 cards
+//   Questions   [ My cards ] [ Remix ]          what the questions are
+//               [ Conversation ] [ Street ]     (utils/stretch.js QUIZ_KINDS)
+//   How many    [−] [ 10 ] [+]   [ All 130 ]
+//   Answer in   [ English ] [ Spanish ] [ Mixed ]
+//               (Mixed: [ 70/30 ] [ 50/50 ] [ 30/70 ])
+//   Second opinion  [ Off ] [ Ask me ] [ Automatic ]   (iPhone)
+//   [                Start                ]
 //
-// Mixed asks some cards one way and the rest the other, in the share picked
-// under it — 70 / 30 (mostly Spanish → English), 50 / 50 or 30 / 70
-// (utils/quizMix.js). Then one flash card at a time, in rounds of 20
-// (utils/quizRounds.js):
+// Every choice is remembered on this device for next time. Mixed asks some
+// cards one way and the rest the other, in the share picked under it — 70 /
+// 30 (mostly answered in English), 50 / 50 or 30 / 70 (utils/quizMix.js).
+// Fewer than all your cards: that many, picked at random, in their order.
+// Then one flash card at a time, in rounds of 20 (utils/quizRounds.js):
 //
 //   ✕  ━━━━━━──────────  3/20  ⋯       ✕ ends the quiz; ⋯ is the menu: Score,
 //      Round 2 of 13                   Save, See note, Copy, card colour, Remove
@@ -70,14 +81,14 @@ import {
 // keeps the cards left under a name in My Quizzes; once saved, each Remove,
 // colour or "I was right" saves again.
 //
-// Stretch (openQuiz's `stretch`; utils/stretch.js, api/stretch.js): the
-// same quiz, but its cards are written by OpenAI's model from the notes, on
-// Start. The sheet first asks how far to stretch (0 As written · 1 Remix ·
-// 2 Conversation · 3 Street) and how many questions (5 / 10 / 20). A card
+// Remix, Conversation and Street (utils/stretch.js, api/stretch.js "Stretch"):
+// the same quiz, but its cards are written by OpenAI's model from the notes
+// (every line, the ones only in Spanish too), on Start — up to 50. A card
 // can carry a scene above it ("At a café. The waiter asks: …") and, once
 // answered, says whether it's from your notes or written for this quiz, and
-// which words in it are new. Each Start or "10 more" (at the end) is a
-// round. Needs a connection to start; once saved, it works offline.
+// which words in it are new. "10 more" at the end writes another round.
+// Needs a connection to start; once saved, it works offline. Written from a
+// saved quiz, it's a new quiz: the saved one is left as it is.
 //
 // Second opinion (iPhone app, chosen on the sheet before starting: Off, Ask
 // me, Automatic). The rules (utils/answerCheck.js) always mark first; only
@@ -140,6 +151,45 @@ function ScoreRing({ percent, label }) {
     );
 }
 
+/**
+ * "How many" on the quiz's sheet: − [ 10 ] + and, for your cards, All.
+ * Typed numbers open the number keypad; one too big becomes the most there
+ * can be, and an empty box goes back to the number when you leave it.
+ *
+ * @param {{value: number|'all', most: number, onChange: Function, all?: number}} props
+ *        all: how many cards there are (shows the All button); 0 for none
+ */
+function HowMany({ value, most, onChange, all = 0 }) {
+    const n = value === 'all' ? all : Math.min(value, most);
+    const [text, setText] = useState(String(n));
+    useEffect(() => { setText(String(n)); }, [n]);
+    const set = (v) => onChange(Math.max(1, Math.min(most, v)));
+    const isAll = !!all && (value === 'all' || n >= all);
+    return (
+        <div className="quiz-count">
+            <button type="button" className="quiz-count__step" aria-label="Fewer" disabled={n <= 1} onClick={() => set(n - 1)}>
+                <i className="minus icon" aria-hidden="true"></i>
+            </button>
+            <input className="quiz-count__input" type="text" inputMode="numeric" pattern="[0-9]*" aria-label="How many questions"
+                value={text} onFocus={(e) => e.target.select()} onBlur={() => setText(String(n))}
+                onChange={(e) => {
+                    const t = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    setText(t);
+                    if (Number(t) >= 1) set(Number(t));
+                }} />
+            <button type="button" className="quiz-count__step" aria-label="More" disabled={n >= most} onClick={() => set(n + 1)}>
+                <i className="plus icon" aria-hidden="true"></i>
+            </button>
+            {!!all && (
+                <button type="button" role="switch" aria-checked={isAll}
+                    className={`quiz-mix__share quiz-count__all${isAll ? ' on' : ''}`} onClick={() => onChange('all')}>
+                    All {all}
+                </button>
+            )}
+        </div>
+    );
+}
+
 function NotebookQuiz() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -148,8 +198,7 @@ function NotebookQuiz() {
     // 'to-en' (front: the foreign side), 'from-en' (front: English), or
     // 'mixed': each card as `deal` says ({ <card key>: true = to English }),
     // dealt in the share picked (70: 70 of 100 cards to English).
-    const [direction, setDirection] = useState('to-en');
-    const [mixing, setMixing] = useState(false); // the sheet shows the Mixed shares
+    const [direction, setDirection] = useState(lastDirection);
     const [share, setShare] = useState(lastShare);
     const [deal, setDeal] = useState(null);
     const [index, setIndex] = useState(-1); // -1: choosing the direction
@@ -171,10 +220,14 @@ function NotebookQuiz() {
     // { status: 'listening'|'heard'|'error', text, practice?, correct?, marked?, error? }
     const [answer, setAnswer] = useState(null);
     const [showScore, setShowScore] = useState(false);
-    // Stretch: the dial (0–3), how many questions, and whether cards are
-    // being written (on Start or "10 more") or that failed.
-    const [level, setLevel] = useState(lastLevel);
+    // The sheet's kind of question (QUIZ_KINDS: 0 My cards, 1–3 written),
+    // how many to write (count) or to ask of My cards (cardCount: 'all' or
+    // a number), whether this quiz's cards were written, and whether cards
+    // are being written (on Start or "10 more") or that failed.
+    const [kind, setKind] = useState(lastKind);
     const [count, setCount] = useState(lastCount);
+    const [cardCount, setCardCount] = useState(lastCardCount);
+    const [written, setWritten] = useState(false);
     const [writing, setWriting] = useState(false);
     const [writeError, setWriteError] = useState('');
     // Second opinion: 'off' | 'ask' | 'auto' (SECOND_OPINION), and the one
@@ -187,6 +240,9 @@ function NotebookQuiz() {
     // second opinion): what it captured when it started may be out of date.
     const now = useRef({});
     const latest = useRef(null); // the quiz being loaded (a newer one wins)
+    // A saved quiz started on some of its cards: all of them, so a change
+    // (Remove, colour, I was right) is saved into the whole quiz.
+    const allCards = useRef(null);
     const listeningFor = useRef(null); // the card key being listened for, while listening
     const touch = useRef(null); // where a finger went down on the card { x, y }
     const swiped = useRef(false); // that touch was a swipe, so its tap doesn't flip
@@ -197,7 +253,7 @@ function NotebookQuiz() {
         setQuiz(next);
         setLoaded(null);
         setIndex(-1);
-        setMixing(false);
+        setDirection(lastDirection());
         setFlipped(false);
         setSummary(null);
         setReview(null);
@@ -210,8 +266,11 @@ function NotebookQuiz() {
         setRun({});
         setAnswer(null);
         setShowScore(false);
-        setLevel(lastLevel());
+        setKind(lastKind());
         setCount(lastCount());
+        setCardCount(lastCardCount());
+        setWritten(false);
+        allCards.current = null;
         setWriting(false);
         setWriteError('');
         setSecondMode(lastSecondOpinion());
@@ -280,8 +339,8 @@ function NotebookQuiz() {
 
     const cards = loaded ? loaded.cards : [];
     // Rounds of 20 (utils/quizRounds.js), one round of them all for a quiz
-    // on one note (openQuiz's `oneGo`), or for Stretch, one per batch written.
-    const rounds = quiz.stretch ? stretchRounds(cards) : quiz.oneGo ? [[0, cards.length]] : roundsOf(cards.length);
+    // on one note (openQuiz's `oneGo`), or for a written quiz, by batch.
+    const rounds = written ? stretchRounds(cards) : quiz.oneGo ? [[0, cards.length]] : roundsOf(cards.length);
     // Whether a card is asked to English (its front is the foreign side).
     const toEnglishFor = (card, dir = direction, d = deal) => (dir === 'mixed' ? !d || d[cardKey(card)] !== false : dir === 'to-en');
     const sideOf = (card, back, english = toEnglishFor(card)) => ((english !== back) ? card.foreign : card.english);
@@ -310,24 +369,25 @@ function NotebookQuiz() {
         say(sideOf(list[i], false, toEnglishFor(list[i], direction, d)));
     };
     // dir: 'to-en', 'from-en' or 'mixed' (in the share picked on the sheet).
-    // list: the cards (a Stretch quiz's, just written).
-    const start = (dir, list = cards) => {
+    // list: the cards (some of them, or a written quiz's, just written).
+    // entry: the saved quiz they're from (null for a new, written one).
+    const start = (dir, list = cards, entry = saved) => {
         let d = null;
         if (dir === 'mixed') {
             rememberShare(share);
-            d = loadDeal(saved, share, list); // a saved quiz asks each card the same way again
-            saveDeal(saved, share, d);
+            d = loadDeal(entry, share, list); // a saved quiz asks each card the same way again
+            saveDeal(entry, share, d);
         }
         setDirection(dir);
         setDeal(d);
-        setRun(loadRun(runKey(saved, dir === 'mixed' ? `mixed-${share}` : dir)));
+        setRun(loadRun(runKey(entry, dir === 'mixed' ? `mixed-${share}` : dir)));
         setIndex(0);
         setFlipped(false);
         setMotion('next');
         say(sideOf(list[0], false, toEnglishFor(list[0], dir, d)));
     };
 
-    // ---- Stretch: writing cards ----
+    // ---- Written quizzes: writing cards ----
     // The same question twice (two requests at once may write it) is asked once.
     const plainQuestion = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
     /**
@@ -347,11 +407,11 @@ function NotebookQuiz() {
             const reply = await dispatch(requestStretchCards({
                 notes: sent.map((note) => ({ title: note.title, lines: note.lines })),
                 language: languageName(material.lang),
-                level,
+                level: kind,
                 count: size,
                 avoid,
             }));
-            return cardsFromReply(reply, sent, material, level, batch);
+            return cardsFromReply(reply, sent, material, kind, batch);
         }));
         const seen = new Set(avoid.map(plainQuestion));
         return lists.flat().filter((c) => {
@@ -361,33 +421,63 @@ function NotebookQuiz() {
             return true;
         });
     };
-    // A direction button on a Stretch quiz's sheet: write the cards, then start.
-    const startStretch = async (dir) => {
+    // Start on a written kind: write the cards, then start. It's a new quiz,
+    // not the saved one it may be written from (that one stays as it was).
+    const startWritten = async (n) => {
         if (writing) return;
         ttsPlayer.prime(); // in the tap, so iOS lets the first card be read aloud
-        rememberLevel(level);
-        rememberCount(count);
         setWriting(true);
         setWriteError('');
         try {
-            const list = await writeCards(count, [], 1);
+            const list = await writeCards(n, [], 1);
             if (latest.current !== quiz) return; // closed or replaced meanwhile
             if (!list.length) throw new Error('No questions came back. Try again.');
             setLoaded({ ...loaded, cards: list });
-            start(dir, list);
+            setSaved(null);
+            setWritten(true);
+            start(direction, list, null);
         } catch (err) {
             if (latest.current === quiz) setWriteError(err.message);
         } finally {
             if (latest.current === quiz) setWriting(false);
         }
     };
-    // Start, from the sheet: a Stretch quiz writes its cards first. Without
-    // a connection there's no second opinion this time.
-    const go = (dir) => {
-        if (!online()) setSecondMode('off');
-        if (quiz.stretch) startStretch(dir); else start(dir);
+    /**
+     * Some of the cards, picked at random, in their order.
+     * @param {Array} list
+     * @param {number} n how many (all of them when n ≥ their number)
+     */
+    const someOf = (list, n) => {
+        if (n >= list.length) return list;
+        const order = list.map((c, i) => i);
+        for (let i = order.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [order[i], order[j]] = [order[j], order[i]];
+        }
+        return order.slice(0, n).sort((a, b) => a - b).map((i) => list[i]);
     };
-    // "10 more" at the end of a Stretch quiz: a new round, new questions.
+    // Start, from the sheet, with what's picked on it (and remember it all).
+    // k: the kind (0 My cards; 1–3 written); n: how many. Without a
+    // connection there's no second opinion this time.
+    const go = (k, n) => {
+        if (k > 0 && !online()) { setWriteError('Writing questions needs a connection.'); return; }
+        if (!online()) setSecondMode('off');
+        rememberKind(k);
+        rememberDirection(direction);
+        if (k > 0) {
+            rememberCount(n);
+            startWritten(n);
+            return;
+        }
+        rememberCardCount(cardCount);
+        const list = someOf(cards, n);
+        if (list !== cards) {
+            allCards.current = cards;
+            setLoaded({ ...loaded, cards: list });
+        }
+        start(direction, list);
+    };
+    // "10 more" at the end of a written quiz: a new round, new questions.
     const writeMore = async () => {
         if (writing) return;
         ttsPlayer.prime();
@@ -589,12 +679,21 @@ function NotebookQuiz() {
         }
     };
     // The cards changed (Remove, colour, I was right): keep them, and in a
-    // saved quiz, save them again.
+    // saved quiz, save them again. Started on some of a saved quiz's cards,
+    // the change goes into the whole quiz (allCards): the others are kept.
     const changeCards = (list) => {
+        const before = now.current.cards;
         setLoaded((l) => ({ ...l, cards: list }));
         if (saved) {
+            let whole = list;
+            if (allCards.current) {
+                const byKey = new Map(list.map((c) => [cardKey(c), c]));
+                const gone = new Set(before.map(cardKey).filter((k) => !byKey.has(k)));
+                whole = allCards.current.filter((c) => !gone.has(cardKey(c))).map((c) => byKey.get(cardKey(c)) || c);
+                allCards.current = whole;
+            }
             setSaveError('');
-            store(saved, list).catch(() => setSaveError('Couldn’t save the change to this quiz. Check your connection.'));
+            store(saved, whole).catch(() => setSaveError('Couldn’t save the change to this quiz. Check your connection.'));
         }
     };
     // Change the showing card (a function from the card to its new self).
@@ -750,11 +849,17 @@ function NotebookQuiz() {
 
     if (index < 0) {
         const material = loaded && loaded.material;
-        const lang = quiz.stretch ? languageName(material && material.lang) : quizLanguage(cards);
-        // Something to quiz on: cards, or for Stretch, notes in a foreign language.
-        const ready = quiz.stretch ? !!(material && material.lang && material.notes.length) : cards.length > 0;
+        // Questions can be written from these notes: some are marked in a foreign language.
+        const canWrite = !!(material && material.lang && material.notes.length);
+        const k = canWrite ? kind : 0; // the kind asked for (My cards when nothing can be written)
+        const lang = cards.length ? quizLanguage(cards) : languageName(material && material.lang);
+        // Something to quiz on: cards, or for a written kind, the notes.
+        const ready = k > 0 ? canWrite : cards.length > 0;
+        // How many: of My cards (all, or that many at most), or to write.
+        const asked = k > 0 ? count : cardCount === 'all' ? cards.length : Math.min(cardCount, cards.length);
+        const roundsAsked = quiz.oneGo ? 1 : roundsOf(asked).length;
         // A row of choices on the sheet (the Mixed shares' look).
-        // grid: two by two (the four Stretch levels).
+        // grid: two by two (the four kinds).
         const pills = (label, options, value, pick, grid = false) => (
             <div className={`quiz-mix__shares${grid ? ' quiz-mix__shares--grid' : ''}`} role="radiogroup" aria-label={label}>
                 {options.map((o) => (
@@ -765,49 +870,92 @@ function NotebookQuiz() {
                 ))}
             </div>
         );
+        const answerIn = {
+            'to-en': `You see ${lang}, you answer in English.`,
+            'from-en': `You see English, you answer in ${lang}.`,
+            mixed: 'Some each way.',
+        };
         return (
             <div className="cb-sheet__overlay" onMouseDown={close}>
-                <div className="cb-sheet" role="dialog" aria-modal="true" aria-label={`${quiz.stretch ? 'Stretch' : 'Quiz'} on ${title}`}
+                <div className="cb-sheet" role="dialog" aria-modal="true" aria-label={`Quiz on ${title}`}
                     onMouseDown={(e) => e.stopPropagation()}>
                     <div className="cb-sheet__grab" aria-hidden="true" />
                     <div className="cb-sheet__head">
                         <h3 className="cb-sheet__title">
-                            {quiz.stretch ? `Stretch · ${title}` : saved ? saved.name : 'Quiz'}
-                            {!quiz.stretch && loaded && cards.length > 0 ? ` · ${cards.length} card${cards.length === 1 ? '' : 's'}` : ''}
+                            Quiz · {title}
+                            {loaded && !loaded.failed && (
+                                <span className="quiz-sheet__sub">
+                                    {k > 0 ? `From ${material.notes.length} note${material.notes.length === 1 ? '' : 's'}`
+                                        : `${cards.length} card${cards.length === 1 ? '' : 's'}`}
+                                </span>
+                            )}
                         </h3>
                         <button type="button" className="a2c__close" aria-label="Close" onClick={close}>
                             <i className="times icon"></i>
                         </button>
                     </div>
                     {!loaded ? (
-                        <Spinner label={quiz.stretch ? 'Reading the notes…' : 'Finding cards…'} />
+                        <Spinner label="Finding cards…" />
                     ) : loaded.failed ? (
                         <div className="cb-sheet__error">Couldn't load the notes. Check your connection and try again.</div>
-                    ) : !ready ? (
+                    ) : !cards.length && !canWrite ? (
                         <div className="add-sheet__hint">
-                            {quiz.stretch ? `No ${quiz.notebook ? 'notes in this notebook have' : 'note here has'} phrases marked in a foreign language.`
-                                : saved ? 'This quiz has no cards left.'
-                                    : `No foreign phrases with English found in ${quiz.notebook ? 'this notebook' : 'these notes'}.`}
+                            {saved ? 'This quiz has no cards left.'
+                                : `No foreign phrases found in ${quiz.notebook ? 'this notebook' : 'these notes'}.`}
                         </div>
                     ) : (
                         <div className="quiz-sheet__choices">
-                            {quiz.stretch && (
-                                <>
-                                    <div className="quiz-opt">
-                                        <div className="quiz-mix__label">
-                                            Stretch
-                                            <span className="quiz-mix__legend">{STRETCH_LEVELS[level].hint}</span>
-                                        </div>
-                                        {pills('Stretch', STRETCH_LEVELS.map((l, i) => ({ key: i, name: `${i} · ${l.name}` })),
-                                            level, setLevel, true)}
+                            {canWrite && (
+                                <div className="quiz-opt">
+                                    <div className="quiz-mix__label">
+                                        Questions
+                                        <span className="quiz-mix__legend">
+                                            {k > 0 && !online() ? 'Needs a connection to write the questions.'
+                                                : k === 0 && !cards.length ? `No “${lang} — English” lines here to make cards from.`
+                                                    : QUIZ_KINDS[k].hint}
+                                        </span>
                                     </div>
-                                    <div className="quiz-opt">
-                                        <div className="quiz-mix__label">Questions</div>
-                                        {pills('Questions', STRETCH_COUNTS.map((n) => ({ key: n, name: String(n) })), count, setCount)}
-                                    </div>
-                                </>
+                                    {pills('Questions', QUIZ_KINDS, k, (v) => { setKind(v); setWriteError(''); }, true)}
+                                </div>
                             )}
-                            {speech && (
+                            {ready && (
+                                <div className="quiz-opt">
+                                    <div className="quiz-mix__label">
+                                        How many
+                                        <span className="quiz-mix__legend">
+                                            {k > 0 ? `Up to ${MAX_WRITTEN}.`
+                                                : asked < cards.length ? `${asked} of your ${cards.length}, picked at random.`
+                                                    : roundsAsked > 1 ? `In ${roundsAsked} rounds of about 20.` : 'All your cards.'}
+                                        </span>
+                                    </div>
+                                    {k > 0 ? (
+                                        <HowMany value={count} most={MAX_WRITTEN} onChange={setCount} />
+                                    ) : (
+                                        <HowMany value={cardCount} most={cards.length} onChange={setCardCount} all={cards.length} />
+                                    )}
+                                </div>
+                            )}
+                            {ready && (
+                                <div className="quiz-opt">
+                                    <div className="quiz-mix__label">
+                                        Answer in
+                                        <span className="quiz-mix__legend">{answerIn[direction]}</span>
+                                    </div>
+                                    {pills('Answer in', [
+                                        { key: 'to-en', name: 'English' },
+                                        { key: 'from-en', name: lang },
+                                        { key: 'mixed', name: 'Mixed' },
+                                    ], direction, setDirection)}
+                                    {direction === 'mixed' && (
+                                        <>
+                                            <span className="quiz-mix__legend">Answer in English / {lang}</span>
+                                            {pills('How much each way', MIX_SHARES.map((v) => ({ key: v, name: `${v} / ${100 - v}` })),
+                                                share, setShare)}
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                            {ready && speech && (
                                 <div className="quiz-opt">
                                     <div className="quiz-mix__label">
                                         Second opinion
@@ -820,41 +968,13 @@ function NotebookQuiz() {
                                 </div>
                             )}
                             {writing ? (
-                                <Spinner label={`Writing ${count} questions…`} />
-                            ) : (
-                                <>
-                                    <button type="button" className="cb-btn cb-btn--accent" onClick={() => go('to-en')}>
-                                        {lang} → English
-                                    </button>
-                                    <button type="button" className="cb-btn cb-btn--ghost" onClick={() => go('from-en')}>
-                                        English → {lang}
-                                    </button>
-                                    <button type="button" className={`cb-btn cb-btn--ghost${mixing ? ' is-active' : ''}`}
-                                        aria-expanded={mixing} onClick={() => setMixing(!mixing)}>
-                                        Mixed <i className={`angle ${mixing ? 'up' : 'down'} icon`} aria-hidden="true"></i>
-                                    </button>
-                                    {mixing && (
-                                        <div className="quiz-mix">
-                                            <div className="quiz-mix__label">
-                                                How much each way?
-                                                <span className="quiz-mix__legend">{lang} → English / English → {lang}</span>
-                                            </div>
-                                            {pills('How much each way', MIX_SHARES.map((v) => ({ key: v, name: `${v} / ${100 - v}` })),
-                                                share, setShare)}
-                                            <button type="button" className="cb-btn cb-btn--accent" onClick={() => go('mixed')}>
-                                                Start
-                                            </button>
-                                        </div>
-                                    )}
-                                </>
+                                <Spinner label={`Writing ${asked} questions…`} />
+                            ) : ready && (
+                                <button type="button" className="cb-btn cb-btn--accent quiz-sheet__start" onClick={() => go(k, asked)}>
+                                    Start
+                                </button>
                             )}
                             {writeError && <div className="cb-sheet__error">{writeError}</div>}
-                            {quiz.stretch && !online() && (
-                                <div className="add-sheet__hint">Stretch needs a connection to write the questions.</div>
-                            )}
-                            {!quiz.stretch && cards.length > rounds[0][1] && (
-                                <div className="add-sheet__hint">In {rounds.length} rounds of about 20 cards.</div>
-                            )}
                         </div>
                     )}
                     {loaded && loaded.missing > 0 && (
@@ -906,7 +1026,7 @@ function NotebookQuiz() {
                 {saved ? (
                     <div className="quiz-menu__note"><i className="check icon" aria-hidden="true"></i>Saved as “{saved.name}”</div>
                 ) : (
-                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setNaming(`${quiz.title} ${quiz.stretch ? 'stretch' : 'quiz'}`); }}>
+                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setNaming(`${quiz.title} ${written ? QUIZ_KINDS[kind].name.toLowerCase() : 'quiz'}`); }}>
                         <i className="save outline icon" aria-hidden="true"></i>Save quiz
                     </button>
                 )}
@@ -1136,7 +1256,7 @@ function NotebookQuiz() {
                     }}>
                         {lastRound ? 'Finish' : 'Next round'}
                     </button>
-                    {quiz.stretch && lastRound && !writing && (
+                    {written && lastRound && !writing && (
                         <button type="button" className="quiz__second" onClick={writeMore}>
                             {PER_REQUEST} more
                         </button>

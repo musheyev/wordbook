@@ -1,15 +1,17 @@
-// Stretch quizzes (NotebookQuiz.js): flash cards OpenAI's model writes from
-// your notes, a little or a lot beyond them, by the Stretch dial:
+// Written quizzes (NotebookQuiz.js): the quiz sheet's first choice is what
+// the questions are —
 //
-//   0 As written    your own phrases, as they are
-//   1 Remix         new sentences from words you have
-//   2 Conversation  real-world moments; about 1 word in 10 new
-//   3 Street        what you'd really hear; about 1 word in 5 new
+//   My cards        your own "Spanish — English" lines (quizCards.js); offline
+//   Remix           new sentences from words you have           ┐ written by
+//   Conversation    real-world moments; about 1 word in 10 new  │ OpenAI's
+//   Street          what you'd really hear; about 1 word in 5   ┘ model
 //
-// Unlike the regular quiz (quizCards.js), which only uses lines with both
-// a foreign phrase and its English, a Stretch quiz reads every line of the
-// notes, including the ones only in Spanish (examples, dialogue): they're
-// part of what you know.
+// (Inside, the written kinds are "Stretch" levels 1–3, api/stretch.js; its
+// level 0, "As written", isn't offered: My cards does that, offline.)
+//
+// Unlike My cards, which only uses lines with both a foreign phrase and its
+// English, the written kinds read every line of the notes, including the
+// ones only in Spanish (examples, dialogue): they're part of what you know.
 //
 // This module does the app's side of it, with no network of its own:
 //   - materialOf / materialFromCards: the notes as plain lines to send
@@ -19,19 +21,23 @@
 //   - cardsFromReply: the server's cards made into quiz cards, with their
 //     audio (the same chunks Play all would read), and a note of whether
 //     they're straight from your notes or written for this quiz;
-//   - the sheet's remembered choices (level, how many, second opinion).
+//   - the sheet's remembered choices (kind, how many, second opinion).
 import { htmlToLines, chunksOfStretch, languageLabel } from './tts';
+import { roundsOf } from './quizRounds';
 
-/** The Stretch dial's settings, in order (index = level). */
-export const STRETCH_LEVELS = [
-    { name: 'As written', hint: 'Your own phrases, as they are.' },
-    { name: 'Remix', hint: 'New sentences, only words you have.' },
-    { name: 'Conversation', hint: 'Real-world moments; about 1 word in 10 new.' },
-    { name: 'Street', hint: 'What you’d really hear; about 1 word in 5 new.' },
+/**
+ * The sheet's kinds of question, in order. `key` is the Stretch level sent to
+ * the server (api/stretch.js); 0 is My cards, which asks nothing of it.
+ */
+export const QUIZ_KINDS = [
+    { key: 0, name: 'My cards', hint: 'Your cards, as written. Works offline.' },
+    { key: 1, name: 'Remix', hint: 'New sentences, only words you have.' },
+    { key: 2, name: 'Conversation', hint: 'Real-world moments; about 1 word in 10 new.' },
+    { key: 3, name: 'Street', hint: 'What you’d really hear; about 1 word in 5 new.' },
 ];
 
-/** How many questions a Stretch quiz can have. */
-export const STRETCH_COUNTS = [5, 10, 20];
+/** The most questions written at once (they take a while to write). */
+export const MAX_WRITTEN = 50;
 
 /** One request writes at most this many cards (api/stretch.js MAX_CARDS). */
 export const PER_REQUEST = 10;
@@ -54,10 +60,15 @@ const read = (key, ok, fallback) => {
 };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* not kept */ } };
 
-export const lastLevel = () => read('stretch-level', (v) => Number.isInteger(v) && v >= 0 && v < STRETCH_LEVELS.length, 1);
-export const rememberLevel = (v) => write('stretch-level', v);
-export const lastCount = () => read('stretch-count', (v) => STRETCH_COUNTS.includes(v), 10);
+const isCount = (v, most) => Number.isInteger(v) && v >= 1 && v <= most;
+export const lastKind = () => read('quiz-kind', (v) => QUIZ_KINDS.some((k) => k.key === v), 0);
+export const rememberKind = (v) => write('quiz-kind', v);
+/** How many questions to write (1–MAX_WRITTEN; 10 at first). */
+export const lastCount = () => read('stretch-count', (v) => isCount(v, MAX_WRITTEN), 10);
 export const rememberCount = (v) => write('stretch-count', v);
+/** How many of My cards: 'all' (at first), or a number. */
+export const lastCardCount = () => read('quiz-card-count', (v) => v === 'all' || isCount(v, Infinity), 'all');
+export const rememberCardCount = (v) => write('quiz-card-count', v);
 export const lastSecondOpinion = () => read('quiz-second-opinion', (v) => SECOND_OPINION.some((o) => o.key === v), 'ask');
 export const rememberSecondOpinion = (v) => write('quiz-second-opinion', v);
 
@@ -205,17 +216,19 @@ export function cardsFromReply(reply, sent, material, level, batch) {
 }
 
 /**
- * The rounds of a Stretch quiz: one per batch (a Start or a "10 more"),
- * as [start, end) positions, like quizRounds.js roundsOf.
+ * The rounds of a written quiz, as [start, end) positions: each batch (a
+ * Start or a "10 more") starts a new round, and a big batch (up to 50) is
+ * cut into rounds of about 20, like the quiz on your cards (quizRounds.js
+ * roundsOf).
  * @param {Array} cards
  */
 export function stretchRounds(cards) {
-    const rounds = [];
+    const batches = [];
     cards.forEach((c, i) => {
         const batch = c.stretch ? c.stretch.batch : 0;
-        const last = rounds[rounds.length - 1];
+        const last = batches[batches.length - 1];
         if (last && last.batch === batch) last.end = i + 1;
-        else rounds.push({ batch, start: i, end: i + 1 });
+        else batches.push({ batch, start: i, end: i + 1 });
     });
-    return rounds.map((r) => [r.start, r.end]);
+    return batches.flatMap((b) => roundsOf(b.end - b.start).map(([s, e]) => [b.start + s, b.start + e]));
 }

@@ -1245,16 +1245,22 @@ export const getWordNoteContent = (word) => async (dispatch, getState, api) => {
 };
 
 /**
- * Quiz cards (utils/quizCards.js) from notes and words' notes, in the order
- * given. Each card remembers where it came from (the quiz's "From" link).
- * Ones that can't be loaded (offline, not downloaded) are counted in
- * `missing` and left out; a word with no note just has no cards.
+ * What a quiz on notes is made from, in the order given:
+ *   - cards: the "foreign — English" lines as flash cards (utils/quizCards.js),
+ *     for the quiz on your cards; each remembers its note (the quiz's "See
+ *     note");
+ *   - material: every line of the notes, for the quiz kinds the model writes
+ *     (Remix, Conversation, Street: utils/stretch.js materialOf). Those read
+ *     the lines only in Spanish too, which aren't cards.
+ * Notes that can't be loaded (offline, not downloaded) are counted in
+ * `missing` and left out; a word with no note just adds nothing.
  *
  * @param {Array<{type: 'card'|'word', id: string, title?: string}>} items
- * @returns {Promise<{cards: object[], missing: number}>}
+ * @returns {Promise<{cards: object[], missing: number, material: object}>}
  */
 export const quizCardsForItems = (items) => async (dispatch) => {
   const cards = [];
+  const notes = [];
   let missing = 0;
   for (const item of items) {
     try {
@@ -1263,9 +1269,10 @@ export const quizCardsForItems = (items) => async (dispatch) => {
         : await dispatch(getWordNoteContent(item.id));
       const source = { type: item.type, id: item.id, title: item.title || item.id };
       cards.push(...quizCardsOf(html).map((c) => ({ ...c, source })));
+      notes.push({ source, html });
     } catch (e) { missing += 1; }
   }
-  return { cards, missing };
+  return { cards, missing, material: materialOf(notes) };
 };
 
 /**
@@ -1279,50 +1286,12 @@ export const quizCardsForLinked = (item) => async (dispatch) => {
   try {
     linked = (await dispatch(fetchNoteLinks(item.type, item.id))).linksTo.filter((l) => !l.missing);
   } catch (e) { /* offline and not saved: just this note */ }
-  const { cards, missing } = await dispatch(quizCardsForItems([item, ...linked]));
+  const { cards, missing, material } = await dispatch(quizCardsForItems([item, ...linked]));
   // Each question once, sentences before single words (utils/quizCards.js).
-  return { cards: oneNoteCards(cards), missing };
+  return { cards: oneNoteCards(cards), missing, material };
 };
 
-// ---- Stretch quizzes and second opinions (utils/stretch.js, api/stretch.js) ----
-
-/**
- * Notes' contents, for a Stretch quiz: [{ source, html }] in the order
- * given, and how many couldn't be loaded (offline, not downloaded).
- * @param {Array<{type: 'card'|'word', id: string, title?: string}>} items
- */
-const notesOfItems = (items) => async (dispatch) => {
-  const notes = [];
-  let missing = 0;
-  for (const item of items) {
-    try {
-      const html = item.type === 'card'
-        ? await dispatch(getCardContent(item.id))
-        : await dispatch(getWordNoteContent(item.id));
-      notes.push({ source: { type: item.type, id: item.id, title: item.title || item.id }, html });
-    } catch (e) { missing += 1; }
-  }
-  return { notes, missing };
-};
-
-/**
- * What a Stretch quiz on these notes is made from: openQuiz's `load` for a
- * Stretch quiz. No cards yet; the quiz asks for them on Start.
- * @returns {Promise<{cards: [], missing: number, material: object}>}
- */
-export const stretchMaterialForItems = (items) => async (dispatch) => {
-  const { notes, missing } = await dispatch(notesOfItems(items));
-  return { cards: [], missing, material: materialOf(notes) };
-};
-
-/** The same for a note and the notes it links to (the Stretch button on a note). */
-export const stretchMaterialForLinked = (item) => async (dispatch) => {
-  let linked = [];
-  try {
-    linked = (await dispatch(fetchNoteLinks(item.type, item.id))).linksTo.filter((l) => !l.missing);
-  } catch (e) { /* offline and not saved: just this note */ }
-  return dispatch(stretchMaterialForItems([item, ...linked]));
-};
+// ---- Written quizzes and second opinions (utils/stretch.js, api/stretch.js) ----
 
 // The server's message for a refusal ("That's today's limit…"), or a
 // general one when there's no answer at all (offline).

@@ -17,9 +17,9 @@ export const keyOf = (item) => `${item.type}:${item.id}`;
 // The bar shown while selecting. `shownItems`: what's on screen (Select all
 // ticks those). `getChunks`: the read-aloud queue for the ticked items.
 // `onQuiz`: opens the quiz on the ticked items (admins; leave it out and
-// there's no Quiz selected). `onStretch`: the same for a Stretch quiz. `extra`: more buttons after those (the
+// there's no Quiz selected). `extra`: more buttons after those (the
 // overview's Copy selected).
-export function SelectBar({ selection, shownItems, getChunks, title, onQuiz = null, onStretch = null, extra = null }) {
+export function SelectBar({ selection, shownItems, getChunks, title, onQuiz = null, extra = null }) {
     const n = selection.picked.size;
     const allPicked = shownItems.length > 0 && shownItems.every((item) => selection.isPicked(item));
     return (
@@ -35,11 +35,6 @@ export function SelectBar({ selection, shownItems, getChunks, title, onQuiz = nu
             {onQuiz && (
                 <button type="button" className="cb-btn cb-btn--ghost" disabled={n === 0} onClick={onQuiz}>
                     <i className="question circle outline icon" aria-hidden="true"></i>Quiz selected
-                </button>
-            )}
-            {onStretch && (
-                <button type="button" className="cb-btn cb-btn--ghost" disabled={n === 0} onClick={onStretch}>
-                    <i className="comments outline icon" aria-hidden="true"></i>Stretch selected
                 </button>
             )}
             {extra}

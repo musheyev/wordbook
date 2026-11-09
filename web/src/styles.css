@@ -961,16 +961,13 @@ nav-button-as-link {
   .cb-sheet__actions .cb-btn { flex: 1; padding: 11px 16px; }
 }
 
-/* Notebook quiz (NotebookQuiz.js): the direction sheet, then one flash card
-   at a time — a centered panel on desktop, the whole screen on phones. */
-.quiz-sheet__choices { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 8px; }
+/* Notebook quiz (NotebookQuiz.js): the sheet of choices, then one flash
+   card at a time — a centered panel on desktop, the whole screen on phones. */
+.quiz-sheet__choices { display: flex; flex-direction: column; gap: 14px; margin: 4px 0 8px; }
 .quiz-sheet__choices .cb-btn { justify-content: center; padding: 11px 16px; font-size: 1rem; }
-.quiz-sheet__choices .cb-btn.is-active { border-color: var(--cb-accent); color: var(--cb-accent); }
-/* Mixed: how much each way (70 / 30, 50 / 50, 30 / 70), then Start. */
-.quiz-mix {
-  display: flex; flex-direction: column; gap: 10px; padding: 12px;
-  border: 1px solid var(--cb-border); border-radius: var(--cb-radius); background: var(--cb-surface-2);
-}
+.quiz-sheet__start { margin-top: 4px; }
+/* Under the title: "130 cards" or "From 3 notes". */
+.quiz-sheet__sub { display: block; margin-top: 2px; font-size: 0.85rem; font-weight: 400; color: var(--cb-ink-3); }
 .quiz-mix__label { font-weight: 600; font-size: 0.95rem; color: var(--cb-ink); }
 .quiz-mix__legend { display: block; font-weight: 400; font-size: 0.8rem; color: var(--cb-ink-3); }
 .quiz-mix__shares { display: flex; gap: 8px; }
@@ -979,12 +976,26 @@ nav-button-as-link {
   background: var(--cb-surface); color: var(--cb-ink); font: inherit; font-size: 1rem; cursor: pointer;
 }
 .quiz-mix__share.on { border-color: var(--cb-accent); background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 600; }
-/* Stretch and second-opinion choices on the sheet (NotebookQuiz.js): a
-   label, then the same pills; the four Stretch levels two by two. */
+/* Each row of choices on the sheet (NotebookQuiz.js): a label, then the
+   pills; the four kinds of question two by two. */
 .quiz-opt { display: flex; flex-direction: column; gap: 8px; }
 .quiz-opt .quiz-mix__share { flex: 1 1 0; min-width: 0; font-size: 0.92rem; padding: 0 8px; }
 .quiz-mix__shares--grid { flex-wrap: wrap; }
 .quiz-mix__shares--grid .quiz-mix__share { flex-basis: calc(50% - 8px); }
+/* How many: − [ 10 ] + and, for your cards, All 130. */
+.quiz-count { display: flex; align-items: center; gap: 8px; }
+.quiz-count__step {
+  flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--cb-border-strong); border-radius: 10px; background: var(--cb-surface); color: var(--cb-ink); cursor: pointer;
+}
+.quiz-count__step:disabled { opacity: 0.4; cursor: default; }
+.quiz-count__step i.icon { margin: 0; }
+.quiz-count__input {
+  flex: none; width: 72px; height: 44px; text-align: center; font: inherit; font-size: 1.1rem; font-weight: 600;
+  border: 1px solid var(--cb-border-strong); border-radius: 10px; background: var(--cb-surface); color: var(--cb-ink);
+}
+.quiz-count__input:focus { outline: none; border-color: var(--cb-accent); }
+.quiz-opt .quiz-count__all { flex: 1 1 auto; margin-left: auto; max-width: 140px; }
 /* The quiz screen: ✕, the round's progress and ⋯ on top; the card; the
    microphone (iPhone) or Show answer / Next under it, with ‹ › beside; after
    an answer, a green or amber panel. A centred panel on a computer, the
@@ -1254,13 +1265,6 @@ nav-button-as-link {
 }
 .quiz-list__delete:hover { color: var(--cb-danger); }
 .quiz-list__delete i.icon { margin: 0; }
-/* Stretch on a saved quiz: new questions from its cards. */
-.quiz-list__stretch {
-  flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: none; background: none;
-  font: inherit; font-size: 0.85rem; color: var(--cb-ink-3); cursor: pointer;
-}
-.quiz-list__stretch:hover { color: var(--cb-accent); }
-.quiz-list__stretch i.icon { margin: 0; }
 @media (max-width: 768px), (max-height: 500px) {
   .quiz-back { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); left: 12px; transform: none; }
 }

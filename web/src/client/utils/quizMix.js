@@ -21,6 +21,26 @@
 // The share last picked is remembered on this device ("quiz.mixShare").
 import { cardKey } from './quizResults';
 
+// The direction last picked on the sheet ("Answer in"): 'to-en' (answer in
+// English), 'from-en' (answer in Spanish) or 'mixed'. "quiz.direction".
+const DIRECTIONS = ['to-en', 'from-en', 'mixed'];
+const DIRECTION_PREF = 'quiz.direction';
+
+/** The direction picked last time on this device ('to-en' when none was). */
+export function lastDirection() {
+    try {
+        const v = localStorage.getItem(DIRECTION_PREF);
+        return DIRECTIONS.includes(v) ? v : 'to-en';
+    } catch (e) {
+        return 'to-en';
+    }
+}
+
+/** Remember the direction for next time. */
+export function rememberDirection(dir) {
+    try { localStorage.setItem(DIRECTION_PREF, dir); } catch (e) { /* private window: not remembered */ }
+}
+
 /** The shares offered, as the part asked Spanish → English (to English). */
 export const MIX_SHARES = [70, 50, 30];
 const DEFAULT_SHARE = 70;
