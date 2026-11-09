@@ -13,8 +13,8 @@ import { materialFromCards } from '../utils/stretch';
 //   Spanish verbs                              🗑
 //   24 cards · from Spanish · Oct 27
 //
-// Tap a quiz to start it (the direction sheet first, as from a notebook);
-// Stretch writes new questions from its cards (utils/stretch.js).
+// Tap a quiz to start it (the quiz's sheet first, as from a notebook: its
+// cards, or new questions written from them, utils/stretch.js).
 // 🗑 deletes it, after asking; the notes it came from aren't touched. A saved
 // quiz is a copy of its cards (api/quizzes.js), so it opens without loading
 // the notes, and offline from the phone's saved list.
@@ -44,15 +44,8 @@ function QuizzesPage() {
     const start = (quiz) => openQuiz({
         title: quiz.name,
         notebook: quiz.notebook,
-        load: () => ({ cards: quiz.cards, missing: 0 }),
+        load: () => ({ cards: quiz.cards, missing: 0, material: materialFromCards(quiz.cards) }),
         saved: { id: quiz.id, name: quiz.name },
-    });
-    // Stretch on a saved quiz: new questions written from its cards.
-    const stretch = (quiz) => openQuiz({
-        title: quiz.name,
-        notebook: quiz.notebook,
-        stretch: true,
-        load: () => ({ cards: [], missing: 0, material: materialFromCards(quiz.cards) }),
     });
 
     const confirmDelete = async () => {
@@ -90,10 +83,6 @@ function QuizzesPage() {
                                     {quiz.notebook ? ` · from ${quiz.notebook}` : ''}
                                     {dateOf(quiz.updatedAt) ? ` · ${dateOf(quiz.updatedAt)}` : ''}
                                 </span>
-                            </button>
-                            <button type="button" className="quiz-list__stretch" title="Stretch: new questions written from this quiz"
-                                onClick={() => stretch(quiz)}>
-                                <i className="comments outline icon" aria-hidden="true"></i>Stretch
                             </button>
                             <button type="button" className="quiz-list__delete" aria-label={`Delete ${quiz.name}`}
                                 title="Delete this quiz" onClick={() => setDeleting(quiz)}>
