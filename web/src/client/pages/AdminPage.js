@@ -5,7 +5,8 @@ import { ADMIN_PAGES } from '../utils/adminPages';
 
 // Admin hub (/admin): on phones, More's Admin row (pages/MorePage.js) opens
 // this list of admin pages (ADMIN_PAGES, in utils/adminPages.js). On desktop
-// the rail lists the same pages directly.
+// the rail lists the same pages directly. Pages for a computer only (the
+// Teachers page) are left out here.
 
 function AdminPage() {
     return (
@@ -14,7 +15,7 @@ function AdminPage() {
                 <h1 className="cb-page-title">Admin</h1>
             </div>
             <ul className="admin-hub">
-                {ADMIN_PAGES.map((page) => (
+                {ADMIN_PAGES.filter((page) => !page.computerOnly).map((page) => (
                     <li key={page.to}>
                         <Link className="admin-hub__row" to={page.to}>
                             <i className={`${page.icon} icon admin-hub__icon`} aria-hidden="true"></i>

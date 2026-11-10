@@ -12,6 +12,7 @@ import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
 import DeviceDownloads from '../components/DeviceDownloads';
 import DeleteAccount from '../components/DeleteAccount';
+import TeacherAccountRow from '../components/TeacherAccountRow';
 
 // My Notebooks, and My Wordbooks (`kind="wordbook"`, /wordbooks): the same
 // page, each listing only its own kind (state.wordbookKinds; see api
@@ -208,6 +209,8 @@ function AccountPage({
             {isNotebooks && <DeviceDownloads />}
 
             {/* Who's signed in, and Delete account. */}
+            {/* Teacher status and a link to /teacher (on a computer only). */}
+            {isNotebooks && <TeacherAccountRow />}
             {isNotebooks && <DeleteAccount />}
 
             {sortOpen && (

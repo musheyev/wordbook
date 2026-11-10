@@ -57,6 +57,7 @@ const USER_TABLES = [
     ["dictionary_inbox", ["user_name", "inbox_id"]],
     ["dictionary_email_history", ["user_name", "word"]],
     ["dictionary_unsubscribed", ["user_name", "word"]],
+    ["dictionary_teachers", ["user_name"]],
 ];
 const TTS_REFS_TABLE = "dictionary_tts_refs";
 const SETTINGS_TABLE = "dictionary_user_settings";

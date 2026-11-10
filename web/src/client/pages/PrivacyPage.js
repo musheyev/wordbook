@@ -12,7 +12,7 @@ import { site } from '../utils/site';
 // the phone (offline downloads), and how deletion works (Delete account: 7
 // days, then removed; api/account.js). The App Store "privacy label" answers
 // must match it. Each site shows its own name and email (utils/site.js).
-const UPDATED = 'October 21, 2026';
+const UPDATED = 'November 10, 2026';
 
 export default function PrivacyPage() {
     const mail = <a href={`mailto:${site.email}`}>{site.email}</a>;
@@ -51,6 +51,11 @@ export default function PrivacyPage() {
                 <li>
                     <strong>What you share:</strong> when you share a note, word or notebook with someone, they receive
                     a copy and see your username.
+                </li>
+                <li>
+                    <strong>If you ask to become a teacher:</strong> the name you want students to see, what and whom
+                    you’ll teach, about how many students, your country, and when you agreed to the teacher rules. We
+                    use them to review your request; students see only the name.
                 </li>
                 <li>
                     <strong>Server records:</strong> our servers log requests (such as which page or feature was used,
