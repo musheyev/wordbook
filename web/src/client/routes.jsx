@@ -53,6 +53,9 @@ const AdminsListPage = loadOnDemand(() => import('./pages/AdminsListPage'));
 const AdminTeachersPage = loadOnDemand(() => import('./pages/AdminTeachersPage'));
 const TeacherPage = loadOnDemand(() => import('./pages/TeacherPage'));
 const TeacherRulesPage = loadOnDemand(() => import('./pages/TeacherRulesPage'));
+const MyClassroomsPage = loadOnDemand(() => import('./pages/MyClassroomsPage'));
+const ClassroomPage = loadOnDemand(() => import('./pages/ClassroomPage'));
+const ClassroomItemPage = loadOnDemand(() => import('./pages/ClassroomItemPage'));
 
 // The site's home page (utils/site.js). Make Your Wordbook opens on the Words
 // search; Remembrancer opens on My Notebooks once signed in (its Words search
@@ -106,6 +109,9 @@ export const routes = [
       { path: 'admin/teachers', Component: AdminTeachersPage },
       { path: 'teacher', Component: TeacherPage },
       { path: 'teacher/rules', Component: TeacherRulesPage },
+      { path: 'classrooms', Component: MyClassroomsPage },
+      { path: 'classroom/:id', Component: ClassroomPage },
+      { path: 'classroom/:id/item/:item', Component: ClassroomItemPage },
       { path: 'admin/image-cleanup', Component: AdminImageCleanupPage },
       { path: 'admin/audio-cleanup', Component: AdminAudioCleanupPage },
       { path: 'users', Component: UsersListPage },

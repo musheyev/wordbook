@@ -41,6 +41,10 @@ const DYNAMO_TABLES = [
   'dictionary_quizzes',
   // Teacher accounts and requests to become one (api/teachers.js). PK user_name.
   'dictionary_teachers',
+  // Classrooms: each one's details, members and items (api/classrooms.js).
+  // PK classroom_id, SK sk; index by-user (user_name). The grant below
+  // covers its index too ("/index/*").
+  'dictionary_classrooms',
   // Which notes link to which (api/note-links.js). PK user_name, SK link_key.
   'dictionary_note_links',
   // A user's thumbs on dictionary sources (api/source-votes.js). PK user_name, SK word.

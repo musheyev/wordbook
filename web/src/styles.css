@@ -4180,3 +4180,117 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
 .teachers-admin__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .teachers-admin__decline { display: flex; align-items: center; gap: 8px; }
 .teachers-admin__decline input { width: 240px; }
+
+/* --- Classrooms (api/classrooms.js; pages My Classrooms, Classroom, item) --- */
+.classrooms-page__muted { color: var(--cb-ink-2); font-size: 0.88rem; }
+.classrooms-page__section { margin-top: 22px; }
+.classrooms-page__heading { font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--cb-ink-2); margin: 0 0 8px; }
+.classrooms-page__section .cb-grid { margin-top: 0; }
+
+/* A classroom card, like a notebook card. A closed one (for a student) is
+   grey and can't be opened. */
+.class-card {
+  display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; text-decoration: none;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+}
+.class-card:hover { border-color: var(--cb-border-strong); }
+.class-card__title { font-size: 1.05rem; font-weight: 600; color: var(--cb-accent); }
+.class-card__sub { font-size: 0.85rem; color: var(--cb-ink-2); }
+.class-card--closed { opacity: 0.6; cursor: default; }
+.class-card--closed .class-card__title { color: var(--cb-ink-2); }
+
+.class-invite {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px;
+  padding: 12px 16px; border: 1px solid var(--cb-accent); border-radius: var(--cb-radius); background: var(--cb-accent-weak);
+}
+.class-invite__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.class-invite__actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* One classroom */
+.classroom-page__back { display: block; width: fit-content; margin-bottom: 8px; color: var(--cb-accent); font-size: 0.9rem; text-decoration: none; }
+.classroom-page__head { align-items: flex-start; }
+.classroom-page__tools { display: flex; align-items: center; gap: 8px; }
+.classroom-page__menu { position: relative; }
+.class-item { position: relative; }
+.class-item__link {
+  display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 14px 16px; text-decoration: none; color: var(--cb-ink);
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border); border-radius: var(--cb-radius);
+}
+.class-item__link:hover { border-color: var(--cb-border-strong); }
+.class-item__type { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--cb-ink-2); }
+.class-item__type i.icon { margin: 0; }
+.class-item__title { font-size: 1.02rem; font-weight: 600; color: var(--cb-accent); }
+.class-item__sub { font-size: 0.85rem; color: var(--cb-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.class-item__remove,
+.class-member__remove {
+  border: none; background: none; color: var(--cb-ink-3); font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+}
+.class-item__remove { position: absolute; top: 8px; right: 8px; }
+.class-item__remove:hover,
+.class-member__remove:hover { color: var(--cb-danger); background: var(--cb-surface); }
+.classroom-page__members { margin-top: 28px; }
+.classroom-page__member-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.classroom-page__member-list li { display: inline-flex; align-items: center; gap: 2px; color: var(--cb-ink); }
+.classroom-page__member-list i.icon { color: var(--cb-ink-3); }
+.classroom-page__leave { margin-top: 28px; color: var(--cb-danger); }
+
+/* The teacher's Add window */
+.class-add { max-width: 520px; width: calc(100vw - 32px); }
+.class-add .cb-dialog__title { display: flex; align-items: center; gap: 8px; }
+.class-add__back { border: none; background: none; font-size: 1.3rem; color: var(--cb-accent); cursor: pointer; padding: 0 4px; }
+.class-add__books,
+.class-add__items { list-style: none; margin: 0 0 12px; padding: 0; max-height: 320px; overflow-y: auto; border-top: 1px solid var(--cb-border); }
+.class-add__books li button {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 6px; border: none; border-bottom: 1px solid var(--cb-border);
+  background: none; font: inherit; color: var(--cb-ink); text-align: left; cursor: pointer;
+}
+.class-add__books li button:hover { background: var(--cb-surface); }
+.class-add__books li button span:first-of-type { flex: 1; }
+.class-add__items li label { display: flex; align-items: center; gap: 8px; padding: 8px 6px; border-bottom: 1px solid var(--cb-border); cursor: pointer; }
+.class-add__whole { margin-bottom: 10px; }
+
+/* One item, read-only */
+.class-item-page .cb-page-title { margin: 4px 0 12px; }
+.class-item-page__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.class-note { padding: 14px 18px; border: 1px solid var(--cb-border); border-radius: var(--cb-radius); background: var(--cb-surface-2); }
+.class-save { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.class-save select,
+.class-save input {
+  padding: 7px 10px; font-size: 1rem; border: 1px solid var(--cb-border-strong);
+  border-radius: var(--cb-radius-sm); background: var(--cb-bg); color: var(--cb-ink);
+}
+.class-save__done { color: var(--cb-ink-2); font-size: 0.9rem; }
+.class-save__done a { color: var(--cb-accent); }
+.class-nb__notes { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--cb-border); }
+.class-nb__notes li { border-bottom: 1px solid var(--cb-border); }
+.class-nb__note-title {
+  display: flex; align-items: center; gap: 4px; width: 100%; padding: 10px 4px; border: none; background: none;
+  font: inherit; font-weight: 600; color: var(--cb-accent); text-align: left; cursor: pointer;
+}
+.class-nb__note { padding: 4px 4px 14px 22px; }
+.class-nb__words { display: flex; flex-wrap: wrap; gap: 8px; }
+.class-nb__word {
+  padding: 6px 12px; border: 1px solid var(--cb-border-strong); border-radius: 999px; background: var(--cb-surface-2);
+  color: var(--cb-accent); font: inherit; cursor: pointer;
+}
+.class-nb__word:hover { border-color: var(--cb-accent); }
+
+/* My Classrooms in the desktop side panel: a link, a ▸/▾ toggle, and the
+   classrooms under it. On phones it's in More instead. */
+.nav-classrooms__row { display: flex; align-items: center; }
+.nav-classrooms__link { flex: 1; min-width: 0; }
+.nav-classrooms__toggle { border: none; background: none; color: var(--cb-ink-3); cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.nav-classrooms__toggle:hover { background: var(--cb-surface); color: var(--cb-ink); }
+.nav-classrooms__toggle i.icon { margin: 0; }
+.nav-classrooms__list { display: flex; flex-direction: column; margin: 0 0 4px 30px; border-left: 1px solid var(--cb-border); }
+.nav-classrooms__room {
+  padding: 5px 10px; font-size: 0.88rem; color: var(--cb-ink-2); text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0 6px 6px 0;
+}
+.nav-classrooms__room:hover { color: var(--cb-ink); background: var(--cb-surface); }
+.nav-classrooms__room.on { color: var(--cb-accent); font-weight: 600; }
+@media (max-width: 768px) {
+  .nav-classrooms { display: none; }
+  .class-invite { flex-direction: column; align-items: stretch; }
+  .class-invite__actions .cb-btn { flex: 1; }
+}

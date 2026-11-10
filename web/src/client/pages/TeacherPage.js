@@ -10,7 +10,7 @@ import { fetchMyTeacherStatus, requestTeacherAccount } from '../actions';
 //
 //   none        what teachers can do, and the request form
 //   requested   "Your request is waiting for review", with your answers
-//   active      "You're a teacher" (classrooms will start from here)
+//   active      "You're a teacher", with a link to My Classrooms
 //   declined    the reason, if one was given, and when you can ask again;
 //               after that date, the form again
 //   revoked     turned off; contact support
@@ -84,7 +84,7 @@ function TeacherPage() {
             <div className="teacher-page__status">
                 <h2>You’re a teacher</h2>
                 <p>Students will see you as <strong>{me.displayName}</strong>.</p>
-                <p className="teacher-page__muted">Classrooms are coming next: you’ll create them from here.</p>
+                <p><Link to="/classrooms">Go to My Classrooms</Link> to create a classroom and invite your students.</p>
             </div>
         );
     } else if (me.status === 'revoked') {

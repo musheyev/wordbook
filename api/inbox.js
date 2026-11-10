@@ -188,9 +188,12 @@ async function snapshotItem(sender, item) {
         if (Buffer.byteLength(JSON.stringify(notebook), "utf8") > MAX_CONTENT_BYTES) {
             throw new InboxError(413, "This notebook is too large to share.");
         }
+        // A wordbook stays a wordbook when it's copied.
+        const kind = await wordbook._kindOfWordbook(sender, name);
         return {
             item_type: "notebook",
             title: name,
+            ...(kind === "wordbook" ? { kind } : {}),
             notebook,
             word_count: notebook.words.length,
             note_count: notebook.cards.length,
@@ -377,14 +380,33 @@ async function moveItem(userName, inboxId, wordbookName) {
         throw new InboxError(404, `Notebook "${wordbookName}" doesn't exist.`);
     }
 
+    const item = await copyIntoNotebook(userName, row, wordbookName, {
+        shared_by: row.from_user,
+        shared_at: row.shared_at,
+    });
+    await removeItem(userName, inboxId);
+    return item;
+}
+
+/**
+ * Copy a shared note or word into one of `userName`'s notebooks: a note
+ * becomes their own, independent copy (with `origin`, e.g. who shared it);
+ * a word comes with the sender's images for it. Also used by classrooms
+ * (classrooms.js), whose items are stored the same way as inbox rows.
+ *
+ * @param {string} userName
+ * @param {object} row { item_type: "card", title, content } or { item_type: "word", word, images? }
+ * @param {string} wordbookName an existing notebook of theirs
+ * @param {object} origin extra attributes for a copied note
+ * @returns {Promise<{type: string, id: string}>} the item in the notebook
+ * @throws {InboxError} 404 if the notebook is gone
+ */
+async function copyIntoNotebook(userName, row, wordbookName, origin = {}) {
     let item;
     if (row.item_type === "card") {
         // The recipient's own, independent copy of the note. shared_by /
         // shared_at record where it came from.
-        const card = await cards._createCardForUser(userName, row.title, row.content, {
-            shared_by: row.from_user,
-            shared_at: row.shared_at,
-        });
+        const card = await cards._createCardForUser(userName, row.title, row.content, origin);
         item = { type: "card", id: card.card_id };
     } else {
         item = { type: "word", id: row.word };
@@ -396,12 +418,10 @@ async function moveItem(userName, inboxId, wordbookName) {
 
     const added = await wordbook._addItemForUser(userName, wordbookName, item);
     if (!added) {
-        // Only if the notebook was deleted in the instant since the check
-        // above. The inbox row stays, so nothing is lost.
+        // Only if the notebook was deleted in the instant since the caller
+        // checked it. Nothing shared is lost.
         throw new InboxError(404, `Notebook "${wordbookName}" doesn't exist.`);
     }
-
-    await removeItem(userName, inboxId);
     return item;
 }
 
@@ -417,11 +437,30 @@ async function moveItem(userName, inboxId, wordbookName) {
  * @returns {Promise<{type: "notebook", name: string}>}
  */
 async function acceptNotebook(userName, row, newName) {
+    const name = await copyNotebookIntoAccount(userName, row, newName, {
+        shared_by: row.from_user,
+        shared_at: row.shared_at,
+    });
+    await removeItem(userName, row.inbox_id);
+    return { type: "notebook", name };
+}
+
+/**
+ * Make a shared notebook (row.notebook: { words, cards, wordImages? }) a new
+ * notebook of `userName`'s, named `newName`: every word, and an independent
+ * copy of every note. A wordbook (row.kind) stays a wordbook. Creating the
+ * notebook first means a name clash is caught before anything is copied.
+ * Also used by classrooms (classrooms.js).
+ *
+ * @returns {Promise<string>} the new notebook's name
+ * @throws {InboxError} 409 if the name is taken, 400 if it's not allowed
+ */
+async function copyNotebookIntoAccount(userName, row, newName, origin = {}) {
     const notebook = row.notebook || { words: [], cards: [] };
 
     let name;
     try {
-        name = await wordbook._addWordbookForUser(userName, newName);
+        name = await wordbook._addWordbookForUser(userName, newName, row.kind === "wordbook" ? "wordbook" : "notebook");
     } catch (err) {
         if (err.code === "WORDBOOK_EXISTS") {
             throw new InboxError(409, "You already have a notebook with that name. Choose another.");
@@ -440,15 +479,10 @@ async function acceptNotebook(userName, row, newName) {
         }
     }
     for (const c of notebook.cards) {
-        const card = await cards._createCardForUser(userName, c.title, c.content, {
-            shared_by: row.from_user,
-            shared_at: row.shared_at,
-        });
+        const card = await cards._createCardForUser(userName, c.title, c.content, origin);
         await wordbook._addItemForUser(userName, name, { type: "card", id: card.card_id });
     }
-
-    await removeItem(userName, row.inbox_id);
-    return { type: "notebook", name };
+    return name;
 }
 
 /**
@@ -472,6 +506,10 @@ module.exports = {
     getItem,
     moveItem,
     removeItem,
+    // Shared with classrooms.js, whose items are stored like inbox rows.
+    snapshotItem,
+    copyIntoNotebook,
+    copyNotebookIntoAccount,
     SHARES_PER_DAY,
     INBOX_LIMIT,
 };
