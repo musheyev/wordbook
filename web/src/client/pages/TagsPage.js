@@ -77,6 +77,7 @@ function TagsPage({ allTags, fetchAllTags, fetchWordData, fetchItemNotebooks }) 
                                             onClick={() => openQuiz({
                                                 title: t,
                                                 notebook: '',
+                                                spot: `tag:${t}`,
                                                 load: () => dispatch(quizCardsForItems(byTag[t])),
                                             })}>
                                             <i className="question circle outline icon" aria-hidden="true"></i>Quiz

@@ -259,6 +259,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                 title: item.title,
                 notebook: '',
                 oneGo: true,
+                spot: `note:${item.type}:${item.id}`,
                 load: () => dispatch(quizCardsForLinked(item)),
             })}>
             <i className="question circle outline icon"></i>
