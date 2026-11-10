@@ -1401,12 +1401,13 @@ export const fetchQuizzes = () => async (dispatch, getState, api) => {
 
 /**
  * Save a quiz (new, or all of it again after a change).
- * @param {{id: string, name: string, notebook: string, cards: object[]}} quiz
+ * @param {{id: string, name: string, notebook: string, cards: object[], oneRound: boolean}} quiz
+ *        oneRound: a quiz from one note, asked in one round wherever it's opened
  */
 export const saveQuiz = (quiz) => async (dispatch, getState, api) => {
   if (isQueueing()) { await queueQuizSave(quiz); return; } // sent later (offline/outbox.js)
   await api.put(`/quizzes/${encodeURIComponent(quiz.id)}`,
-    { name: quiz.name, notebook: quiz.notebook, cards: quiz.cards }, JSON_HEADERS);
+    { name: quiz.name, notebook: quiz.notebook, cards: quiz.cards, oneRound: !!quiz.oneRound }, JSON_HEADERS);
   api.get('/quizzes').catch(() => {}); // keeps the phone's saved list current
 };
 

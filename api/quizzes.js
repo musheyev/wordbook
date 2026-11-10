@@ -12,6 +12,9 @@
 //               { text, lang, chunks } (chunks: what's read aloud, the same
 //               as Play all, so the downloaded audio is used offline);
 //               source is the note: { type, id, title }
+//   one_round   true for a quiz saved from one note (its Quiz button): it's
+//               asked all in one round, not in rounds of 20, wherever it's
+//               opened. Missing on older quizzes (rounds of 20).
 //   created_at, updated_at
 //
 // DynamoDB keeps a row up to 400 KB, so a quiz is capped well below that.
@@ -57,6 +60,7 @@ async function listQuizzes(userName) {
             name: row.name,
             notebook: row.notebook || "",
             cards: Array.isArray(row.cards) ? row.cards : [],
+            oneRound: row.one_round === true,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         }))
@@ -69,10 +73,12 @@ async function listQuizzes(userName) {
  *
  * @param {string} userName
  * @param {string} id "q-…", made by the app
- * @param {{name: string, notebook: string, cards: object[]}} quiz
+ * @param {{name: string, notebook: string, cards: object[], oneRound?: boolean}} quiz
+ *        oneRound: asked in one round (a quiz from one note). Left as it
+ *        was when not sent, so an older app saving the quiz doesn't undo it.
  * @throws {QuizError} 400 for a bad id, name or cards, 413 when too big
  */
-async function saveQuiz(userName, id, { name, notebook, cards } = {}) {
+async function saveQuiz(userName, id, { name, notebook, cards, oneRound } = {}) {
     if (!ID.test(String(id))) throw new QuizError(400, "Bad quiz id.");
     const cleanName = typeof name === "string" ? name.trim().slice(0, MAX_NAME) : "";
     if (!cleanName) throw new QuizError(400, "The quiz needs a name.");
@@ -83,18 +89,24 @@ async function saveQuiz(userName, id, { name, notebook, cards } = {}) {
     if (Buffer.byteLength(JSON.stringify(cards)) > MAX_BYTES) throw new QuizError(413, "This quiz is too big to save.");
 
     const now = new Date().toISOString();
+    const values = {
+        ":name": cleanName,
+        ":nb": typeof notebook === "string" ? notebook : "",
+        ":cards": cards,
+        ":now": now,
+    };
+    let set = "SET #n = :name, notebook = :nb, cards = :cards, updated_at = :now, "
+        + "created_at = if_not_exists(created_at, :now)";
+    if (typeof oneRound === "boolean") {
+        set += ", one_round = :one";
+        values[":one"] = oneRound;
+    }
     await database.dynamoDbClientInstance().update({
         TableName: TABLE,
         Key: { user_name: userName, quiz_id: id },
-        UpdateExpression: "SET #n = :name, notebook = :nb, cards = :cards, updated_at = :now, "
-            + "created_at = if_not_exists(created_at, :now)",
+        UpdateExpression: set,
         ExpressionAttributeNames: { "#n": "name" }, // "name" is a DynamoDB reserved word
-        ExpressionAttributeValues: {
-            ":name": cleanName,
-            ":nb": typeof notebook === "string" ? notebook : "",
-            ":cards": cards,
-            ":now": now,
-        },
+        ExpressionAttributeValues: values,
     }).promise();
     return { id, name: cleanName, updatedAt: now };
 }

@@ -293,8 +293,8 @@ async function send(entry) {
     } else if (entry.kind === 'tags') {
         await api.post('/tags', { type: entry.type, id: entry.itemId, tags: entry.tags, title: entry.title }, JSON_HEADERS);
     } else if (entry.kind === 'quiz-save') {
-        const { id, name, notebook, cards } = entry.quiz;
-        await api.put(`/quizzes/${encodeURIComponent(id)}`, { name, notebook, cards }, JSON_HEADERS);
+        const { id, name, notebook, cards, oneRound } = entry.quiz;
+        await api.put(`/quizzes/${encodeURIComponent(id)}`, { name, notebook, cards, oneRound: !!oneRound }, JSON_HEADERS);
     } else if (entry.kind === 'quiz-delete') {
         await api.delete(`/quizzes/${encodeURIComponent(entry.quizId)}`);
     } else if (entry.kind === 'bookmark') {
