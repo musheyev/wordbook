@@ -658,8 +658,10 @@ function NotebookQuiz() {
     };
 
     // Save to My Quizzes (a copy of these cards). Throws if it couldn't.
+    // A quiz on one note keeps asking them in one round when it's opened
+    // from My Quizzes (`oneRound`; QuizzesPage turns it back into oneGo).
     const store = async (entry, list) => {
-        await dispatch(saveQuiz({ id: entry.id, name: entry.name, notebook: quiz.notebook, cards: list }));
+        await dispatch(saveQuiz({ id: entry.id, name: entry.name, notebook: quiz.notebook, cards: list, oneRound: !!quiz.oneGo }));
         quizzesChanged();
     };
     const saveAs = async (e) => {

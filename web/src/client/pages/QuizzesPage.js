@@ -46,6 +46,8 @@ function QuizzesPage() {
         notebook: quiz.notebook,
         load: () => ({ cards: quiz.cards, missing: 0, material: materialFromCards(quiz.cards) }),
         saved: { id: quiz.id, name: quiz.name },
+        // Saved from one note: all in one round, as when it was made.
+        oneGo: !!quiz.oneRound,
     });
 
     const confirmDelete = async () => {
