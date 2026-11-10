@@ -1,14 +1,14 @@
 import React from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { connect } from 'react-redux';
-import { logoutCurrentUser, toggleNoteWindowMode } from '../actions';
+import { logoutCurrentUser, toggleNoteWindowMode, fetchTeacherRequestCount } from '../actions';
 import WordList from './WordList';
 import ConfirmDialog from './ConfirmDialog';
 import NavRailResizer from './NavRailResizer';
 import AddItemSheet from './AddItemSheet';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
 import { notebookFromPathname, isItemPathname } from '../utils/notebookPaths';
-import { ADMIN_PAGES } from '../utils/adminPages';
+import { ADMIN_PAGES, TEACHER_REQUESTS_CHANGED } from '../utils/adminPages';
 import { site } from '../utils/site';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
@@ -28,9 +28,20 @@ const phoneMore = (state) => `${mainClass(state)} nav-phone-more`;
 // cards show the items, and its title, toolbar and menu are in the page
 // (NotebookOverview), so the rail shows just the main links. Admin links and
 // the account stay at the bottom; styles.css (.nav-rail--ctx) orders them.
-const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, toggleNoteWindowMode }) => {
+const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, toggleNoteWindowMode, fetchTeacherRequestCount }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    // Admins: how many teacher requests wait for review, shown on the
+    // Teachers link. Checked on each page change (a cheap count), and when
+    // the Teachers page approves or declines one (TEACHER_REQUESTS_CHANGED).
+    const [teacherRequests, setTeacherRequests] = React.useState(0);
+    React.useEffect(() => {
+        if (!isAdmin) return undefined;
+        const refresh = () => Promise.resolve(fetchTeacherRequestCount()).then(setTeacherRequests);
+        refresh();
+        window.addEventListener(TEACHER_REQUESTS_CHANGED, refresh);
+        return () => window.removeEventListener(TEACHER_REQUESTS_CHANGED, refresh);
+    }, [isAdmin, location.pathname, fetchTeacherRequestCount]);
 
     const userExists = auth != null && auth !== '' && auth !== false;
 
@@ -178,7 +189,12 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
                         <div className="nav-group-label">Admin</div>
                         {ADMIN_PAGES.map((page) => (
                             <NavLink key={page.to} to={page.to} className={navClass}>
-                                <i className={`${page.icon} icon`}></i>
+                                <span className="nav-icon-wrap">
+                                    <i className={`${page.icon} icon`}></i>
+                                    {page.to === '/admin/teachers' && teacherRequests > 0 && (
+                                        <span className="nav-badge" aria-label={`${teacherRequests} waiting`}>{teacherRequests}</span>
+                                    )}
+                                </span>
                                 <span className="nav-label">{page.label}</span>
                             </NavLink>
                         ))}
@@ -238,4 +254,4 @@ function mapStateToProps({ auth, isAdmin, inbox, noteWindows }) {
     };
 }
 
-export default connect(mapStateToProps, { logoutCurrentUser, toggleNoteWindowMode })(Header);
+export default connect(mapStateToProps, { logoutCurrentUser, toggleNoteWindowMode, fetchTeacherRequestCount })(Header);

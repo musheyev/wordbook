@@ -3,6 +3,10 @@
  *
  *   GET  /admin/images?cursor=…         every image in the system, a page at a time
  *   POST /admin/images/delete { items: [{ word, url }, …] }
+ *   GET  /admin/teachers?status=requested|active|declined|revoked
+ *   GET  /admin/teachers/count          { requests } waiting for review
+ *   POST /admin/teachers/:user/approve | /decline { reason? } | /revoke
+ *   POST /admin/teachers/grant { username, displayName? }   free, no request
  *
  * `requireAdmin` (cognitoUsers.js) runs first on every route here: it checks
  * the id_token and membership in the Cognito "admins" group, and answers 401
@@ -15,6 +19,8 @@ const curation = require("../image-curation");
 const imageGc = require("../image-gc");
 const appSettings = require("../app-settings");
 const ttsGc = require("../tts-gc");
+const teachers = require("../teachers");
+const { findUsername } = require("../cognitoUsers");
 const { decodeToken } = require("../auth");
 const log = require("../logger");
 
@@ -113,6 +119,42 @@ adminRouter.post("/audio-archive/restore", handle(async (req, res) => {
 adminRouter.post("/audio-archive/clear", handle(async (req, res) => {
     if (!needAudioStorage(res)) return;
     res.json(await ttsGc.clearArchive());
+}));
+
+// --- Teacher accounts (../teachers.js): review requests, revoke, grant. ---
+// TeacherError carries its own status and message (e.g. 409 when another
+// admin decided first).
+const teacherRoute = (fn) => handle(async (req, res) => {
+    try {
+        await fn(req, res);
+    } catch (err) {
+        if (err instanceof teachers.TeacherError) return res.status(err.status).end(err.message);
+        throw err;
+    }
+});
+const adminName = async (req) => (await decodeToken(req.cookies.id_token))["cognito:username"];
+
+adminRouter.get("/teachers", teacherRoute(async (req, res) => {
+    res.json(await teachers.listByStatus(req.query.status || "requested"));
+}));
+
+adminRouter.get("/teachers/count", teacherRoute(async (req, res) => {
+    res.json({ requests: await teachers.countRequests() });
+}));
+
+adminRouter.post("/teachers/grant", teacherRoute(async (req, res) => {
+    const typed = String((req.body && req.body.username) || "").trim();
+    const userName = typed ? await findUsername(typed) : null;
+    if (!userName) return res.status(404).end(`There's no account named "${typed}".`);
+    res.json(await teachers.grant(userName, await adminName(req), req.body.displayName));
+}));
+
+adminRouter.post("/teachers/:user/:action(approve|decline|revoke)", teacherRoute(async (req, res) => {
+    const { user, action } = req.params;
+    const admin = await adminName(req);
+    if (action === "approve") return res.json(await teachers.approve(user, admin));
+    if (action === "decline") return res.json(await teachers.decline(user, admin, req.body && req.body.reason));
+    return res.json(await teachers.revoke(user, admin));
 }));
 
 module.exports = { adminRouter, handle };

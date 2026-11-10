@@ -1485,3 +1485,40 @@ export const clearBookmarks = () => async (dispatch, getState, api) => {
   }
   api.get('/bookmarks').catch(() => {});
 };
+
+// ---------------------------------------------------------------------------
+// Teacher accounts (api/teachers.js). Teacher tools are used on a computer
+// (utils/computerOnly.js). Each call resolves to the server's answer, or
+// rejects with an Error carrying a message to show.
+// ---------------------------------------------------------------------------
+const teacherCall = async (request, fallback) => {
+  try { return (await request()).data; }
+  catch (err) { throw new Error(requestErrorMessage(err, fallback)); }
+};
+
+/** Your own teacher status: { status: "none" | "requested" | "active" | "declined" | "revoked", … }. */
+export const fetchMyTeacherStatus = () => async (dispatch, getState, api) =>
+  teacherCall(() => api.get('/teacher/me'), "Couldn't load your teacher status.");
+
+/** Ask to become a teacher (the "Become a teacher" form). */
+export const requestTeacherAccount = (form) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post('/teacher/request', form, JSON_HEADERS), "Couldn't send your request. Try again.");
+
+/** Admin: teachers or applicants with a status ("requested", "active", …). */
+export const fetchAdminTeachers = (status) => async (dispatch, getState, api) =>
+  teacherCall(() => api.get(`/admin/teachers?status=${encodeURIComponent(status)}`), "Couldn't load the list.");
+
+/** Admin: how many requests wait for review. Never rejects (0 on failure). */
+export const fetchTeacherRequestCount = () => async (dispatch, getState, api) => {
+  try { return (await api.get('/admin/teachers/count')).data.requests || 0; } catch (err) { return 0; }
+};
+
+/** Admin: approve, decline (with an optional reason) or revoke one user. */
+export const decideTeacher = (userName, action, reason) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post(`/admin/teachers/${encodeURIComponent(userName)}/${action}`,
+    action === 'decline' ? { reason } : {}, JSON_HEADERS), "Couldn't save that. Try again.");
+
+/** Admin: make any user a teacher, free (no request needed). */
+export const grantTeacher = (username, displayName) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post('/admin/teachers/grant', { username, displayName }, JSON_HEADERS),
+    "Couldn't make them a teacher. Try again.");
