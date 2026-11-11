@@ -28,6 +28,7 @@ const noteLinksRouter = require("./routes/noteLinksRouter");
 const bookmarksRouter = require("./routes/bookmarksRouter");
 const wordImagesRouter = require("./routes/wordImagesRouter");
 const teacherRouter = require("./routes/teacherRouter");
+const classroomsRouter = require("./routes/classroomsRouter");
 const { adminRouter } = require("./routes/adminRouter");
 
 const app = express();
@@ -66,6 +67,7 @@ app.use("/note-links", noteLinksRouter);
 app.use("/bookmarks", bookmarksRouter);
 app.use("/word-images", wordImagesRouter);
 app.use("/teacher", teacherRouter);
+app.use("/classrooms", classroomsRouter);
 app.use("/admin", adminRouter);
 
 module.exports = app;

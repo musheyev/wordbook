@@ -1198,9 +1198,10 @@ async function _rename(userName, wordbookName, newName) {
  *
  * @param {string} userName
  * @param {string} name desired notebook name
+ * @param {string} [kind] "wordbook" makes a wordbook (a copied wordbook stays one)
  * @returns {Promise<string>} the created (validated) name
  */
-async function _addWordbookForUser(userName, name) {
+async function _addWordbookForUser(userName, name, kind = "notebook") {
     let wordbookName;
     try {
         wordbookName = _validateWordbookName(name);
@@ -1216,6 +1217,7 @@ async function _addWordbookForUser(userName, name) {
                 wordbook_name: wordbookName,
                 user_name: userName,
                 added_datetime: (new Date()).toISOString(),
+                ...(kind === WORDBOOK ? { kind: WORDBOOK } : {}),
             },
         }).promise();
     } catch (err) {
@@ -1227,6 +1229,25 @@ async function _addWordbookForUser(userName, name) {
         throw err;
     }
     return wordbookName;
+}
+
+/**
+ * A notebook's kind, "wordbook" or "notebook" (see WORDBOOK above). Not
+ * user-facing (no token check). Used when a notebook is copied (inbox.js,
+ * classrooms.js), so a copied wordbook stays a wordbook.
+ *
+ * @param {string} userName
+ * @param {string} wordbookName
+ * @returns {Promise<"wordbook"|"notebook">}
+ */
+async function _kindOfWordbook(userName, wordbookName) {
+    const data = await database.dynamoDbClientInstance().get({
+        TableName: "dictionary_wordbook",
+        Key: { user_name: userName, wordbook_name: wordbookName },
+        ProjectionExpression: "#kind",
+        ExpressionAttributeNames: { "#kind": "kind" },
+    }).promise();
+    return kindOf(data.Item);
 }
 
 /**
@@ -1274,6 +1295,7 @@ module.exports = {
     _addItemForUser,
     _wordbookExists,
     _addWordbookForUser,
+    _kindOfWordbook,
     _notebookItemsForUser
 
 }

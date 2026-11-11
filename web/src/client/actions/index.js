@@ -1522,3 +1522,68 @@ export const decideTeacher = (userName, action, reason) => async (dispatch, getS
 export const grantTeacher = (username, displayName) => async (dispatch, getState, api) =>
   teacherCall(() => api.post('/admin/teachers/grant', { username, displayName }, JSON_HEADERS),
     "Couldn't make them a teacher. Try again.");
+
+// ---------------------------------------------------------------------------
+// Classrooms (api/classrooms.js). Teachers run them on a computer; students
+// use them anywhere. Each call resolves to the server's answer, or rejects
+// with an Error carrying a message to show (teacherCall, above).
+// ---------------------------------------------------------------------------
+const cid = (id) => encodeURIComponent(id);
+
+/** My Classrooms: { teaching, joined, invited }, kept in state.myClassrooms. */
+export const SET_MY_CLASSROOMS = 'set_my_classrooms';
+export const fetchMyClassrooms = () => async (dispatch, getState, api) => {
+  try {
+    const data = (await api.get('/classrooms')).data;
+    dispatch({ type: SET_MY_CLASSROOMS, payload: data });
+    return data;
+  } catch (err) {
+    return getState().myClassrooms;
+  }
+};
+
+export const createClassroom = (title) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post('/classrooms', { title }, JSON_HEADERS), "Couldn't create the classroom.");
+
+/** One classroom: { id, title, status, teacherName, role, items, members }. */
+export const fetchClassroom = (id) => async (dispatch, getState, api) =>
+  teacherCall(() => api.get(`/classrooms/${cid(id)}`), "Couldn't open the classroom.");
+
+/** Rename ({ title }), close ({ status: "closed" }) or reopen ({ status: "open" }). */
+export const updateClassroom = (id, changes) => async (dispatch, getState, api) =>
+  teacherCall(() => api.patch(`/classrooms/${cid(id)}`, changes, JSON_HEADERS), "Couldn't save that.");
+
+export const deleteClassroom = (id) => async (dispatch, getState, api) =>
+  teacherCall(() => api.delete(`/classrooms/${cid(id)}`), "Couldn't delete the classroom.");
+
+export const inviteToClassroom = (id, username) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post(`/classrooms/${cid(id)}/members`, { username }, JSON_HEADERS), "Couldn't invite them.");
+
+export const removeClassroomMember = (id, userName) => async (dispatch, getState, api) =>
+  teacherCall(() => api.delete(`/classrooms/${cid(id)}/members/${cid(userName)}`), "Couldn't remove them.");
+
+/** answer: "join" or "decline". */
+export const respondToClassroom = (id, answer) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post(`/classrooms/${cid(id)}/respond`, { answer }, JSON_HEADERS), "Couldn't answer the invitation.");
+
+export const leaveClassroom = (id) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post(`/classrooms/${cid(id)}/leave`, {}, JSON_HEADERS), "Couldn't leave the classroom.");
+
+/** Send a copy of { type: "card" | "word" | "notebook", id }. */
+export const addClassroomItem = (id, item) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post(`/classrooms/${cid(id)}/items`, item, JSON_HEADERS), "Couldn't send it.");
+
+export const removeClassroomItem = (id, itemId) => async (dispatch, getState, api) =>
+  teacherCall(() => api.delete(`/classrooms/${cid(id)}/items/${cid(itemId)}`), "Couldn't take it out.");
+
+/** One item with its content (a note's text; a notebook's words and notes). */
+export const fetchClassroomItem = (id, itemId) => async (dispatch, getState, api) =>
+  teacherCall(() => api.get(`/classrooms/${cid(id)}/items/${cid(itemId)}`), "Couldn't open it.");
+
+/** Save a copy: { wordbook } for a note or word (or { note, wordbook }); { name } for a notebook. */
+export const saveClassroomItem = (id, itemId, target) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post(`/classrooms/${cid(id)}/items/${cid(itemId)}/save`, target, JSON_HEADERS), "Couldn't save it.");
+
+/** A notebook's items ([{ type, id, title }]) for the teacher's Add picker, without touching the open notebook. */
+export const fetchNotebookItemsFor = (name) => async (dispatch, getState, api) =>
+  teacherCall(() => api.post('/wordbook/words', { wordbook: name }, JSON_HEADERS), "Couldn't load that notebook.");

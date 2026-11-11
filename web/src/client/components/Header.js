@@ -10,6 +10,7 @@ import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
 import { notebookFromPathname, isItemPathname } from '../utils/notebookPaths';
 import { ADMIN_PAGES, TEACHER_REQUESTS_CHANGED } from '../utils/adminPages';
 import { site } from '../utils/site';
+import ClassroomsNav, { useClassroomsSummary } from './ClassroomsNav';
 
 const navClass = ({ isActive }) => `nav-item${isActive ? ' on' : ''}`;
 // The main links (Words, My Wordbooks, My Notebooks, Tags, Inbox): first in
@@ -35,6 +36,7 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
     // Teachers link. Checked on each page change (a cheap count), and when
     // the Teachers page approves or declines one (TEACHER_REQUESTS_CHANGED).
     const [teacherRequests, setTeacherRequests] = React.useState(0);
+    const classroomInvitations = useClassroomsSummary().invitations;
     React.useEffect(() => {
         if (!isAdmin) return undefined;
         const refresh = () => Promise.resolve(fetchTeacherRequestCount()).then(setTeacherRequests);
@@ -159,6 +161,9 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
                     }
                 })}
 
+                {/* My Classrooms, as a tree (desktop rail; on phones, in More). */}
+                <ClassroomsNav signedIn={userExists} />
+
                 {/* My Bookmarks: in the desktop rail; on phones, in More. */}
                 {userExists && (
                     <NavLink to="/bookmarks" className={phoneMore}>
@@ -177,7 +182,13 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, logoutCurrentUser, 
 
                 {/* Phones only: Tags, My Bookmarks, My Quizzes, Admin and Log out, on one page. */}
                 <NavLink to="/more" className={() => `nav-item nav-main nav-more-tab${inMoreArea ? ' on' : ''}`}>
-                    <i className="ellipsis horizontal icon"></i>
+                    <span className="nav-icon-wrap">
+                        <i className="ellipsis horizontal icon"></i>
+                        {/* Classroom invitations wait in More → My Classrooms. */}
+                        {classroomInvitations > 0 && (
+                            <span className="nav-badge" aria-label={`${classroomInvitations} invitations`}>{classroomInvitations}</span>
+                        )}
+                    </span>
                     <span className="nav-label">More</span>
                 </NavLink>
 

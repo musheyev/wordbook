@@ -4,9 +4,11 @@ import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { logoutCurrentUser } from '../actions';
+import { useClassroomsSummary } from '../components/ClassroomsNav';
 
 // More (/more), the last tab of the phone's bottom bar. The bar has room for
-// five tabs, so the links used less often live here: Tags, My Bookmarks, My
+// five tabs, so the links used less often live here: My Classrooms (for
+// people in one; components/ClassroomsNav.js), Tags, My Bookmarks, My
 // Quizzes and Admin (both admins only; the /admin hub lists the admin
 // pages), and the account with Log out.
 // On desktop the side panel shows these directly and has no More link.
@@ -21,7 +23,15 @@ function MorePage({ auth, isAdmin, logoutCurrentUser }) {
         navigate('/');
     };
 
+    // My Classrooms, for people who teach or belong to one (or are invited).
+    const classrooms = useClassroomsSummary();
     const rows = [
+        ...(classrooms.show ? [{
+            to: '/classrooms', icon: 'graduation cap', label: 'My Classrooms',
+            hint: classrooms.invitations
+                ? `${classrooms.invitations} ${classrooms.invitations === 1 ? 'invitation' : 'invitations'} waiting`
+                : 'Classrooms you teach or are in',
+        }] : []),
         { to: '/tags', icon: 'tags', label: 'Tags', hint: 'Everything you tagged, by tag' },
         { to: '/bookmarks', icon: 'star outline', label: 'My Bookmarks', hint: 'Notes and words you starred' },
         ...(isAdmin ? [{ to: '/quizzes', icon: 'question circle outline', label: 'My Quizzes', hint: 'Quizzes you saved' }] : []),

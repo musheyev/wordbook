@@ -20,6 +20,7 @@ const imageGc = require("../image-gc");
 const appSettings = require("../app-settings");
 const ttsGc = require("../tts-gc");
 const teachers = require("../teachers");
+const classrooms = require("../classrooms");
 const { findUsername } = require("../cognitoUsers");
 const { decodeToken } = require("../auth");
 const log = require("../logger");
@@ -154,7 +155,11 @@ adminRouter.post("/teachers/:user/:action(approve|decline|revoke)", teacherRoute
     const admin = await adminName(req);
     if (action === "approve") return res.json(await teachers.approve(user, admin));
     if (action === "decline") return res.json(await teachers.decline(user, admin, req.body && req.body.reason));
-    return res.json(await teachers.revoke(user, admin));
+    const revoked = await teachers.revoke(user, admin);
+    // Revoking closes the teacher's classrooms (students lose access; the
+    // teacher can't reopen them until they're a teacher again).
+    await classrooms.closeAllFor(user);
+    return res.json(revoked);
 }));
 
 module.exports = { adminRouter, handle };

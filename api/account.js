@@ -148,6 +148,9 @@ async function deleteAccount(userName) {
     const refs = await ttsRefKeys(userName);
     await deleteKeys(TTS_REFS_TABLE, refs);
     deleted[TTS_REFS_TABLE] = refs.length;
+    // Classrooms are keyed by classroom, not user: the ones they teach go
+    // whole, and they leave the ones they belong to (classrooms.js).
+    await require("./classrooms").deleteForUser(userName);
 
     try {
         await cognito.send(new AdminDeleteUserCommand({ UserPoolId: POOL_ID, Username: userName }));

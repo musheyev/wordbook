@@ -29,6 +29,7 @@ import {
 import { myWordImagesReducer, imageSearchEnabledReducer } from './wordImageReducers';
 import offlineReducer from './offlineReducer';
 import accountDeletionReducer from './accountDeletionReducer';
+import myClassroomsReducer from './myClassroomsReducer';
 import bookmarksReducer from './bookmarksReducer';
 
 export default combineReducers({
@@ -65,6 +66,7 @@ export default combineReducers({
     imageSearchEnabled: imageSearchEnabledReducer,
     offline: offlineReducer,
     accountDeletion: accountDeletionReducer,
+    myClassrooms: myClassroomsReducer,
     bookmarks: bookmarksReducer,
 
 });
