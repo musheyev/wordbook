@@ -2552,15 +2552,28 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .rte-content .ProseMirror { outline: none; min-height: 140px; }
 .rte-content .ProseMirror p { margin: 0 0 8px; }
 .rte-content .ProseMirror a { color: #2f6fb3; text-decoration: underline; }
-/* Images never overflow their container, in the editor or when displayed. */
+/* Images in notes show at their real size, never wider than the note, in
+   the editor and when displayed. `max-height: none` undoes the old global
+   200px cap on every <img> (meant for the small pictures beside dictionary
+   words), which squeezed note images. */
 .rte-content .ProseMirror img,
 .card-content img,
 .word-note__content img,
 .note-window__body img {
   max-width: 100%;
+  max-height: none;
   height: auto;
   border-radius: 6px;
 }
+/* On the website, clicking a note's image opens it at full size in a new
+   tab (utils/imageFullSize.js); the pointer says so. Not in the editor,
+   not in the iPhone app (pinch to zoom there). */
+html:not(.is-native-app) .card-content img,
+html:not(.is-native-app) .word-note__content img,
+html:not(.is-native-app) .note-window__body img { cursor: zoom-in; }
+html:not(.is-native-app) .card-content a img,
+html:not(.is-native-app) .word-note__content a img,
+html:not(.is-native-app) .note-window__body a img { cursor: pointer; }
 .rte-content .ProseMirror img.ProseMirror-selectednode { outline: 2px solid #b5d4f4; }
 /* "Don't read aloud" mark: shown only inside the editor (dotted underline + a
    faint mute icon) so the author knows what TTS will skip. Deliberately NOT

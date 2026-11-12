@@ -14,6 +14,7 @@ import { installNativeKeyboard } from './client/native/keyboard';
 import { installOffline } from './client/offline/downloads';
 import reducers from './client/reducers';
 import { rememberNotebookKinds } from './client/utils/notebookPaths';
+import { installImageFullSize } from './client/utils/imageFullSize';
 import './client/fonts.js';
 import './styles.css';
 
@@ -83,6 +84,9 @@ const store = createStore(
 // (client/utils/notebookPaths.js). They're built in many places, so the
 // path helpers keep their own copy of the kinds, updated here.
 store.subscribe(() => rememberNotebookKinds(store.getState().wordbookKinds));
+
+// Click an image in a note to open it at full size (website only).
+installImageFullSize();
 
 // Inside the iPhone app: downloads and saved copies for offline use
 // (client/offline/). The first screen waits for the list of what's
