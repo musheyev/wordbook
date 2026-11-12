@@ -21,6 +21,7 @@ import { MARKABLE_LANGUAGES, TTS_PAUSES, TTS_SPEEDS, htmlToChunks, languageLabel
 import VoicePickerDialog from './VoicePickerDialog';
 
 import { Indent } from './editor/indent';
+import { ListSplit } from './editor/listSplit';
 import { FindReplace, findReplaceKey } from './editor/findReplace';
 import { AudioSelect, sentenceAt, wordAt } from './editor/audioSelect';
 import { TextSelection, NodeSelection } from '@tiptap/pm/state';
@@ -282,6 +283,8 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
             FontSize,
             Highlight.configure({ multicolor: true }),
             Indent,
+            // • List / 1. List change only the selected items (editor/listSplit.js).
+            ListSplit,
             // Images are uploaded to S3; the note stores only the URL (no base64).
             // Inside the iPhone app our images ("/api/images/…") are loaded
             // with the app's sign-in, or from the phone (offline/images.js);
@@ -732,9 +735,9 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
                     })()}
                 </span>
                 <Btn label="• List" title="Bullet list" active={editor.isActive('bulletList')}
-                    onClick={() => editor.chain().focus().toggleBulletList().run()} />
+                    onClick={() => editor.chain().focus().toggleListOnSelection('bulletList').run()} />
                 <Btn label="1. List" title="Numbered list" active={editor.isActive('orderedList')}
-                    onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+                    onClick={() => editor.chain().focus().toggleListOnSelection('orderedList').run()} />
                 <Btn label="⇤" title="Decrease indent (move left)" onClick={indentLess} />
                 <Btn label="⇥" title="Increase indent (move right)" onClick={indentMore} />
                 <Btn label="Code block" title="Code block" active={editor.isActive('codeBlock')}
