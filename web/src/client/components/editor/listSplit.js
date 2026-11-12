@@ -16,11 +16,11 @@ import { Fragment } from '@tiptap/pm/model';
 //
 //   orderedList  [1]            the items before the selection (same kind)
 //   bulletList   [2, 3, 4]      the selected items, in the new kind
-//   orderedList  [5 … 12]       the items after (same kind), start = 5
+//   orderedList  [5 … 12]       the items after (same kind), start = 2
 //
-// The numbers after the change continue where they were (the user's
-// choice): item 5 is still "5.", because the bottom part's `start` counts
-// the items above it, bullets included. The list's other settings (its
+// The numbers below continue from the numbered items above, and bullets
+// don't count (the user's choice, as Google Docs does): after items 2–4
+// become bullets, the old item 5 is "2.". The list's other settings (its
 // indent level, see indent.js) are kept on every part.
 //
 // Restarting at 1: a numbered list that continues from above (it starts
@@ -112,7 +112,7 @@ export const toggleListPart = (typeName) => ({ state, tr, dispatch }) => {
     const parts = [];
     if (start > 0) parts.push(list.type.create(attrsFor(list.type, firstNumber), items(0, start)));
     parts.push(newType.create(attrsFor(newType, 1), items(start, end)));
-    if (end < count) parts.push(list.type.create(attrsFor(list.type, firstNumber + end), items(end, count)));
+    if (end < count) parts.push(list.type.create(attrsFor(list.type, firstNumber + start), items(end, count)));
 
     if (dispatch) {
         const { from, to } = state.selection;
@@ -224,6 +224,23 @@ export const wrapKeepingOtherLists = (typeName) => ({ state, tr, dispatch }) => 
     }
     return true;
 };
+
+/**
+ * The kind of list the cursor (the selection's start) is directly in, or
+ * null outside a list. The toolbar lights up only that kind's button: in
+ * bullets under a numbered item, "• List" is lit and "1. List" isn't
+ * (TipTap's isActive counts every list around the cursor, so both were).
+ * @param {import('@tiptap/pm/state').EditorState} state
+ * @returns {'bulletList'|'orderedList'|null}
+ */
+export function innermostListType(state) {
+    const { $from } = state.selection;
+    for (let d = $from.depth; d > 0; d--) {
+        const name = $from.node(d).type.name;
+        if (LIST_TYPES.includes(name)) return name;
+    }
+    return null;
+}
 
 export const ListSplit = Extension.create({
     name: 'listSplit',

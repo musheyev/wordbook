@@ -1,4 +1,6 @@
 import { Extension } from '@tiptap/core';
+import { TextSelection } from '@tiptap/pm/state';
+import { Fragment } from '@tiptap/pm/model';
 
 // Indent / outdent.
 //
@@ -42,6 +44,89 @@ export function listNesting($pos) {
     }
     return lists;
 }
+
+/**
+ * ⇤ (and Shift-Tab) on items of a list nested inside a list of the OTHER
+ * kind: bullets under a numbered item, or numbers under a bullet. They move
+ * one level left and keep their kind. One list can't hold both kinds at the
+ * same level, so the outer list splits around them:
+ *
+ *   1. Deal Cloud                  1. Deal Cloud
+ *        • Mabel          ⇤        • Mabel
+ *        • Pipeline      --->      • Pipeline
+ *   2. Dagster                     2. Dagster
+ *
+ * The numbered part below continues from the one above; the bullets don't
+ * count (the user's choice). Without this, the editor's usual "un-nest"
+ * moved the items into the outer list, where they took its kind and
+ * became numbers.
+ *
+ * Bullets above the selection stay nested under their item; bullets below
+ * it go along, nested under the last moved one (as the usual un-nest does).
+ * Returns false (doing nothing) when the lists are the same kind, so the
+ * usual un-nest runs.
+ */
+export const outdentKeepingKind = ({ state, tr, dispatch }) => {
+    const { $from, $to } = state.selection;
+    const range = $from.blockRange($to, (node) => LIST_TYPES.includes(node.type.name));
+    if (!range) return false;
+    const listDepth = range.depth; // the inner list's depth
+    if (listDepth < 3) return false; // not nested in another list
+    const inner = range.parent;
+    const item = $from.node(listDepth - 1);
+    const outer = $from.node(listDepth - 2);
+    if (item.type.name !== 'listItem' || !LIST_TYPES.includes(outer.type.name)) return false;
+    if (outer.type === inner.type) return false; // same kind: the usual un-nest
+
+    const outerPos = $from.before(listDepth - 2);
+    const itemIndex = $from.index(listDepth - 2); // the item's place in the outer list
+    const innerIndex = $from.index(listDepth - 1); // the inner list's place in the item
+    const kids = (node, from, to) => {
+        const out = [];
+        for (let i = from; i < to; i++) out.push(node.child(i));
+        return out;
+    };
+
+    const before = kids(inner, 0, range.startIndex);
+    const moved = kids(inner, range.startIndex, range.endIndex);
+    const after = kids(inner, range.endIndex, inner.childCount);
+    // The items below the selection ride along, nested in the last moved one.
+    if (after.length) {
+        const last = moved[moved.length - 1];
+        moved[moved.length - 1] = last.copy(last.content.addToEnd(inner.copy(Fragment.from(after))));
+    }
+    // The item keeps its own text and the bullets above the selection.
+    const itemKids = kids(item, 0, item.childCount);
+    if (before.length) itemKids[innerIndex] = inner.copy(Fragment.from(before));
+    else itemKids.splice(innerIndex, 1);
+    const newItem = item.copy(Fragment.from(itemKids));
+
+    const head = outer.copy(Fragment.from([...kids(outer, 0, itemIndex), newItem]));
+    // The moved list sits where the outer list is, at its indent.
+    const movedList = inner.type.create({ ...inner.attrs, indent: outer.attrs.indent || 0 }, moved);
+    const parts = [head, movedList];
+    const rest = kids(outer, itemIndex + 1, outer.childCount);
+    if (rest.length) {
+        const attrs = { ...outer.attrs };
+        if ('start' in attrs) {
+            const first = typeof outer.attrs.start === 'number' ? outer.attrs.start : 1;
+            attrs.start = first + head.childCount; // the bullets don't count
+        }
+        parts.push(outer.type.create(attrs, rest));
+    }
+
+    if (dispatch) {
+        // Where the moved items start, before and after, to keep the same
+        // text selected.
+        const oldStart = range.start;
+        const newStart = outerPos + head.nodeSize + 1;
+        tr.replaceWith(outerPos, outerPos + outer.nodeSize, parts);
+        const map = (pos) => newStart + (pos - oldStart);
+        tr.setSelection(TextSelection.create(tr.doc, map(state.selection.from), map(state.selection.to)));
+        dispatch(tr.scrollIntoView());
+    }
+    return true;
+};
 
 export const Indent = Extension.create({
     name: 'indent',
@@ -125,9 +210,11 @@ export const Indent = Extension.create({
                 const nesting = listNesting(state.selection.$from);
                 return commands.sinkListItem('listItem') || (nesting === 1 && commands.listIndentMore());
             },
-            listAwareOutdent: () => ({ state, commands }) => (
+            // Items in a list of the other kind (bullets under a number)
+            // move left and keep their kind (outdentKeepingKind).
+            listAwareOutdent: () => ({ state, tr, dispatch, commands }) => (
                 listNesting(state.selection.$from) > 1
-                    ? commands.liftListItem('listItem')
+                    ? outdentKeepingKind({ state, tr, dispatch }) || commands.liftListItem('listItem')
                     : commands.listIndentLess()
             ),
         };

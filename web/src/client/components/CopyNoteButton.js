@@ -16,13 +16,36 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const DONE_MS = 2500;
 
+// How far each nested list sits right of the list around it, in the copy.
+const NESTED_LIST_MARGIN = 24;
+
+/**
+ * Give lists inside other lists a real left margin, in the copy only.
+ *
+ * Why: on screen a nested list is indented by its padding (styles.css sets
+ * its margin to 0, so nesting doesn't add space twice). The browser copies
+ * those values as they are, and Outlook — which lays out mail with Word —
+ * ignores padding on lists and indents them by their margin alone, so the
+ * nested bullets came out at the same indent as the numbers. A margin it
+ * does understand puts them back where they belong. The note on screen is
+ * untouched: this changes only the hidden copy, just before it's copied.
+ *
+ * @param {Element} box the hidden copy
+ */
+function indentNestedLists(box) {
+    box.querySelectorAll('li ul, li ol').forEach((list) => {
+        const own = parseFloat(list.style.marginLeft) || 0; // e.g. an indent level
+        list.style.marginLeft = `${own + NESTED_LIST_MARGIN}px`;
+    });
+}
+
 /**
  * Copy what's shown.
  * @param {string} title
  * @param {Element} shown the note's displayed text (.note-zoom-text)
  * @returns {boolean} whether the browser copied it
  */
-function copyShown(title, shown) {
+export function copyShown(title, shown) {
     const box = document.createElement('div');
     box.className = 'card-content copy-note__box';
     box.setAttribute('aria-hidden', 'true');
@@ -35,6 +58,7 @@ function copyShown(title, shown) {
     body.querySelectorAll('.tts-pause, .tts-bookmark, .katex-mathml').forEach((n) => n.remove());
     box.appendChild(body);
     document.body.appendChild(box);
+    indentNestedLists(box);
 
     const selection = window.getSelection();
     const before = [];
