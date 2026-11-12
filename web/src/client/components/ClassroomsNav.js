@@ -26,7 +26,12 @@ export function useClassroomsSummary() {
     return { show: !!(any || mine.isTeacher), invitations: mine.invited.length };
 }
 
-export default function ClassroomsNav({ signedIn }) {
+/**
+ * @param {boolean} signedIn
+ * @param {boolean} [collapsed] the side panel is folded to icons: just the
+ *   link, with its name as a tooltip (the list is hidden by styles.css)
+ */
+export default function ClassroomsNav({ signedIn, collapsed }) {
     const dispatch = useDispatch();
     const location = useLocation();
     const mine = useSelector((state) => state.myClassrooms);
@@ -52,7 +57,8 @@ export default function ClassroomsNav({ signedIn }) {
     return (
         <div className="nav-classrooms">
             <span className="nav-classrooms__row">
-                <NavLink to={MY_CLASSROOMS_PATH} end className={({ isActive }) => `nav-item nav-classrooms__link${isActive ? ' on' : ''}`}>
+                <NavLink to={MY_CLASSROOMS_PATH} end title={collapsed ? 'My Classrooms' : undefined}
+                    className={({ isActive }) => `nav-item nav-classrooms__link${isActive ? ' on' : ''}`}>
                     <span className="nav-icon-wrap">
                         <i className="graduation cap icon"></i>
                         {invitations > 0 && (

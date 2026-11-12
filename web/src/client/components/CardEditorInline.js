@@ -19,12 +19,20 @@ import { timeAgo } from '../utils/timeAgo';
 // text and a "Try again". Until the server confirms, the text is also kept
 // on this device (useDraft), so a closed tab or crash doesn't lose it; the
 // next time this note is edited, the editor offers to restore it.
-function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, updateCard, deleteCard }) {
+//
+// `popup` ({ wordbook, onClose }): used inside the side panel's New note
+// popup (NewNotePopup.js) instead of the page. It always writes a new note
+// in that notebook, closes through popup.onClose rather than the store's
+// editor state, and leaves the note you were reading on screen.
+function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCardEditor: closeStoreEditor, createCard, updateCard, deleteCard }) {
+    const cardEditor = popup ? { mode: 'create', card: null, wordbook: popup.wordbook } : storeEditor;
+    const closeCardEditor = popup ? popup.onClose : closeStoreEditor;
     // Phones: while editing, the note fills exactly the screen above the
     // keyboard and scrolls inside itself, instead of the whole page scrolling
     // (.cb-detail--editing in styles.css). The keyboard doesn't resize the
     // page on iPhones, so the visible area comes from window.visualViewport.
     useEffect(() => {
+        if (popup) return undefined; // a desktop popup: the page layout stays as it is
         const root = document.documentElement;
         const vv = window.visualViewport;
         const update = () => {
@@ -97,7 +105,7 @@ function CardEditorInline({ cardEditor, onCreated, closeCardEditor, createCard, 
                 const targets = [];
                 if (currentWordbook) targets.push(currentWordbook);
                 extras.forEach((w) => { if (!targets.includes(w)) targets.push(w); });
-                const created = await createCard(title, content, targets);
+                const created = await createCard(title, content, targets, { open: !popup });
                 draft.clear();
                 if (created && created.card_id) reportNoteAudio(`card:${created.card_id}`, content);
                 // Open the new note first, then close the editor, so it goes

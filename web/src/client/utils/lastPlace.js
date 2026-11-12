@@ -18,7 +18,7 @@ import { isNativeApp } from '../native/platform';
 // clearOfflineData). The website doesn't use any of this: a browser tab
 // remembers its own address.
 const KEY = 'app.lastPlace';
-const PLACES = /^\/(account|wordbooks|wordbook\/.+|inbox(\/.+)?|tags|quizzes|bookmarks|words|note\/.+)$/;
+const PLACES = /^\/(account|wordbooks|(?:wordbook|notebook)\/.+|inbox(\/.+)?|tags|quizzes|bookmarks|words|note\/.+)$/;
 
 let restored = false; // placeToRestore has been asked this visit
 

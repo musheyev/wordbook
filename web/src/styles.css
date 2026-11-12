@@ -3509,7 +3509,7 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
 .add-image__tabs { display: flex; gap: 4px; padding: 3px; margin-bottom: 12px; background: var(--cb-surface); border-radius: var(--cb-radius-sm); }
 .add-image__tab {
   flex: 1; padding: 8px 10px; border: none; border-radius: 6px; background: none;
-  color: var(--cb-ink-2); font-size: 0.88rem; cursor: pointer;
+  color: var(--cb-ink-2); font-size: 0.93rem; cursor: pointer;
 }
 .add-image__tab.is-on { background: var(--cb-surface-2); color: var(--cb-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(15, 20, 35, 0.12); }
 .add-image__drop {
@@ -4294,3 +4294,116 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
   .class-invite { flex-direction: column; align-items: stretch; }
   .class-invite__actions .cb-btn { flex: 1; }
 }
+
+/* ===========================================================================
+   Side panel: collapsing to icons, and the notebook's notes list
+   (components/Header.js, WordList.js, WordWithDelete.js). Desktop only:
+   on phones the panel is the bottom tab bar.
+   =========================================================================== */
+
+/* The notes header: ▸ / ▾, the notebook's name and how many items it has.
+   Closed by default, so the section takes only its own row until opened. */
+.nav-ctx { padding: 8px 6px 6px; }
+.nav-ctx:not(.nav-ctx--open) { flex: none; }
+.nav-ctx__labelrow { gap: 6px; padding: 0 4px 4px; }
+.nav-ctx__toggle {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  padding: 6px 6px; border: none; border-radius: var(--cb-radius-sm);
+  background: none; color: var(--cb-ink); font: inherit; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; text-align: left;
+}
+.nav-ctx__toggle:hover { background: var(--cb-accent-weak); }
+.nav-ctx__toggle i.icon { margin: 0; width: 1em; color: var(--cb-ink-3); }
+.nav-ctx__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-ctx__count { flex-shrink: 0; color: var(--cb-ink-3); font-weight: 400; font-size: 0.8rem; }
+.nav-ctx__tools .nav-ctx__winbtn,
+.nav-ctx__tools .nav-ctx__add { width: 26px; height: 26px; border: none; background: none; color: var(--cb-ink-3); }
+.nav-ctx__tools .nav-ctx__winbtn:hover,
+.nav-ctx__tools .nav-ctx__add:hover { background: var(--cb-accent-weak); color: var(--cb-accent); }
+.nav-ctx__tools .nav-ctx__winbtn.on { background: var(--cb-accent-weak); color: var(--cb-accent); }
+.nav-ctx__tools .nav-ctx__winbtn i.icon { font-size: 0.85rem; }
+/* The collapsed panel's notes icon: only while collapsed. */
+.nav-ctx__icon { display: none; }
+
+/* The notes themselves: quiet rows (dark text, a dot in the note's colour)
+   instead of blue links; the open one is highlighted. */
+.nav-ctx__list { padding: 0 4px 0 8px; }
+.nav-ctx__list .word-chips { gap: 1px; }
+.nav-ctx__list .word-chip {
+  gap: 8px; padding: 5px 8px; min-height: 30px;
+  color: var(--cb-ink-2); font-size: 0.93rem;
+}
+.nav-ctx__list .word-chip:hover { background: var(--cb-surface-2); color: var(--cb-ink); }
+.nav-ctx__list .word-chip.selected { background: var(--cb-accent-weak); color: var(--cb-accent); font-weight: 500; }
+.word-chip__dot {
+  flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--cb-border-strong);
+}
+.word-chip.selected .word-chip__dot:not([style]) { background: var(--cb-accent); }
+/* The grip takes the dot's place while hovering (My order only). */
+.nav-ctx__list .word-chip__grip { margin-left: -4px; }
+.nav-ctx__list .word-chip:hover .word-chip__grip + .word-chip__dot { display: none; }
+.nav-ctx__list .word-chip__grip { display: none; }
+.nav-ctx__list .word-chip:hover .word-chip__grip,
+.nav-ctx__list .word-chip__grip:focus-visible,
+.nav-ctx__list .sortable-row--dragging .word-chip__grip { display: inline-flex; }
+
+/* Collapse panel: the last link in the panel. */
+.nav-collapse { color: var(--cb-ink-3); }
+@media (max-width: 768px), (max-height: 500px) {
+  .nav-collapse { display: none; }
+}
+
+@media (min-width: 769px) and (min-height: 501px) {
+  .nav-rail--ctx .nav-logout { margin-bottom: 0; }
+  .nav-rail--ctx .nav-collapse { order: 6; margin-bottom: 12px; }
+
+  /* Collapsed: a narrow column of icons; names show as tooltips. */
+  .nav-rail--collapsed { width: 60px; }
+  .nav-rail--collapsed .nav-label,
+  .nav-rail--collapsed .nav-group-label,
+  .nav-rail--collapsed .nav-classrooms__toggle,
+  .nav-rail--collapsed .nav-classrooms__list,
+  .nav-rail--collapsed .nav-ctx__labelrow,
+  .nav-rail--collapsed .nav-ctx__list { display: none; }
+  .nav-rail--collapsed .nav-brand { justify-content: center; padding: 18px 0 12px; }
+  .nav-rail--collapsed .nav-items { padding-left: 8px; padding-right: 8px; }
+  .nav-rail--collapsed.nav-rail--ctx .nav-items > * { margin-left: 8px; margin-right: 8px; }
+  .nav-rail--collapsed .nav-item { justify-content: center; padding: 10px 0; }
+  .nav-rail--collapsed .nav-user { justify-content: center; padding: 8px 0; }
+  .nav-rail--collapsed .nav-admin-group { border-top: 1px solid var(--cb-border); margin-top: 6px; padding-top: 6px; }
+  .nav-rail--collapsed .nav-ctx { flex: none; padding: 6px 8px; }
+  .nav-rail--collapsed .nav-ctx__icon { display: flex; }
+}
+
+/* New note popup (components/NewNotePopup.js): the note editor in a roomy
+   dialog over the page, opened from the side panel's +. */
+.new-note__box {
+  max-width: 760px; max-height: calc(100vh - 48px);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.new-note__box .card-editor { flex: 1; min-height: 0; overflow-y: auto; }
+.new-note__lookup {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  border: none; background: none; color: var(--cb-accent); font: inherit; font-size: 0.85rem;
+  cursor: pointer; padding: 4px 6px; border-radius: var(--cb-radius-sm);
+}
+.new-note__lookup:hover { background: var(--cb-accent-weak); }
+.new-note__lookup i.icon { margin: 0; }
+
+/* Recent notes (components/RecentNotesButton.js): the clock button above an
+   open note, and its list of recently opened notes. */
+.recent-notes { position: relative; display: inline-flex; }
+.nb-back__step.on { background: var(--cb-accent-weak); color: var(--cb-accent); }
+.recent-notes__list { width: min(340px, calc(100vw - 24px)); max-height: min(420px, 70vh); overflow-y: auto; }
+.recent-notes__head {
+  padding: 6px 10px 4px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--cb-ink-3);
+}
+.recent-notes__msg { padding: 8px 10px 10px; font-size: 0.88rem; color: var(--cb-ink-2); }
+.recent-notes__list button { align-items: flex-start; }
+.recent-notes__list button i.icon { margin-top: 2px; color: var(--cb-ink-3); }
+.recent-notes__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.recent-notes__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-notes__sub { font-size: 0.78rem; color: var(--cb-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Room to write: the popup opens with a writing area of a useful height. */
+.new-note__box .rte-content .ProseMirror { min-height: 260px; }

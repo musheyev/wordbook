@@ -254,13 +254,15 @@ export const fetchCardData = (cardId) => async (dispatch, getState, api) => {
 // the open one right away, from what the save returned, so it's there the
 // moment the editor closes (the notebook page then loads it again by its
 // address, as for any note).
-export const createCard = (title, content, wordbooks = []) => async (dispatch, getState, api) => {
+// `open: false` (the side panel's New note popup, NewNotePopup.js) leaves
+// the note you're reading on screen instead of showing the new one.
+export const createCard = (title, content, wordbooks = [], { open = true } = {}) => async (dispatch, getState, api) => {
   // Offline in the iPhone app: kept on the phone and sent later (offline/outbox.js).
   const res = isQueueing()
     ? { data: await queueCardCreate(title, content, wordbooks) }
     : await api.post('/wordbook/card/create', { title, content, wordbooks }, JSON_HEADERS);
   const card = res.data;
-  if (card && card.card_id) {
+  if (open && card && card.card_id) {
     latestSelection++; // a word or note still loading is now out of date
     dispatch({ type: SET_CURRENT_WORD, payload: card.card_id });
     dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'card' });
@@ -1436,6 +1438,36 @@ export const deleteQuiz = (id) => async (dispatch, getState, api) => {
 export const SET_BOOKMARKS = 'set_bookmarks';
 
 /** Load the bookmarks into the store (and return them). */
+// ---------------------------------------------------------------------------
+// Recent notes (api/recent-notes.js): the notes and words opened most
+// recently, kept on the account so every device shares one list. The clock
+// button above an open note shows them (components/RecentNotesButton.js).
+// No store state: the list changes with every note opened, so the button
+// asks for it fresh each time it opens.
+
+/**
+ * The most recently opened notes and words, newest first.
+ * @returns {Promise<Array<{type: 'card'|'word', id: string, wordbook: string, title: string, at: string}>>}
+ */
+export const fetchRecentNotes = () => async (dispatch, getState, api) => {
+  const res = await api.get('/recent-notes');
+  return Array.isArray(res.data) ? res.data : [];
+};
+
+/**
+ * Note that an item was opened in a notebook (WordbookPage calls this).
+ * Never throws: a recent-notes list that's a step behind (offline, a dropped
+ * connection) is better than an error while reading a note.
+ * @param {{type: 'card'|'word', id: string, title: string}} item
+ * @param {string} wordbook
+ */
+export const rememberRecentNote = (item, wordbook) => async (dispatch, getState, api) => {
+  try {
+    await api.put(`/recent-notes/${item.type}/${encodeURIComponent(item.id)}`,
+      { wordbook, title: item.title || '' }, JSON_HEADERS);
+  } catch (err) { /* only a convenience */ }
+};
+
 export const fetchBookmarks = () => async (dispatch, getState, api) => {
   const res = await api.get('/bookmarks');
   const list = Array.isArray(res.data) ? res.data : [];
