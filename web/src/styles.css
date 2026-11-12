@@ -1987,15 +1987,16 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .word-note__content li > ol,
 .rte-content .ProseMirror li > ul,
 .rte-content .ProseMirror li > ol { margin-left: 0; }
-/* Bullets: a filled dot at the top level, and a filled square for a bulleted
-   list inside another list (any depth, under bullets or numbers). Browsers
-   would otherwise draw hollow circles at the second level. */
+/* Bullets: levels count bulleted lists only. A bulleted list that isn't
+   inside another bulleted list gets a filled dot, even when it sits under a
+   numbered item; one inside another bulleted list (any depth) gets a filled
+   square. Browsers would otherwise draw hollow circles at the second level. */
 .card-content ul,
 .word-note__content ul,
 .rte-content .ProseMirror ul { list-style-type: disc; }
-.card-content li ul,
-.word-note__content li ul,
-.rte-content .ProseMirror li ul { list-style-type: square; }
+.card-content ul ul,
+.word-note__content ul ul,
+.rte-content .ProseMirror ul ul { list-style-type: square; }
 .card-content [data-type="block-math"] { text-align: center; margin: 12px 0; overflow-x: auto; }
 .card-content [data-type="inline-math"] { display: inline-block; }
 .card-content a { color: #2f6fb3; text-decoration: underline; }
