@@ -13,6 +13,7 @@ import { installNativeAuth } from './client/native/auth';
 import { installNativeKeyboard } from './client/native/keyboard';
 import { installOffline } from './client/offline/downloads';
 import reducers from './client/reducers';
+import { rememberNotebookKinds } from './client/utils/notebookPaths';
 import './client/fonts.js';
 import './styles.css';
 
@@ -77,6 +78,11 @@ const store = createStore(
   reducers,
   composeWithDevTools(applyMiddleware(withExtraArgument(axiosInstance)))
 );
+
+// Notebook addresses say whether it's a notebook or a wordbook
+// (client/utils/notebookPaths.js). They're built in many places, so the
+// path helpers keep their own copy of the kinds, updated here.
+store.subscribe(() => rememberNotebookKinds(store.getState().wordbookKinds));
 
 // Inside the iPhone app: downloads and saved copies for offline use
 // (client/offline/). The first screen waits for the list of what's

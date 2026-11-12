@@ -5,18 +5,19 @@ import requireAuth from '../components/hocs/requireAuth';
 import {
     SET_CURRENT_WORDBOOK, fetchWordbookWords, fetchCardData, fetchWordData,
     clearCurrentSelection, closeCardEditor, getCardContent, fetchItemSorts, saveItemSort, fetchItemColors,
-    fetchWordbookUpdated, quizCardsForItems, fetchBookmarks,
+    fetchWordbookUpdated, quizCardsForItems, fetchBookmarks, rememberRecentNote,
 } from '../actions';
 import SearchResult from '../components/SearchResult';
 import CardEditorInline from '../components/CardEditorInline';
 import NotebookMenu from '../components/NotebookMenu';
 import NotebookItemList from '../components/NotebookItemList';
 import AddItemSheet from '../components/AddItemSheet';
+import RecentNotesButton from '../components/RecentNotesButton';
 import ReadAloud from '../components/ReadAloud';
 import NotebookOverview from '../components/NotebookOverview';
 import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
-import { itemPath, notebookPath, listPathFor } from '../utils/notebookPaths';
+import { itemPath, notebookPath, listPathFor, correctPrefix } from '../utils/notebookPaths';
 import { cardChunks, wordTitleChunk, firstSentenceChunks, getFirstSentenceOnly } from '../utils/tts';
 import { openQuiz } from '../utils/quizLauncher';
 import { highlightFirstMatch } from '../utils/highlightMatch';
@@ -34,7 +35,7 @@ const NOTE_GAP = 2;
 // A notebook. With no item in the URL it shows the notebook: on phones its
 // item list; on desktop (where the list also lives in the left rail) an
 // overview of every item as a card (NotebookOverview). With an item in the
-// URL (/wordbook/<name>/<type>/<id>) it shows that item, under a back bar
+// URL (/notebook/<name>/<type>/<id>, or /wordbook/… for a wordbook) it shows that item, under a back bar
 // that returns to the notebook and steps to the previous/next item; opened
 // from My Bookmarks (?from=bookmarks), the bar returns there and steps
 // through the bookmarks instead. A spinner shows while the list loads.
@@ -59,6 +60,14 @@ function WordbookPage({
     }, [wordbookKinds, dispatch]);
     const navigate = useNavigate();
     const location = useLocation();
+    // The address says notebook or wordbook (utils/notebookPaths.js). An old
+    // /wordbook/… link to a notebook (or the other way round) is swapped
+    // for the right address once the kinds are known; `replace`, so Back
+    // doesn't return to the old one. The ?query (from=bookmarks, q=) stays.
+    useEffect(() => {
+        const fixed = correctPrefix(location.pathname, wordbookKinds);
+        if (fixed) navigate(fixed + location.search, { replace: true });
+    }, [location.pathname, wordbookKinds]); // eslint-disable-line react-hooks/exhaustive-deps
     // Opened from a notebook search result: ?q=<what was searched>.
     const searchedFor = new URLSearchParams(location.search).get('q');
     // Opened from My Bookmarks (?from=bookmarks, utils/bookmarks.js): the bar
@@ -185,6 +194,19 @@ function WordbookPage({
         }
     }, [id, listFresh, index, cardEditorOpen]);
 
+    // Recent notes (the clock button, RecentNotesButton): tell the account
+    // this item was opened, once its title is known (from the list). Once
+    // per opening: a refresh of the list doesn't count again.
+    const recordedRef = useRef('');
+    const openedTitle = index !== -1 ? items[index].title : null;
+    useEffect(() => {
+        if (!id || openedTitle === null || id.startsWith('local-')) return;
+        const key = `${name}|${type}:${id}`;
+        if (recordedRef.current === key) return;
+        recordedRef.current = key;
+        dispatch(rememberRecentNote({ type, id, title: openedTitle }, name));
+    }, [name, type, id, openedTitle]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Opened from a search result: once the item's content has loaded,
     // scroll to the first match and highlight it. The content arrives after
     // the page, so look for it a few times.
@@ -285,8 +307,10 @@ function WordbookPage({
                         <i className="chevron left icon" aria-hidden="true"></i>
                         <span className="nb-back__name">My Bookmarks</span>
                     </Link>
-                    {bookmarkIndex !== -1 && bookmarkList.length > 1 && (
-                        <div className="nb-back__nav">
+                    <div className="nb-back__nav">
+                        <RecentNotesButton current={`${type}:${id}`} />
+                        {bookmarkIndex !== -1 && bookmarkList.length > 1 && (
+                            <>
                             <span className="nb-back__pos">{bookmarkIndex + 1} of {bookmarkList.length}</span>
                             <button type="button" className="nb-back__textstep" aria-label="Previous bookmark"
                                 disabled={bookmarkIndex === 0} onClick={() => goToBookmark(bookmarkIndex - 1)}>
@@ -296,8 +320,9 @@ function WordbookPage({
                                 disabled={bookmarkIndex === bookmarkList.length - 1} onClick={() => goToBookmark(bookmarkIndex + 1)}>
                                 Next<i className="chevron right icon" aria-hidden="true"></i>
                             </button>
-                        </div>
-                    )}
+                            </>
+                        )}
+                    </div>
                 </div>
                 {bookmarkError && <div className="cb-sheet__error nb-back__error">{bookmarkError}</div>}
                 <section id="worddefinition">
@@ -313,8 +338,11 @@ function WordbookPage({
                         <i className="chevron left icon" aria-hidden="true"></i>
                         <span className="nb-back__name">{name}</span>
                     </Link>
-                    {index !== -1 && items.length > 1 && (
-                        <div className="nb-back__nav">
+                    <div className="nb-back__nav">
+                        {/* Recent notes, then ⌃ ⌄ through this notebook. */}
+                        <RecentNotesButton current={`${type}:${id}`} />
+                        {index !== -1 && items.length > 1 && (
+                            <>
                             <span className="nb-back__pos">{index + 1} of {items.length}</span>
                             <button type="button" className="nb-back__step" aria-label="Previous item"
                                 disabled={index === 0} onClick={() => goTo(index - 1)}>
@@ -324,8 +352,9 @@ function WordbookPage({
                                 disabled={index === items.length - 1} onClick={() => goTo(index + 1)}>
                                 <i className="chevron down icon"></i>
                             </button>
-                        </div>
-                    )}
+                            </>
+                        )}
+                    </div>
                 </div>
                 <section id="worddefinition">
                     <SearchResult />

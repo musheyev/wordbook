@@ -5,13 +5,16 @@ import { deleteWordbookWord, deleteWordbookCard, openNoteWindow } from '../actio
 import { itemPath } from '../utils/notebookPaths';
 import GripIcon from './GripIcon';
 import { isPhoneLayout } from '../utils/phoneLayout';
+import { colorOf } from '../utils/itemColors';
 
 // Renders one item in a notebook's list. `item` is a typed object:
 //   { type: 'word'|'card', id, title }
 // Clicking opens the item's URL (WordbookPage loads it). The × removes the
 // item from THIS notebook only. `handleProps` (from SortableList) turns the
-// grip into a drag handle for reordering.
-const WordWithDelete = ({ item, wordbook, selected, handleProps, noteWindowMode, deleteWordbookWord, deleteWordbookCard, openNoteWindow }) => {
+// grip into a drag handle for reordering. A small dot shows the item's
+// colour (grey when it has none); in My order the grip takes its place
+// while hovering (styles.css).
+const WordWithDelete = ({ item, wordbook, selected, color, handleProps, noteWindowMode, deleteWordbookWord, deleteWordbookCard, openNoteWindow }) => {
     const navigate = useNavigate();
     const isCard = item.type === 'card';
     const rowRef = useRef(null);
@@ -67,6 +70,8 @@ const WordWithDelete = ({ item, wordbook, selected, handleProps, noteWindowMode,
                     <GripIcon size={14} />
                 </span>
             )}
+            <span className="word-chip__dot" aria-hidden="true"
+                style={color ? { background: color.ink } : undefined} />
             <span className="word-chip__label">{item.title}</span>
             <i className="word-chip__x" title={removeTitle} aria-label={removeTitle}
                 onClick={onDelete}>×</i>
@@ -74,9 +79,10 @@ const WordWithDelete = ({ item, wordbook, selected, handleProps, noteWindowMode,
     );
 };
 
-function mapStatetoProps({ currentWord, noteWindows }, ownProps) {
+function mapStatetoProps({ currentWord, noteWindows, itemColors }, ownProps) {
     return {
         selected: currentWord === ownProps.item.id,
+        color: colorOf(itemColors, ownProps.item),
         item: ownProps.item,
         wordbook: ownProps.wordbook,
         noteWindowMode: noteWindows.mode,

@@ -91,6 +91,11 @@ export const routes = [
       { path: 'words', Component: HomePage },
       { path: 'account', Component: AccountPage },
       { path: 'wordbooks', Component: WordbooksPage },
+      // A notebook or wordbook (utils/notebookPaths.js): notebooks live under
+      // /notebook/, wordbooks under /wordbook/. Either opens either kind, and
+      // the page moves to the right one.
+      { path: 'notebook/:name', Component: WordbookPage },
+      { path: 'notebook/:name/:type/:id', Component: WordbookPage },
       { path: 'wordbook/:name', Component: WordbookPage },
       { path: 'wordbook/:name/:type/:id', Component: WordbookPage },
       { path: 'inbox', Component: InboxPage },
