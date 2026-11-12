@@ -22,6 +22,7 @@ import VoicePickerDialog from './VoicePickerDialog';
 
 import { Indent } from './editor/indent';
 import { ListSplit } from './editor/listSplit';
+import { ListNumbering } from './editor/listNumbering';
 import { FindReplace, findReplaceKey } from './editor/findReplace';
 import { AudioSelect, sentenceAt, wordAt } from './editor/audioSelect';
 import { TextSelection, NodeSelection } from '@tiptap/pm/state';
@@ -285,6 +286,8 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
             Indent,
             // • List / 1. List change only the selected items (editor/listSplit.js).
             ListSplit,
+            // Numbered lists keep counting when an item is taken out (editor/listNumbering.js).
+            ListNumbering,
             // Images are uploaded to S3; the note stores only the URL (no base64).
             // Inside the iPhone app our images ("/api/images/…") are loaded
             // with the app's sign-in, or from the phone (offline/images.js);
