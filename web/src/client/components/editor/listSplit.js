@@ -1,5 +1,6 @@
 import { Extension } from '@tiptap/core';
 import { TextSelection } from '@tiptap/pm/state';
+import { Fragment } from '@tiptap/pm/model';
 
 // The "• List" and "1. List" buttons (and their shortcuts, ⌘⇧8 / ⌘⇧7),
 // changing only the items you selected.
@@ -22,11 +23,21 @@ import { TextSelection } from '@tiptap/pm/state';
 // the items above it, bullets included. The list's other settings (its
 // indent level, see indent.js) are kept on every part.
 //
+// Restarting at 1: a numbered list that continues from above (it starts
+// at, say, 8, after an item was taken out: editor/listNumbering.js) starts
+// at 1 again when you select its first item and click "1. List". Clicking
+// again then takes the items out of the list, as before. A cycle, so no
+// extra button is needed (the user's choice).
+//
 // Everything else is left to TipTap's command, unchanged:
 //   - the selection is not in a list: it becomes a list
 //   - the items are already that kind: they leave the list (become text)
 //   - the whole list is selected: the whole list switches kind
-//   - a selection reaching outside the list (text above or below it)
+//   - a selection reaching outside the list (text above or below it),
+//     unless it includes a list of the other kind: wrapKeepingOtherLists
+//     keeps that one as it is
+//   - a selection starting inside a list nested in the one it covers acts
+//     on the outer list (reachesIntoInnerList), not the nested one
 const LIST_TYPES = ['bulletList', 'orderedList'];
 const TOGGLES = { bulletList: 'toggleBulletList', orderedList: 'toggleOrderedList' };
 
@@ -66,6 +77,16 @@ export const toggleListPart = (typeName) => ({ state, tr, dispatch }) => {
     if (!found) return false;
     const { list, pos, start, end } = found;
     const count = list.childCount;
+    // "1. List" on the first item of a numbered list that doesn't start at 1:
+    // restart it at 1 (the next click takes the items out).
+    if (typeName === 'orderedList' && list.type.name === typeName && start === 0
+        && typeof list.attrs.start === 'number' && list.attrs.start !== 1) {
+        if (dispatch) {
+            tr.setNodeMarkup(pos, null, { ...list.attrs, start: 1 });
+            dispatch(tr);
+        }
+        return true;
+    }
     if (list.type.name === typeName) return false; // already that kind: TipTap lifts them out
     if (start === 0 && end === count) return false; // the whole list: TipTap switches it
 
@@ -106,6 +127,104 @@ export const toggleListPart = (typeName) => ({ state, tr, dispatch }) => {
     return true;
 };
 
+/**
+ * The innermost list around a position, as its start position, or null.
+ * @param {import('@tiptap/pm/model').ResolvedPos} $pos
+ */
+function innermostListPos($pos) {
+    for (let d = $pos.depth; d > 0; d--) {
+        if (LIST_TYPES.includes($pos.node(d).type.name)) return $pos.before(d);
+    }
+    return null;
+}
+
+/**
+ * The selection starts (or ends) inside a list nested in the list it
+ * covers, e.g. from "Mabel" (a bullet under item 1) to item 2. TipTap's
+ * own command would act on that inner list (turning the bullets into
+ * numbers); this makes the button act on the outer list's items instead,
+ * and the inner list goes along unchanged.
+ */
+function reachesIntoInnerList(state, typeName) {
+    const found = selectedItems(state);
+    if (!found || found.list.type.name !== typeName) return false;
+    const { $from, $to } = state.selection;
+    return innermostListPos($from) !== found.pos || innermostListPos($to) !== found.pos;
+}
+
+/**
+ * Make the selected lines a list of `typeName` while lists of the OTHER
+ * kind inside the selection keep their kind and indent: "1. List" on some
+ * plain lines with an indented bulleted list among them numbers the lines
+ * and leaves the bullets as bullets (nested under the numbered line above
+ * them, when there is one). Without this, a selection starting inside the
+ * bullets turned them into numbered items and dropped their indent.
+ *
+ * Runs only when the selection reaches beyond a single list AND includes a
+ * list of the other kind; everything else is TipTap's normal command.
+ * How: the blocks the selection touches (at the level they share) are
+ * rebuilt as:
+ *   plain line (paragraph, heading)  -> a new item (as a paragraph)
+ *   list of this kind                -> its items join the new list
+ *   list of the other kind           -> kept as it is, inside the item above
+ *                                       (or on its own when there's none)
+ *   anything else (code, table, …)   -> kept; the list continues after it
+ *
+ * @param {'bulletList'|'orderedList'} typeName
+ */
+export const wrapKeepingOtherLists = (typeName) => ({ state, tr, dispatch }) => {
+    const { $from, $to } = state.selection;
+    const range = $from.blockRange($to);
+    if (!range || LIST_TYPES.includes(range.parent.type.name)) return false;
+    const blocks = [];
+    for (let i = range.startIndex; i < range.endIndex; i++) blocks.push(range.parent.child(i));
+    const isOther = (node) => LIST_TYPES.includes(node.type.name) && node.type.name !== typeName;
+    if (!blocks.some(isOther)) return false;
+
+    const schema = state.schema;
+    const listType = schema.nodes[typeName];
+    const itemType = schema.nodes.listItem;
+    const paragraph = schema.nodes.paragraph;
+    const numbered = 'start' in (listType.spec.attrs || {});
+
+    const out = [];
+    let items = []; // the items of the list being built
+    let nextNumber = 1;
+    const flush = () => {
+        if (!items.length) return;
+        out.push(listType.create(numbered ? { start: nextNumber } : null, items));
+        nextNumber += items.length;
+        items = [];
+    };
+    blocks.forEach((block) => {
+        if (block.isTextblock) {
+            // A line becomes an item; list items hold paragraphs, so a
+            // heading becomes a paragraph (as TipTap's own command does).
+            const attrs = block.type === paragraph ? { ...block.attrs } : null;
+            if (attrs && 'indent' in attrs) attrs.indent = 0; // the list does the indenting now
+            items.push(itemType.create(null, paragraph.create(attrs, block.content, block.marks)));
+        } else if (block.type === listType) {
+            block.forEach((item) => items.push(item));
+        } else if (isOther(block) && items.length) {
+            // Nest it in the item above, after that item's own content.
+            const last = items[items.length - 1];
+            items[items.length - 1] = last.copy(last.content.append(Fragment.from(block)));
+        } else {
+            flush();
+            out.push(block);
+        }
+    });
+    flush();
+
+    if (dispatch) {
+        tr.replaceWith(range.start, range.end, out);
+        const size = out.reduce((n, node) => n + node.nodeSize, 0);
+        tr.setSelection(TextSelection.between(tr.doc.resolve(range.start), tr.doc.resolve(range.start + size)));
+        dispatch(tr.scrollIntoView());
+    }
+    return true;
+};
+
 export const ListSplit = Extension.create({
     name: 'listSplit',
 
@@ -117,8 +236,15 @@ export const ListSplit = Extension.create({
              * exactly what TipTap's toggleBulletList / toggleOrderedList do.
              * @param {'bulletList'|'orderedList'} typeName
              */
-            toggleListOnSelection: (typeName) => ({ commands, ...props }) =>
-                toggleListPart(typeName)(props) || commands[TOGGLES[typeName]](),
+            toggleListOnSelection: (typeName) => ({ state, tr, dispatch, commands }) => {
+                const props = { state, tr, dispatch };
+                if (toggleListPart(typeName)(props)) return true;
+                if (wrapKeepingOtherLists(typeName)(props)) return true;
+                // Already this kind, from inside a nested list: take the
+                // outer items out of the list (their nested lists go along).
+                if (reachesIntoInnerList(state, typeName)) return commands.liftListItem('listItem');
+                return commands[TOGGLES[typeName]]();
+            },
         };
     },
 
