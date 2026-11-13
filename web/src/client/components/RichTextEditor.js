@@ -21,7 +21,7 @@ import { MARKABLE_LANGUAGES, TTS_PAUSES, TTS_SPEEDS, htmlToChunks, languageLabel
 import VoicePickerDialog from './VoicePickerDialog';
 
 import { Indent } from './editor/indent';
-import { ListSplit } from './editor/listSplit';
+import { ListSplit, innermostListType } from './editor/listSplit';
 import { ListNumbering } from './editor/listNumbering';
 import { FindReplace, findReplaceKey } from './editor/findReplace';
 import { AudioSelect, sentenceAt, wordAt } from './editor/audioSelect';
@@ -737,9 +737,9 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
                         );
                     })()}
                 </span>
-                <Btn label="• List" title="Bullet list" active={editor.isActive('bulletList')}
+                <Btn label="• List" title="Bullet list" active={innermostListType(editor.state) === 'bulletList'}
                     onClick={() => editor.chain().focus().toggleListOnSelection('bulletList').run()} />
-                <Btn label="1. List" title="Numbered list" active={editor.isActive('orderedList')}
+                <Btn label="1. List" title="Numbered list" active={innermostListType(editor.state) === 'orderedList'}
                     onClick={() => editor.chain().focus().toggleListOnSelection('orderedList').run()} />
                 <Btn label="⇤" title="Decrease indent (move left)" onClick={indentLess} />
                 <Btn label="⇥" title="Increase indent (move right)" onClick={indentMore} />
