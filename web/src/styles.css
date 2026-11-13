@@ -1997,7 +1997,14 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
 .card-content ul ul,
 .word-note__content ul ul,
 .rte-content .ProseMirror ul ul { list-style-type: square; }
-.card-content [data-type="block-math"] { text-align: center; margin: 12px 0; overflow-x: auto; }
+/* Formulas on their own line sit at the left, indented like a list's text
+   (24px), not centred (the user's choice). KaTeX centres display formulas
+   itself (.katex-display), so those rules are undone here too. */
+.card-content [data-type="block-math"] { text-align: left; margin: 12px 0; padding-left: 24px; overflow-x: auto; }
+.card-content [data-type="block-math"] .katex-display,
+.card-content [data-type="block-math"] .katex-display > .katex,
+.rte-content .ProseMirror [data-type="block-math"] .katex-display,
+.rte-content .ProseMirror [data-type="block-math"] .katex-display > .katex { text-align: left; }
 .card-content [data-type="inline-math"] { display: inline-block; }
 .card-content a { color: #2f6fb3; text-decoration: underline; }
 .card-content code {
@@ -2623,7 +2630,7 @@ html:not(.is-native-app) .note-window__body a img { cursor: pointer; }
 }
 .rte-content .ProseMirror pre code { background: transparent; color: inherit; }
 /* block math nodes render centered like a display equation */
-.rte-content .ProseMirror [data-type="block-math"] { text-align: center; margin: 10px 0; overflow-x: auto; }
+.rte-content .ProseMirror [data-type="block-math"] { text-align: left; margin: 10px 0; padding-left: 24px; overflow-x: auto; }
 
 /* Formula help: shown only while editing a math node. Tinted so "formula mode"
    reads as a distinct, active state. */
