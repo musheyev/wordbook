@@ -6,6 +6,7 @@ import { showApiImages } from '../offline/images';
 import { renderMathIn } from '../utils/math';
 import { cardChunks } from '../utils/tts';
 import ReadAloud from './ReadAloud';
+import CardEditorInline from './CardEditorInline';
 
 // Default (deliberately roomy) window size, clamped to the viewport.
 const DEFAULT_W = 640;
@@ -33,6 +34,11 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
     const [maximized, setMaximized] = useState(false);
     const [content, setContent] = useState(null); // null = loading
     const [failed, setFailed] = useState(false);
+    // The pencil turns the window into the note's editor (CardEditorInline,
+    // in its window mode); Save or Cancel turns it back. `title` follows a
+    // rename saved here (the store keeps the title the window opened with).
+    const [editing, setEditing] = useState(false);
+    const [title, setTitle] = useState(win.title);
 
     const geomRef = useRef(geom);
     geomRef.current = geom;
@@ -48,7 +54,11 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
 
     // Render any KaTeX math once the content is in the DOM.
     // In the iPhone app, also its images (offline/images.js).
-    useEffect(() => { renderMathIn(bodyRef.current); showApiImages(bodyRef.current, `card:${win.cardId}`); }, [content]);
+    useEffect(() => {
+        if (editing) return;
+        renderMathIn(bodyRef.current);
+        showApiImages(bodyRef.current, `card:${win.cardId}`);
+    }, [content, editing]);
 
     // Shared drag handler for both moving (by the title bar) and resizing (corner).
     const startInteraction = (mode) => (e) => {
@@ -89,13 +99,19 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
         <div className={`note-window${isActive ? ' note-window--active' : ''}`}
             style={style}
             onPointerDown={() => focusNoteWindow(win.id)}
-            role="dialog" aria-label={win.title}>
+            role="dialog" aria-label={title}>
             <div className="note-window__bar" onPointerDown={startInteraction('move')}
                 onDoubleClick={() => setMaximized((m) => !m)}>
-                <span className="note-window__title">{win.title}</span>
+                <span className="note-window__title">{title}</span>
                 <span className="note-window__tools" onPointerDown={(e) => e.stopPropagation()}>
-                    {content != null && !failed && (
-                        <ReadAloud title={win.title} getChunks={() => cardChunks({ card_id: win.cardId, content })} />
+                    {content != null && !failed && !editing && (
+                        <>
+                            <ReadAloud title={title} getChunks={() => cardChunks({ card_id: win.cardId, content })} />
+                            <button type="button" className="card-tool" title="Edit note" aria-label="Edit note"
+                                onClick={() => setEditing(true)}>
+                                <i className="edit outline icon"></i>
+                            </button>
+                        </>
                     )}
                     <button type="button" className="card-tool" title={maximized ? 'Restore' : 'Maximize'}
                         aria-label={maximized ? 'Restore' : 'Maximize'} onClick={() => setMaximized((m) => !m)}>
@@ -113,6 +129,12 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
                     <div className="note-window__msg">Couldn't load this note.</div>
                 ) : content == null ? (
                     <div className="note-window__msg">Loading…</div>
+                ) : editing ? (
+                    <CardEditorInline popup={{
+                        card: { card_id: win.cardId, title, content },
+                        onSaved: (card) => { setContent(card.content || ''); setTitle(card.title || title); },
+                        onClose: () => setEditing(false),
+                    }} />
                 ) : (
                     <div className="card-content" dangerouslySetInnerHTML={{ __html: sanitizeCardHtml(content) }} />
                 )}

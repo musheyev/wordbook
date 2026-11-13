@@ -281,21 +281,25 @@ export const createCard = (title, content, wordbooks = [], { open = true } = {})
 
 // Edit an existing card. Because a card is stored once, this updates it in
 // every wordbook it belongs to.
-export const updateCard = (cardId, title, content) => async (dispatch, getState, api) => {
+// `open: false` (editing in a note window, NoteWindow.js) leaves the page
+// as it is: the note shown there is refreshed only if it's this same note,
+// and the page's own editor isn't closed. Returns the saved card.
+export const updateCard = (cardId, title, content, { open = true } = {}) => async (dispatch, getState, api) => {
   // Offline in the iPhone app: kept on the phone and sent later (offline/outbox.js).
   const res = isQueueing()
     ? { data: await queueCardUpdate(cardId, title, content) }
     : await api.post('/wordbook/card/update', { card_id: cardId, title, content }, JSON_HEADERS);
 
   // Refresh the open card viewer with the new content.
-  dispatch({ type: FETCH_CARD_DATA, payload: res.data });
-  dispatch(closeCardEditor());
+  if (open || getState().currentWord === cardId) dispatch({ type: FETCH_CARD_DATA, payload: res.data });
+  if (open) dispatch(closeCardEditor());
 
   // Refresh the list so the (possibly renamed) title updates in the chip list.
   const currentWordbook = getState().currentWordbook;
   if (currentWordbook) {
     dispatch(fetchWordbookWords(currentWordbook));
   }
+  return res.data;
 };
 
 // Delete a card everywhere (from every wordbook).
