@@ -11,6 +11,7 @@ import { FontFamily } from '@tiptap/extension-font-family';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Image } from '@tiptap/extension-image';
 import { MarkdownPaste } from './editor/markdownPaste';
+import { LatexPaste } from './editor/latexPaste';
 import { SafeTableCell, SafeTableHeader } from './editor/tableCells';
 import { TtsSkip } from './editor/ttsSkip';
 import { TtsLang } from './editor/ttsLang';
@@ -273,6 +274,8 @@ const RichTextEditor = ({ value, onChange, zoom = 1, onZoom = null }) => {
             SafeTableHeader,
             Markdown,
             MarkdownPaste,
+            // Pasted \[ … \] and \( … \) become formulas (editor/latexPaste.js).
+            LatexPaste,
             TtsSkip,
             TtsLang,
             TtsPause,
