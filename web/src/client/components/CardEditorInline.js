@@ -20,12 +20,18 @@ import { timeAgo } from '../utils/timeAgo';
 // on this device (useDraft), so a closed tab or crash doesn't lose it; the
 // next time this note is edited, the editor offers to restore it.
 //
-// `popup` ({ wordbook, onClose }): used inside the side panel's New note
-// popup (NewNotePopup.js) instead of the page. It always writes a new note
-// in that notebook, closes through popup.onClose rather than the store's
-// editor state, and leaves the note you were reading on screen.
+// `popup` ({ wordbook, onClose, card?, onSaved? }): used outside the page,
+// closing through popup.onClose rather than the store's editor state, and
+// leaving the note you were reading on the page as it is.
+//   - without `card`: the side panel's New note popup (NewNotePopup.js),
+//     writing a new note in `wordbook`
+//   - with `card` ({ card_id, title, content }): editing that note in its
+//     note window (NoteWindow.js); onSaved(card) gets the saved version.
+//     Delete isn't offered there: deleting is done from the note's page.
 function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCardEditor: closeStoreEditor, createCard, updateCard, deleteCard }) {
-    const cardEditor = popup ? { mode: 'create', card: null, wordbook: popup.wordbook } : storeEditor;
+    const cardEditor = popup
+        ? { mode: popup.card ? 'edit' : 'create', card: popup.card || null, wordbook: popup.wordbook || '' }
+        : storeEditor;
     const closeCardEditor = popup ? popup.onClose : closeStoreEditor;
     // Phones: while editing, the note fills exactly the screen above the
     // keyboard and scrolls inside itself, instead of the whole page scrolling
@@ -98,9 +104,13 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
         setSaveError('');
         try {
             if (isEdit) {
-                await updateCard(card.card_id, title, content);
+                const saved = await updateCard(card.card_id, title, content, { open: !popup });
                 draft.clear();
                 reportNoteAudio(`card:${card.card_id}`, content);
+                if (popup) {
+                    if (popup.onSaved) popup.onSaved({ ...card, title, content, ...(saved || {}) });
+                    popup.onClose();
+                }
             } else {
                 const targets = [];
                 if (currentWordbook) targets.push(currentWordbook);
@@ -142,7 +152,7 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
                 />
 
                 <div className="card-editor__actions">
-                    {isEdit && (
+                    {isEdit && !popup && (
                         <button className="card-tool card-tool--danger card-editor__wide-only" title="Delete note"
                             aria-label="Delete note" onClick={() => setConfirmingDelete(true)}>
                             <i className="trash alternate outline icon"></i>
@@ -161,7 +171,7 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
                                         onClick={() => { setShowMore(false); setShowWbPopup(true); }}>
                                         <i className="bookmark outline icon"></i>Notebooks…
                                     </button>
-                                    {isEdit && (
+                                    {isEdit && !popup && (
                                         <button type="button" role="menuitem" className="cb-menu__danger"
                                             onClick={() => { setShowMore(false); setConfirmingDelete(true); }}>
                                             <i className="trash alternate outline icon"></i>Delete note
