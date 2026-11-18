@@ -10,6 +10,13 @@
         "--host"
       ],
       "port": 3000
+    },
+    {
+      "name": "wordbook-api",
+      "runtimeExecutable": "/Users/rudy/.nvm/versions/node/v24.18.0/bin/node",
+      "runtimeArgs": ["/Users/rudy/Code/web/wordbook/api/server.js"],
+      "cwd": "/Users/rudy/Code/web/wordbook/api",
+      "port": 4000
     }
   ]
 }
