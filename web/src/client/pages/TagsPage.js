@@ -1,44 +1,23 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
-import { fetchAllTags, fetchWordData, fetchItemNotebooks } from '../actions';
-import { itemPath } from '../utils/notebookPaths';
-import { site } from '../utils/site';
+import { fetchAllTags } from '../actions';
+import { tagPath, tagItemPath } from '../utils/tagPaths';
 
-// Browse your tagged items by tag. Words open on the Words page; notes open in
-// the first notebook that contains them. No Quiz here: tags cover all kinds
-// of notes, not only language learning (quizzes live on notebooks).
-function TagsPage({ allTags, fetchAllTags, fetchWordData, fetchItemNotebooks }) {
-    const navigate = useNavigate();
-    const [active, setActive] = useState(null); // selected tag, or null = all
-    const [error, setError] = useState('');
-
+// Browse your tagged items by tag. A tag's name (its pill, or its heading)
+// opens that tag's own view, which works like a notebook (TagViewPage); a
+// note or word opens there too, so ⌃ ⌄ step through the rest of the tag.
+// No Quiz here: tags cover all kinds of notes, not only language learning
+// (quizzes live on notebooks).
+function TagsPage({ allTags, fetchAllTags }) {
     useEffect(() => { fetchAllTags(); }, [fetchAllTags]);
 
     const items = Array.isArray(allTags) ? allTags : [];
     const byTag = {};
     items.forEach((it) => (it.tags || []).forEach((t) => { (byTag[t] = byTag[t] || []).push(it); }));
     const tagNames = Object.keys(byTag).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-
-    const open = async (it) => {
-        setError('');
-        if (it.type === 'word') {
-            fetchWordData(it.id);
-            navigate(site.wordsPath);
-            return;
-        }
-        try {
-            const books = await fetchItemNotebooks(it.id);
-            if (books && books.length) {
-                navigate(itemPath(books[0], { type: 'card', id: it.id }));
-            } else {
-                setError('That note isn’t in any notebook, so there’s nowhere to open it.');
-            }
-        } catch (err) {
-            setError('Could not open that note.');
-        }
-    };
+    const byTitle = (a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
 
     return (
         <div className="cb-account">
@@ -51,30 +30,26 @@ function TagsPage({ allTags, fetchAllTags, fetchWordData, fetchItemNotebooks }) 
             ) : (
                 <>
                     <div className="tags-cloud">
-                        <button type="button" className={`tag-pill${active === null ? ' on' : ''}`}
-                            onClick={() => setActive(null)}>All</button>
+                        <span className="tag-pill on">All</span>
                         {tagNames.map((t) => (
-                            <button key={t} type="button" className={`tag-pill${active === t ? ' on' : ''}`}
-                                onClick={() => setActive(t)}>
+                            <Link key={t} className="tag-pill" to={tagPath(t)}>
                                 {t}<span className="tag-pill__count">{byTag[t].length}</span>
-                            </button>
+                            </Link>
                         ))}
                     </div>
 
-                    {error && <div className="cb-sheet__error tags-error">{error}</div>}
-
                     <div className="tags-sections">
-                        {(active ? [active] : tagNames).map((t) => (
+                        {tagNames.map((t) => (
                             <div key={t} className="tags-section">
-                                <div className="tags-section__label">{t}</div>
+                                <Link className="tags-section__label" to={tagPath(t)}>{t}</Link>
                                 <div className="tags-section__items">
-                                    {byTag[t].map((it) => (
-                                        <button key={`${it.type}#${it.id}`} type="button"
-                                            className={`tags-item tags-item--${it.type}`} onClick={() => open(it)}>
+                                    {[...byTag[t]].sort(byTitle).map((it) => (
+                                        <Link key={`${it.type}#${it.id}`} to={tagItemPath(t, it)}
+                                            className={`tags-item tags-item--${it.type}`}>
                                             <i className={`${it.type === 'card' ? 'sticky note outline' : 'font'} icon`}
                                                 aria-hidden="true"></i>
                                             <span className="tags-item__title">{it.title}</span>
-                                        </button>
+                                        </Link>
                                     ))}
                                 </div>
                             </div>
@@ -90,4 +65,4 @@ function mapStateToProps({ allTags }) {
     return { allTags };
 }
 
-export default connect(mapStateToProps, { fetchAllTags, fetchWordData, fetchItemNotebooks })(requireAuth(TagsPage));
+export default connect(mapStateToProps, { fetchAllTags })(requireAuth(TagsPage));

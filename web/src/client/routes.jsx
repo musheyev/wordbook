@@ -7,6 +7,7 @@ import AccountPage from './pages/AccountPage';
 import WordbookPage from './pages/WordbookPage';
 import InboxPage from './pages/InboxPage';
 import TagsPage from './pages/TagsPage';
+import TagViewPage from './pages/TagViewPage';
 import QuizzesPage from './pages/QuizzesPage';
 import NoteLinkPage from './pages/NoteLinkPage';
 import BookmarksPage from './pages/BookmarksPage';
@@ -101,6 +102,9 @@ export const routes = [
       { path: 'inbox', Component: InboxPage },
       { path: 'inbox/:id', Component: InboxPage },
       { path: 'tags', Component: TagsPage },
+      // One tag's notes and words, like a notebook (utils/tagPaths.js).
+      { path: 'tag/:tag', Component: TagViewPage },
+      { path: 'tag/:tag/:type/:id', Component: TagViewPage },
       { path: 'quizzes', Component: QuizzesPage },
       { path: 'bookmarks', Component: BookmarksPage },
       // A note link's address (utils/noteLinks.js): opens the note in a notebook.

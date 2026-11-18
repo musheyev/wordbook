@@ -3315,6 +3315,37 @@ ul.cb-grid { list-style: none; padding: 0; }
   color: var(--cb-ink-3); font-size: 1rem; line-height: 1;
 }
 .item-tag__x:hover { color: var(--cb-danger); }
+.item-tag { position: relative; }
+.item-tag__name {
+  border: none; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer;
+}
+.item-tag__name:hover, .item-tag.on .item-tag__name { color: var(--cb-accent); }
+.item-tag.on { border-color: var(--cb-accent); background: var(--cb-accent-weak); }
+/* The other notes with a tag (TagPeek), dropped down from the tag. */
+.tag-peek__backdrop { position: fixed; inset: 0; z-index: 40; }
+.tag-peek {
+  position: absolute; z-index: 41; top: calc(100% + 6px); left: 0;
+  width: 300px; max-width: calc(100vw - 32px); padding: 6px;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 0.85rem; color: var(--cb-ink); text-align: left;
+}
+.tag-peek__head { padding: 4px 8px 6px; font-size: 0.75rem; color: var(--cb-ink-3); }
+.tag-peek__empty { padding: 6px 8px 8px; color: var(--cb-ink-3); }
+.tag-peek__list { max-height: 320px; overflow-y: auto; }
+.tag-peek__row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border-radius: var(--cb-radius-sm); color: var(--cb-ink); text-decoration: none;
+}
+.tag-peek__row:hover { background: var(--cb-accent-weak); color: var(--cb-ink); }
+.tag-peek__row i.icon { margin: 0; color: var(--cb-ink-3); flex-shrink: 0; }
+.tag-peek__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-peek__more { padding: 4px 8px; color: var(--cb-ink-3); font-size: 0.8rem; }
+.tag-peek__all {
+  display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 8px 8px 4px;
+  border-top: 1px solid var(--cb-border); color: var(--cb-accent); text-decoration: none;
+}
+.tag-peek__all i.icon { margin: 0; font-size: 0.8rem; }
 .item-tags__add { display: inline-flex; }
 .item-tags__add input {
   border: none; background: none; outline: none;
@@ -3373,6 +3404,29 @@ ul.cb-grid { list-style: none; padding: 0; }
 .tags-item i.icon { margin: 0; color: var(--cb-ink-3); font-size: 0.9rem; flex-shrink: 0; }
 .tags-item--word i.icon { color: var(--cb-accent); }
 .tags-item__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Tags page: pills, headings and items are links to the tag view. */
+a.tag-pill, a.tags-item { text-decoration: none; }
+a.tags-section__label { display: inline-block; text-decoration: none; }
+a.tags-section__label:hover { color: var(--cb-accent); }
+
+/* A tag's own view (TagViewPage), laid out like a notebook's page. */
+.tag-view { padding: 24px 28px; }
+.tag-view__back {
+  display: inline-flex; align-items: center; gap: 2px; margin-bottom: 8px;
+  color: var(--cb-ink-3); font-size: 0.85rem; text-decoration: none;
+}
+.tag-view__back:hover { color: var(--cb-accent); }
+.tag-view__back i.icon { margin: 0; }
+.tag-view__title { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.tag-view__count { font-size: 0.9rem; font-weight: 400; color: var(--cb-ink-3); }
+.tag-view__icon.icon { margin: 0; color: var(--cb-accent); font-size: 0.85em; }
+.tag-view__list { display: flex; flex-direction: column; gap: 8px; max-width: 640px; }
+.tag-view__list .tags-item { width: 100%; }
+.nb-back__link .tag-view__icon.icon { margin-right: 4px; }
+.nav-ctx__tagicon.icon { margin: 0; color: var(--cb-accent); font-size: 0.8rem; }
+@media (max-width: 768px) {
+  .tag-view { padding: 16px; }
+}
 
 /* ===========================================================================
    Tables in notes: the same look while editing (.rte-content) and reading
