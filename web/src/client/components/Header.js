@@ -13,6 +13,8 @@ import { ADMIN_PAGES, TEACHER_REQUESTS_CHANGED } from '../utils/adminPages';
 import { site } from '../utils/site';
 import ClassroomsNav, { useClassroomsSummary } from './ClassroomsNav';
 import NewNotePopup from './NewNotePopup';
+import TagItemList from './TagItemList';
+import { tagFromPathname, isTagItemPathname, itemsWithTag } from '../utils/tagPaths';
 
 // Two choices about the side panel, remembered in this browser (like its
 // width, NavRailResizer). localStorage can throw (private windows, blocked
@@ -45,9 +47,11 @@ const phoneMore = (state) => `${mainClass(state)} nav-phone-more`;
 // (desktop only) shows the notebook's items under the main links, to jump
 // between them, with open-in-windows and add. On the notebook's own page the
 // cards show the items, and its title, toolbar and menu are in the page
-// (NotebookOverview), so the rail shows just the main links. Admin links and
+// (NotebookOverview), so the rail shows just the main links. The same goes
+// for a tag's view (TagViewPage): while one of its items is open, the rail
+// lists the tag's items. Admin links and
 // the account stay at the bottom; styles.css (.nav-rail--ctx) orders them.
-const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLength, logoutCurrentUser, toggleNoteWindowMode, fetchTeacherRequestCount }) => {
+const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLength, allTags, logoutCurrentUser, toggleNoteWindowMode, fetchTeacherRequestCount }) => {
     const navigate = useNavigate();
     const location = useLocation();
     // Admins: how many teacher requests wait for review, shown on the
@@ -68,11 +72,14 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
     const cardbookName = notebookFromPathname(location.pathname);
     const inCardbook = cardbookName !== '';
     const itemOpen = isItemPathname(location.pathname);
+    // In a tag's view with one of its items open: the rail lists the tag's items.
+    const tagName = tagFromPathname(location.pathname);
+    const inTagItem = tagName !== '' && isTagItemPathname(location.pathname);
     // The phone's More tab stays highlighted on every admin page, and on
     // Tags and More itself (reached from More on phones).
     const inAdminArea = ADMIN_PAGES.some((page) => location.pathname.startsWith(page.to))
         || location.pathname === '/admin';
-    const inMoreArea = inAdminArea || location.pathname === '/more' || location.pathname === '/tags'
+    const inMoreArea = inAdminArea || location.pathname === '/more' || location.pathname === '/tags' || tagName !== ''
         || location.pathname === '/quizzes' || location.pathname === '/bookmarks';
 
     const [confirmingLogout, setConfirmingLogout] = React.useState(false);
@@ -112,7 +119,7 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
     }
 
     return (
-        <nav className={`nav-rail${inCardbook ? ' nav-rail--ctx' : ''}${collapsed ? ' nav-rail--collapsed' : ''}`}>
+        <nav className={`nav-rail${inCardbook || inTagItem ? ' nav-rail--ctx' : ''}${collapsed ? ' nav-rail--collapsed' : ''}`}>
             <Link to={site.homePath} className="nav-brand" title={tip(site.name)}>
                 <i className={`${site.icon} icon`}></i>
                 <span className="nav-label">{site.name}</span>
@@ -175,6 +182,41 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
                 </div>
             )}
 
+            {inTagItem && (
+                <div className={`nav-ctx${notesOpen ? ' nav-ctx--open' : ''}`}>
+                    <button type="button" className="nav-item nav-ctx__icon" title={`Tagged ${tagName}`}
+                        aria-label={`Show notes tagged ${tagName}`} onClick={showNotes}>
+                        <i className="tag icon"></i>
+                    </button>
+                    <div className="nav-ctx__labelrow">
+                        <button type="button" className="nav-ctx__toggle" aria-expanded={notesOpen}
+                            onClick={toggleNotes} title={notesOpen ? 'Hide notes' : 'Show notes'}>
+                            <i className={`${notesOpen ? 'angle down' : 'angle right'} icon`} aria-hidden="true"></i>
+                            <i className="tag icon nav-ctx__tagicon" aria-hidden="true"></i>
+                            <span className="nav-ctx__name">{tagName}</span>
+                            {Array.isArray(allTags) && (
+                                <span className="nav-ctx__count">{itemsWithTag(allTags, tagName).length}</span>
+                            )}
+                        </button>
+                        <span className="nav-ctx__tools">
+                            <button type="button"
+                                className={`nav-ctx__winbtn${noteWindowMode ? ' on' : ''}`}
+                                aria-pressed={noteWindowMode}
+                                title={noteWindowMode ? 'Notes open in windows (click to turn off)' : 'Open notes in windows'}
+                                aria-label="Open notes in windows"
+                                onClick={toggleNoteWindowMode}>
+                                <i className="window maximize outline icon"></i>
+                            </button>
+                        </span>
+                    </div>
+                    {notesOpen && (
+                        <div className="nav-ctx__list">
+                            <TagItemList tag={tagName} />
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="nav-items">
                 {site.nav.map((key) => {
                     switch (key) {
@@ -203,7 +245,9 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
                             );
                         case 'tags':
                             return (
-                                <NavLink key={key} to="/tags" className={phoneMore} title={tip('Tags')}>
+                                // Lit on a tag's own view (/tag/…) too.
+                                <NavLink key={key} to="/tags" title={tip('Tags')}
+                                    className={(state) => phoneMore({ isActive: state.isActive || tagName !== '' })}>
                                     <i className="tags icon"></i>
                                     <span className="nav-label">Tags</span>
                                 </NavLink>
@@ -331,9 +375,9 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
     );
 };
 
-function mapStateToProps({ auth, isAdmin, inbox, noteWindows, wordbookWords, wordbookWordsFor }) {
+function mapStateToProps({ auth, isAdmin, inbox, noteWindows, wordbookWords, wordbookWordsFor, allTags }) {
     return {
-        auth, isAdmin,
+        auth, isAdmin, allTags,
         inboxCount: Array.isArray(inbox) ? inbox.length : 0,
         noteWindowMode: noteWindows.mode,
         // Which notebook's list is loaded, and how many items it has (the

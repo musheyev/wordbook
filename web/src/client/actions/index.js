@@ -306,6 +306,11 @@ export const updateCard = (cardId, title, content, { open = true } = {}) => asyn
 export const deleteCard = (cardId) => async (dispatch, getState, api) => {
   await api.post('/wordbook/card/delete', { card_id: cardId }, JSON_HEADERS);
   itemDeleted(`card:${cardId}`); // no download of it to keep (offline/downloads.js)
+  // Its tags go too: they're kept apart from the note (dictionary_item_tags),
+  // and a deleted note would otherwise still show on Tags and in tag views.
+  try {
+    await api.post('/tags', { type: 'card', id: cardId, tags: [] }, JSON_HEADERS);
+  } catch (err) { /* the note is gone either way */ }
 
   dispatch(closeCardEditor());
   dispatch({ type: FETCH_CARD_DATA, payload: null });
@@ -1190,11 +1195,11 @@ export const fetchItemTags = (type, id) => async (dispatch, getState, api) => {
 export const setItemTags = (type, id, tags, title) => async (dispatch, getState, api) => {
   if (isQueueing()) { // sent later (offline/outbox.js)
     await queueItemTags(type, id, tags, title);
-    dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags }, saved: true });
+    dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags, title }, saved: true });
     return;
   }
   const res = await api.post('/tags', { type, id, tags, title }, JSON_HEADERS);
-  dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: (res.data && res.data.tags) || [] }, saved: true });
+  dispatch({ type: SET_ITEM_TAGS, payload: { type, id, tags: (res.data && res.data.tags) || [], title }, saved: true });
 };
 
 // Every tagged item (for the tag browser page).

@@ -10,7 +10,7 @@ import { isNativeApp } from '../native/platform';
 // (offline/apiCache.js, requestSavedFirst) the screen appears at once.
 //
 // Only places worth coming back to are remembered: My Notebooks, a notebook
-// and its open note, the Inbox, Tags, Quizzes, Bookmarks, the Words search.
+// and its open note, the Inbox, Tags and one tag's view, Quizzes, Bookmarks, the Words search.
 // Not More, Privacy, Support, sign-in or admin pages.
 //
 // Kept in localStorage (the web view's small key-value storage on the
@@ -18,7 +18,7 @@ import { isNativeApp } from '../native/platform';
 // clearOfflineData). The website doesn't use any of this: a browser tab
 // remembers its own address.
 const KEY = 'app.lastPlace';
-const PLACES = /^\/(account|wordbooks|(?:wordbook|notebook)\/.+|inbox(\/.+)?|tags|quizzes|bookmarks|words|note\/.+)$/;
+const PLACES = /^\/(account|wordbooks|(?:wordbook|notebook)\/.+|inbox(\/.+)?|tags|tag\/.+|quizzes|bookmarks|words|note\/.+)$/;
 
 let restored = false; // placeToRestore has been asked this visit
 
