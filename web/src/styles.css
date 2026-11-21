@@ -642,7 +642,10 @@ nav-button-as-link {
   font-size: 0.85rem; color: var(--cb-ink-2); line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
-.nb-card__kind { font-size: 0.78rem; color: var(--cb-ink-3); }
+/* A word's card: one of its definitions, picked at random
+   (useRandomDefinitions). Two lines, fading in when it arrives. */
+.nb-card__def { -webkit-line-clamp: 2; animation: nb-def-in 0.25s ease-out; }
+@keyframes nb-def-in { from { opacity: 0; } to { opacity: 1; } }
 /* A card's tags (clicking one filters by it) and, in My order, its drag
    grip (top right, on hover). */
 .nb-card-wrap { position: relative; height: 100%; }

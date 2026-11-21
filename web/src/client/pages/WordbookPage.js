@@ -23,6 +23,7 @@ import { openQuiz } from '../utils/quizLauncher';
 import { highlightFirstMatch } from '../utils/highlightMatch';
 import { sortItems, DEFAULT_ITEM_SORT } from '../utils/itemSort';
 import useNotebookSearch from '../utils/useNotebookSearch';
+import useRandomDefinitions from '../utils/useRandomDefinitions';
 import { keyOf } from '../components/NotebookSelect';
 import { getLastVisited, setLastVisited } from '../utils/lastVisited';
 import { MissingLine, useAvailableItems } from '../components/DownloadBadge';
@@ -126,6 +127,8 @@ function WordbookPage({
     // says how many others there are ("12 more notes aren't downloaded").
     // Everything below — the list, Play all, next/previous — uses `items`.
     const { items, missing } = useAvailableItems(name, allItems);
+    // A random definition of each word, shown on its card instead of "Word".
+    const definitions = useRandomDefinitions(name, haveList ? items : []);
 
     // Offline changes (offline/outbox.js): once they're sent, reload this
     // notebook and its open note; a note written offline that just got its
@@ -390,7 +393,7 @@ function WordbookPage({
                         items.length > 0 && (
                             <NotebookItemList wordbook={name} items={items} search={search} sort={sort} onSort={setSort}
                                 selection={selection} playSelected={() => notebookChunks(pickedItems)} quizSelected={quizSelected}
-                                lastKey={getLastVisited(name)} colors={itemColors} />
+                                lastKey={getLastVisited(name)} colors={itemColors} definitions={definitions} />
                         )
                     ) : loadError ? (
                         <LoadError message={loadError} onRetry={() => fetchWordbookWords(name)} />
@@ -403,7 +406,7 @@ function WordbookPage({
                 {listReady ? (
                     <NotebookOverview name={name} items={items} search={search} sort={sort} onSort={setSort}
                         selection={selection} playSelected={() => notebookChunks(pickedItems)} quizSelected={quizSelected}
-                        lastKey={getLastVisited(name)} colors={itemColors} missing={missing}
+                        lastKey={getLastVisited(name)} colors={itemColors} missing={missing} definitions={definitions}
                         onAdd={() => setAddOpen(true)} onQuiz={startQuiz} getReadAloudChunks={notebookChunks} />
                 ) : (
                     <div className="nb-overview-loading">
