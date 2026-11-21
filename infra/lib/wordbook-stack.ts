@@ -433,10 +433,19 @@ function handler(event) {
     //    upload's pruning.)
     // =========================================================================
     const distDir = path.join(__dirname, '..', '..', 'web', 'dist');
+    // memoryLimit: the copying is done by a small Lambda that unzips the
+    // site and runs `aws s3 sync`. At its default 128 MB it ran out of memory
+    // once the site had ~190 font files (2026-11-21: uploads failed with
+    // "SSL validation failed" after 9 minutes, and the deploy rolled back).
+    // 1024 MB gives it room; it only runs during a deploy, so the cost is a
+    // fraction of a cent. Both deployments use the same value, so they share
+    // one copying Lambda.
+    const COPY_MEMORY_MB = 1024;
     const deployAssets = new s3deploy.BucketDeployment(this, 'DeploySpa', {
       sources: [s3deploy.Source.asset(distDir)],
       destinationBucket: siteBucket,
       exclude: ['index.html'],
+      memoryLimit: COPY_MEMORY_MB,
       cacheControl: [s3deploy.CacheControl.fromString('public, max-age=31536000, immutable')],
     });
     const deployIndex = new s3deploy.BucketDeployment(this, 'DeploySpaIndex', {
@@ -445,6 +454,7 @@ function handler(event) {
       exclude: ['*'],
       include: ['index.html'],
       prune: false,
+      memoryLimit: COPY_MEMORY_MB,
       cacheControl: [s3deploy.CacheControl.fromString('no-cache')],
       distribution,
       distributionPaths: ['/*'],
