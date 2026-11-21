@@ -2101,7 +2101,7 @@ body:has(.quiz-back) .link-back { bottom: 80px; }
   .card-editor__top { flex-direction: row; align-items: center; gap: 6px; }
   .card-editor__top .card-editor__actions { display: contents; }
   .card-editor__top .card-editor__wide-only, .card-editor__top .card-editor__status { display: none; }
-  .card-editor__top button[aria-label="Cancel"] { order: 0; flex: none; }
+  .card-editor__top .card-editor__close { order: 0; flex: none; }
   .card-editor__top .card-editor__title { order: 1; flex: 1; min-width: 0; height: 40px; padding: 6px 10px; font-size: 16px; }
   .card-editor__more { display: inline-flex; order: 2; flex: none; }
   .card-editor__more .cb-menu__list { right: 0; left: auto; z-index: 60; }
@@ -4667,4 +4667,22 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
     border: none; background: none; padding: 0 0 4px; color: var(--cb-accent); font-family: inherit; font-size: 0.9rem; cursor: pointer;
   }
   .nh__text { padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* The note editor after a Save (CardEditorInline): "✓ Saved · 10:42" beside
+   the buttons while nothing has changed since. Phones have no room in the
+   slim top row, so it shows as a small tag under the row's right end. And
+   ✕ with unsaved changes: Keep editing / Discard changes / Save and close. */
+.card-editor__saved {
+  align-self: center; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.85rem; color: #15803d; white-space: nowrap;
+}
+.card-editor__saved i.icon { margin: 0; font-size: 0.8rem; }
+.card-editor__ask .card-confirm__actions { flex-wrap: wrap; }
+@media (max-width: 768px), (max-height: 500px) {
+  .card-editor__top { position: relative; }
+  .card-editor__top .card-editor__saved {
+    display: inline-flex; position: absolute; right: 4px; top: calc(100% + 2px); z-index: 5;
+    padding: 2px 8px; border-radius: 10px; background: #e8f7ec; font-size: 0.75rem;
+  }
 }

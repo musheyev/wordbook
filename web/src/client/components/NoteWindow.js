@@ -36,7 +36,7 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
     const [content, setContent] = useState(null); // null = loading
     const [failed, setFailed] = useState(false);
     // The pencil turns the window into the note's editor (CardEditorInline,
-    // in its window mode); Save or Cancel turns it back. `title` follows a
+    // in its window mode); Save keeps editing, ✕ turns it back. `title` follows a
     // rename saved here (the store keeps the title the window opened with).
     const [editing, setEditing] = useState(false);
     const [title, setTitle] = useState(win.title);
@@ -46,7 +46,7 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
     const bodyRef = useRef(null);
     // Switching between reading and editing keeps your place in the note
     // (utils/notePlace.js): the pencil notes the paragraph at the top, and
-    // reading again after Save or Cancel opens at the one the editor showed.
+    // reading again after ✕ opens at the one the editor showed.
     const viewText = () => bodyRef.current && bodyRef.current.querySelector(':scope > .card-content');
     useRestoredPlace(win.cardId, viewText, content != null && !failed && !editing);
 

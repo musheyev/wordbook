@@ -18,6 +18,11 @@ import { COGNITO_LOGIN } from '../utils/cognito';
 //   [ delete · bookmark · cancel · save ]   (icon cluster, left-aligned)
 //   [ formatting toolbar + body ]           (RichTextEditor)
 //
+// Save keeps you in the editor (with "Saved · 10:42" beside the buttons);
+// ✕ closes it. With changes not saved yet, ✕ first asks: Save and close,
+// Discard changes, or Keep editing, so closing never quietly loses text.
+// A new note's first Save creates it, and the editor carries on editing it.
+//
 // Saving on a slow or dropped connection: Save shows that it's working and
 // can't be pressed twice; if the save fails, the editor stays open with the
 // text and a "Try again". Until the server confirms, the text is also kept
@@ -25,8 +30,8 @@ import { COGNITO_LOGIN } from '../utils/cognito';
 // next time this note is edited, the editor offers to restore it.
 //
 // `popup` ({ wordbook, onClose, card?, onSaved? }): used outside the page,
-// closing through popup.onClose rather than the store's editor state, and
-// leaving the note you were reading on the page as it is.
+// closing through popup.onClose (its ✕) rather than the store's editor state,
+// and leaving the note you were reading on the page as it is.
 //   - without `card`: the side panel's New note popup (NewNotePopup.js),
 //     writing a new note in `wordbook`
 //   - with `card` ({ card_id, title, content }): editing that note in its
@@ -61,16 +66,25 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
         };
     }, []);
 
-    const isEdit = cardEditor.mode === 'edit';
+    // The note as last saved ({ card_id, title, content }), or null for a
+    // new note not saved yet. Save updates it, and a new note's first Save
+    // sets it, so the editor goes on as the note's editor.
+    const [card, setCard] = useState(() => (cardEditor.mode === 'edit' && cardEditor.card
+        ? { card_id: cardEditor.card.card_id, title: cardEditor.card.title, content: cardEditor.card.content } : null));
+    const isEdit = !!card;
     // Text size, carried over from reading the note (utils/noteZoom.js).
-    const [zoom, setZoom] = useNoteZoom(isEdit && cardEditor.card ? cardEditor.card.card_id : 'new');
-    const card = cardEditor.card;
+    const [zoom, setZoom] = useNoteZoom(isEdit ? card.card_id : 'new');
 
-    const savedTitle = isEdit && card ? card.title : '';
-    const savedContent = isEdit && card ? card.content : '';
+    const savedTitle = isEdit ? card.title || '' : '';
+    const savedContent = isEdit ? card.content || '' : '';
     const [title, setTitle] = useState(savedTitle);
     const [content, setContent] = useState(savedContent);
     const [saving, setSaving] = useState(false);
+    // When the last Save went through ("Saved · 10:42", while nothing has
+    // changed since).
+    const [savedAt, setSavedAt] = useState(null);
+    // ✕ with changes not saved: asking what to do.
+    const [askingClose, setAskingClose] = useState(false);
     const [saveError, setSaveError] = useState('');
     // The save failed because the sign-in ran out (401): offer Sign in.
     // On the website it opens in a new tab, so this editor and its text
@@ -94,16 +108,21 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
     // the card exists and the picker toggles its memberships live).
     const currentWordbook = cardEditor.wordbook || '';
     const [extras, setExtras] = useState([]);
+    // A note just made in the New note popup: the notebook picker works on
+    // the note open on the page (it edits "the current item"), not this
+    // one, so it's not offered once the note exists; its notebook was set
+    // when it was made.
+    const pickerOff = !!popup && !popup.card && isEdit;
 
-    const draft = useDraft(isEdit && card ? `note:${card.card_id}` : `note:new:${currentWordbook}`,
+    const draft = useDraft(isEdit ? `note:${card.card_id}` : `note:new:${currentWordbook}`,
         { title, content }, { title: savedTitle, content: savedContent });
 
     // Your place in the note (utils/notePlace.js): the editor opens at the
-    // paragraph that was at the top while reading it, and Save or Cancel
-    // note the one at the top here, so reading opens there again.
+    // paragraph that was at the top while reading it, and closing it notes
+    // the one at the top here, so reading opens there again.
     const rootRef = useRef(null);
     const editorText = () => rootRef.current && rootRef.current.querySelector('.rte-content .ProseMirror');
-    const noteId = isEdit && card ? card.card_id : null;
+    const noteId = isEdit ? card.card_id : null;
     useRestoredPlace(noteId, editorText, !!noteId);
     const keepMyPlace = () => { if (noteId) keepPlace(noteId, editorText()); };
 
@@ -121,52 +140,64 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
         );
     };
 
+    /** Save, and stay in the editor. @returns {Promise<boolean>} whether it saved */
     const onSave = async () => {
-        if (title.trim() === '' || saving) return;
+        if (title.trim() === '' || saving) return false;
         setSaving(true);
         setSaveError('');
         setSignedOut(false);
         try {
             if (isEdit) {
-                keepMyPlace();
-                const saved = await updateCard(card.card_id, title, content, { open: !popup });
+                const saved = await updateCard(card.card_id, title, content, { open: !popup, closeEditor: false });
                 draft.clear();
                 reportNoteAudio(`card:${card.card_id}`, content);
-                if (popup) {
-                    if (popup.onSaved) popup.onSaved({ ...card, title, content, ...(saved || {}) });
-                    popup.onClose();
-                }
+                setCard({ ...card, title, content });
+                if (popup && popup.onSaved) popup.onSaved({ ...card, title, content, ...(saved || {}) });
             } else {
                 const targets = [];
                 if (currentWordbook) targets.push(currentWordbook);
                 extras.forEach((w) => { if (!targets.includes(w)) targets.push(w); });
                 const created = await createCard(title, content, targets, { open: !popup });
                 draft.clear();
-                if (created && created.card_id) reportNoteAudio(`card:${created.card_id}`, content);
-                // Open the new note first, then close the editor, so it goes
-                // straight from the editor to the note (closing first showed
-                // the notebook for a moment in between).
-                if (created && onCreated) onCreated(created);
-                closeCardEditor();
+                reportNoteAudio(`card:${created.card_id}`, content);
+                // From here on this is that note's editor. On the page, the
+                // address moves to the new note, so it's there, behind the
+                // editor, when you close it.
+                setCard({ card_id: created.card_id, title, content });
+                if (onCreated) onCreated(created);
             }
+            setSavedAt(new Date());
+            setSaving(false);
+            return true;
         } catch (err) {
             setSignedOut(isSignedOutError(err));
             setSaveError(requestErrorMessage(err, "Couldn't save the note."));
             setSaving(false);
+            return false;
         }
     };
 
-    const onCancel = () => {
+    // Leave the editor.
+    const close = () => {
         keepMyPlace();
         draft.clear();
         closeCardEditor();
+    };
+    // ✕: straight out when everything is saved; otherwise ask first.
+    const onClose = () => {
+        if (draft.dirty) setAskingClose(true);
+        else close();
+    };
+    const saveAndClose = async () => {
+        setAskingClose(false);
+        if (await onSave()) close();
     };
 
     return (
         <div className="card-editor" ref={rootRef}>
             {/* Title and buttons. Phones put them in one slim row that stays
-                at the top — ✕ cancel, the title, ⋯ (delete, notebooks),
-                ✓ save — so Cancel and Save are always on screen (styles.css,
+                at the top — ✕ close, the title, ⋯ (delete, notebooks),
+                ✓ save — so Close and Save are always on screen (styles.css,
                 .card-editor__top). */}
             <div className="card-editor__top">
                 <input
@@ -194,10 +225,12 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
                             <>
                                 <div className="cb-menu__backdrop" onMouseDown={() => setShowMore(false)} />
                                 <div className="cb-menu__list" role="menu">
-                                    <button type="button" role="menuitem"
-                                        onClick={() => { setShowMore(false); setShowWbPopup(true); }}>
-                                        <i className="bookmark outline icon"></i>Notebooks…
-                                    </button>
+                                    {!pickerOff && (
+                                        <button type="button" role="menuitem"
+                                            onClick={() => { setShowMore(false); setShowWbPopup(true); }}>
+                                            <i className="bookmark outline icon"></i>Notebooks…
+                                        </button>
+                                    )}
                                     {isEdit && !popup && (
                                         <button type="button" role="menuitem" className="cb-menu__danger"
                                             onClick={() => { setShowMore(false); setConfirmingDelete(true); }}>
@@ -208,7 +241,7 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
                             </>
                         )}
                     </span>
-                    <span className="a2c-anchor">
+                    {!pickerOff && <span className="a2c-anchor">
                         <button className="card-tool card-editor__wide-only" title="Add to notebook" aria-label="Add to notebook"
                             onClick={() => setShowWbPopup((v) => !v)}>
                             <i className="bookmark outline icon"></i>
@@ -221,9 +254,9 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
                                 lockedName={!isEdit ? currentWordbook : ''}
                                 onClose={() => setShowWbPopup(false)} />
                         )}
-                    </span>
-                    <button className="card-tool" title="Cancel" aria-label="Cancel"
-                        onClick={onCancel} disabled={saving}>
+                    </span>}
+                    <button className="card-tool card-editor__close" title="Close" aria-label="Close"
+                        onClick={onClose} disabled={saving}>
                         <i className="times icon"></i>
                     </button>
                     <button className="card-tool card-tool--save" title={saving ? 'Saving…' : 'Save'}
@@ -231,8 +264,31 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
                         <i className={saving ? 'spinner loading icon' : 'check icon'}></i>
                     </button>
                     {saving && <span className="card-editor__status">Saving…</span>}
+                    {!saving && savedAt && !draft.dirty && (
+                        <span className="card-editor__saved" role="status">
+                            <i className="check icon" aria-hidden="true"></i>
+                            Saved · {savedAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                        </span>
+                    )}
                 </div>
             </div>
+
+            {askingClose && (
+                <div className="card-confirm card-editor__ask" role="alertdialog" aria-label="Unsaved changes">
+                    <span className="card-confirm__msg">You have changes that aren’t saved.</span>
+                    <span className="card-confirm__actions">
+                        <button type="button" className="card-confirm__cancel" onClick={() => setAskingClose(false)}>
+                            Keep editing
+                        </button>
+                        <button type="button" className="card-confirm__cancel" onClick={() => { setAskingClose(false); close(); }}>
+                            Discard changes
+                        </button>
+                        <button type="button" className="cb-btn cb-btn--accent" onClick={saveAndClose}>
+                            Save and close
+                        </button>
+                    </span>
+                </div>
+            )}
 
             {saveError && (
                 <div className="card-editor__error" role="alert">
