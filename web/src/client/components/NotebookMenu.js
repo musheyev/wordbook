@@ -20,12 +20,22 @@ import { NotebookDownloadItems } from './DownloadButtons';
 // the ⌄ beside it opens the menu.
 //
 // A wordbook's menu says "wordbook", and its way out goes to My Wordbooks.
-function NotebookMenu({ name, className = '', nameLink, wordbookKinds, deleteWordbook }) {
+//
+// With `moreButton` (the phone notebook header, PhoneNotebookBar), a round ⋯
+// button sits at the right end of the row too. It opens the same menu, with
+// `extraItems` first ([{ key, icon, label, onClick, disabled?, note? }]:
+// Reorder, Quiz). `children` go between the name and the ⋯ (the 🔍 that
+// shows once the search box has scrolled away).
+function NotebookMenu({
+    name, className = '', nameLink, wordbookKinds, deleteWordbook, moreButton = false, extraItems = [], children = null,
+}) {
     const one = wordbookKinds && wordbookKinds[name] === 'wordbook' ? 'wordbook' : 'notebook';
     const listPath = listPathFor(name, wordbookKinds);
     const navigate = useNavigate();
     const location = useLocation();
+    // false, 'title' (from the name) or 'more' (from the ⋯).
     const [menuOpen, setMenuOpen] = useState(false);
+    const toggle = (from) => setMenuOpen((v) => (v === from ? false : from));
     const [renaming, setRenaming] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -47,30 +57,55 @@ function NotebookMenu({ name, className = '', nameLink, wordbookKinds, deleteWor
     };
 
     return (
-        <div className={`nb-menu ${className}`}>
+        <div className={`nb-menu${moreButton ? ' nb-menu--bar' : ''} ${className}`}>
             {nameLink ? (
                 <div className="nb-menu__split">
                     <Link className="nb-menu__link" to={nameLink} title={`${name}: all notes and words`}>
                         {name}<NotebookBadge name={name} />
                     </Link>
-                    <button type="button" className="nb-menu__toggle" aria-haspopup="menu" aria-expanded={menuOpen}
-                        aria-label="Notebook options" title="Notebook options" onClick={() => setMenuOpen((v) => !v)}>
-                        <i className={`chevron ${menuOpen ? 'up' : 'down'} icon`} aria-hidden="true"></i>
+                    <button type="button" className="nb-menu__toggle" aria-haspopup="menu" aria-expanded={menuOpen === 'title'}
+                        aria-label="Notebook options" title="Notebook options" onClick={() => toggle('title')}>
+                        <i className={`chevron ${menuOpen === 'title' ? 'up' : 'down'} icon`} aria-hidden="true"></i>
                     </button>
                 </div>
             ) : (
-                <button type="button" className="nb-menu__title" aria-haspopup="menu" aria-expanded={menuOpen}
-                    title={name} onClick={() => setMenuOpen((v) => !v)}>
+                <button type="button" className="nb-menu__title" aria-haspopup="menu" aria-expanded={menuOpen === 'title'}
+                    title={name} onClick={() => toggle('title')}>
                     <span className="nb-menu__name">{name}</span>
                     <NotebookBadge name={name} />
-                    <i className={`chevron ${menuOpen ? 'up' : 'down'} icon`} aria-hidden="true"></i>
+                    <i className={`chevron ${menuOpen === 'title' ? 'up' : 'down'} icon`} aria-hidden="true"></i>
                 </button>
+            )}
+            {moreButton && (
+                <>
+                    <span className="nb-menu__spacer" />
+                    {children}
+                    <button type="button" className="pnb__round" aria-haspopup="menu" aria-expanded={menuOpen === 'more'}
+                        aria-label={`More ${one} options`} title="More" onClick={() => toggle('more')}>
+                        <i className="ellipsis horizontal icon" aria-hidden="true"></i>
+                    </button>
+                </>
             )}
 
             {menuOpen && (
                 <>
                     <div className="cb-menu__backdrop" onMouseDown={() => setMenuOpen(false)} />
-                    <div className="cb-menu__list nb-menu__list" role="menu">
+                    <div className={`cb-menu__list nb-menu__list${menuOpen === 'more' ? ' nb-menu__list--more' : ''}`} role="menu">
+                        {menuOpen === 'more' && extraItems.length > 0 && (
+                            <>
+                                {extraItems.map((it) => (
+                                    <button key={it.key} role="menuitem" disabled={it.disabled} title={it.note}
+                                        onClick={() => { setMenuOpen(false); it.onClick(); }}>
+                                        <i className={`${it.icon} icon`}></i>
+                                        <span className="nb-menu__label">
+                                            {it.label}
+                                            {it.note && <span className="nb-menu__note">{it.note}</span>}
+                                        </span>
+                                    </button>
+                                ))}
+                                <hr className="nb-menu__sep" />
+                            </>
+                        )}
                         <NotebookDownloadItems name={name} onPick={() => setMenuOpen(false)} />
                         <button role="menuitem" disabled={noConnection} title={needsConnection}
                             onClick={() => { setMenuOpen(false); setRenaming(true); }}>
