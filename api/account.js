@@ -46,6 +46,7 @@ const USER_TABLES = [
     ["dictionary_wordbook", ["user_name", "wordbook_name"]],
     ["dictionary_wordbooks_words", ["user_name", "wordbook_name"]],
     ["dictionary_cards", ["user_name", "card_id"]],
+    ["dictionary_card_versions", ["user_name", "version_key"]],
     ["dictionary_word_notes", ["user_name", "word"]],
     ["dictionary_item_tags", ["user_name", "item_key"]],
     ["dictionary_quizzes", ["user_name", "quiz_id"]],

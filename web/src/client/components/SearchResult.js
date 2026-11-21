@@ -33,6 +33,7 @@ import SpanishMarkupButton from './SpanishMarkupButton';
 import AudioPausesButton from './AudioPausesButton';
 import SelectionPlayButton from './SelectionPlayButton';
 import ItemColorButton from './ItemColorButton';
+import NoteHistoryButton from './NoteHistoryButton';
 import { colorOf } from '../utils/itemColors';
 import { keepPlace, useRestoredPlace } from '../utils/notePlace';
 
@@ -301,6 +302,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             onClick={() => { keepPlace(currentCard.card_id, noteText()); openCardEditor({ mode: 'edit', card: currentCard }); }}>
                             <i className="edit icon"></i>
                         </button>
+                        {/* Earlier versions, 30 days (NoteHistory.js). */}
+                        <NoteHistoryButton card={currentCard} disabled={noConnection} disabledTitle="Needs a connection" />
                         <button className="card-tool card-tool--danger" title={noConnection ? 'Needs a connection' : 'Delete note'}
                             aria-label="Delete note" disabled={noConnection}
                             onClick={() => setConfirmingDelete(true)}>
