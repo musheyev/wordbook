@@ -4,11 +4,12 @@ import CardEditorInline from './CardEditorInline';
 /**
  * "New note in <notebook>": the side panel's + (Header.js) opens this popup
  * to write a note without leaving the note you're reading. It's the same
- * editor as the page's (CardEditorInline), in its `popup` mode: Save adds the
- * note to this notebook and closes the popup, the note appears in the side
- * panel's list, and the page keeps showing what it showed before.
+ * editor as the page's (CardEditorInline), in its `popup` mode: the first
+ * Save adds the note to this notebook (it appears in the side panel's list)
+ * and the popup stays open to go on writing; ✕ closes it. The page keeps
+ * showing what it showed before.
  *
- * The popup closes only through the editor's ✕ (Cancel) or Save, not by
+ * The popup closes only through the editor's ✕, not by
  * clicking outside it, so a stray click can't throw away a half-written
  * note. (Text not yet saved is also kept on this device: useDraft.)
  *

@@ -297,8 +297,10 @@ export const createCard = (title, content, wordbooks = [], { open = true } = {})
 // every wordbook it belongs to.
 // `open: false` (editing in a note window, NoteWindow.js) leaves the page
 // as it is: the note shown there is refreshed only if it's this same note,
-// and the page's own editor isn't closed. Returns the saved card.
-export const updateCard = (cardId, title, content, { open = true } = {}) => async (dispatch, getState, api) => {
+// and the page's own editor isn't closed. `closeEditor: false` (the editor's
+// own Save, CardEditorInline) keeps the page's editor open after saving:
+// you leave it with ✕. Returns the saved card.
+export const updateCard = (cardId, title, content, { open = true, closeEditor: close = true } = {}) => async (dispatch, getState, api) => {
   // Offline in the iPhone app: kept on the phone and sent later (offline/outbox.js).
   const res = isQueueing()
     ? { data: await queueCardUpdate(cardId, title, content) }
@@ -307,7 +309,7 @@ export const updateCard = (cardId, title, content, { open = true } = {}) => asyn
 
   // Refresh the open card viewer with the new content.
   if (open || getState().currentWord === cardId) dispatch({ type: FETCH_CARD_DATA, payload: res.data });
-  if (open) dispatch(closeCardEditor());
+  if (open && close) dispatch(closeCardEditor());
 
   // Refresh the list so the (possibly renamed) title updates in the chip list.
   const currentWordbook = getState().currentWordbook;
