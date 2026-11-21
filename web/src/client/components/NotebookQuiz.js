@@ -552,12 +552,10 @@ function NotebookQuiz() {
         else close();
     };
     const leaveDialog = (
-        <div className="quiz-leave">
-            <ConfirmDialog open={leaving} title="Leave the quiz?"
-                message="You can continue where you left off next time."
-                confirmLabel="Leave" cancelLabel="Stay"
-                onConfirm={close} onCancel={() => setLeaving(false)} />
-        </div>
+        <ConfirmDialog open={leaving} title="Leave the quiz?"
+            message="You can continue where you left off next time."
+            confirmLabel="Leave" cancelLabel="Stay" overlayClassName="quiz-leave"
+            onConfirm={close} onCancel={() => setLeaving(false)} />
     );
 
     // "10 more" at the end of a written quiz: a new round, new questions.
