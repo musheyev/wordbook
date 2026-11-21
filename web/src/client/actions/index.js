@@ -49,7 +49,20 @@ export const clearCurrentSelection = () => (dispatch) => {
 
 // What to tell the user when a request fails: the server's own message when
 // it sent one, else whether it timed out or the connection dropped.
+/**
+ * A save the server answered without confirming it (no note in its reply).
+ * Thrown so the editor treats it as failed: it stays open, keeps the text
+ * and its copy on this device (useDraft), and offers Try again. (A signed-out
+ * save used to come back like this and was taken as saved: 2026-11-21.)
+ */
+const notConfirmed = () => Object.assign(
+  new Error("The server didn't confirm the save. Your text is kept; try again."), { notConfirmed: true });
+
+/** Whether a request failed because the user is signed out (401). */
+export const isSignedOutError = (err) => Boolean(err && err.response && err.response.status === 401);
+
 export const requestErrorMessage = (err, fallback = "Something went wrong. Try again.") => {
+  if (err && err.notConfirmed) return err.message;
   // No connection, and nothing downloaded for it (offline/apiCache.js).
   if (err && err.isOffline) return "You're offline, and this wasn't downloaded.";
   if (err && (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT')) {
@@ -262,7 +275,8 @@ export const createCard = (title, content, wordbooks = [], { open = true } = {})
     ? { data: await queueCardCreate(title, content, wordbooks) }
     : await api.post('/wordbook/card/create', { title, content, wordbooks }, JSON_HEADERS);
   const card = res.data;
-  if (open && card && card.card_id) {
+  if (!card || !card.card_id) throw notConfirmed();
+  if (open) {
     latestSelection++; // a word or note still loading is now out of date
     dispatch({ type: SET_CURRENT_WORD, payload: card.card_id });
     dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'card' });
@@ -289,6 +303,7 @@ export const updateCard = (cardId, title, content, { open = true } = {}) => asyn
   const res = isQueueing()
     ? { data: await queueCardUpdate(cardId, title, content) }
     : await api.post('/wordbook/card/update', { card_id: cardId, title, content }, JSON_HEADERS);
+  if (!res.data || res.data.card_id !== cardId) throw notConfirmed();
 
   // Refresh the open card viewer with the new content.
   if (open || getState().currentWord === cardId) dispatch({ type: FETCH_CARD_DATA, payload: res.data });

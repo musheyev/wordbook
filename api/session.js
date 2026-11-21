@@ -332,6 +332,38 @@ function appTokenHeader(req, res, next) {
     next();
 }
 
+/**
+ * What a change sent while signed out is told. The app shows it where the
+ * save failed, and keeps what was typed (CardEditorInline, offline/outbox.js).
+ */
+const SIGNED_OUT_MESSAGE = "You're signed out. Sign in again, then save. Your text is kept.";
+
+/**
+ * Express middleware: refuse a change (anything but GET/HEAD/OPTIONS) that
+ * arrives signed out, with 401 and SIGNED_OUT_MESSAGE.
+ *
+ * Why: much of the older storage code (cards.js, wordbook.js, word-notes.js)
+ * answers a request with no sign-in by quietly doing nothing and resolving
+ * with "" or null, so the route replied 200 and the app took it as saved.
+ * On 2026-11-21 that lost a note's edits: the session had run out, Save
+ * was "successful", and the app threw away its copy of the text. Checking
+ * here, once, in front of those routes, makes every one of them say so
+ * instead.
+ *
+ * Installed (app.js) after refreshSession, so a session that can still be
+ * renewed is renewed first and only a really signed-out request is refused.
+ * Reads are let through unchanged (they already return nothing).
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ * @param {import("express").NextFunction} next
+ */
+function requireSignInToChange(req, res, next) {
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
+    if (req.cookies && req.cookies[ID_COOKIE]) return next();
+    res.status(401).end(SIGNED_OUT_MESSAGE);
+}
+
 module.exports = {
     ID_COOKIE,
     REFRESH_COOKIE,
@@ -339,6 +371,8 @@ module.exports = {
     appTokenHeader,
     exchangeRefreshToken,
     refreshSession,
+    requireSignInToChange,
+    SIGNED_OUT_MESSAGE,
     revokeRefreshToken,
     setIdTokenCookie,
     setRefreshTokenCookie,
