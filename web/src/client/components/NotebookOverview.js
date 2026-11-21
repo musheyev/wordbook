@@ -22,7 +22,9 @@ import { DownloadSelectedButton } from './DownloadButtons';
 // A notebook's overview on desktop, shown when no item is open (the
 // notebook name in the rail leads here). Every note and word as a card:
 //   note  its title, the start of its text, and its tags
-//   word  the word and its tags
+//   word  the word, one of its definitions picked at random (`definitions`,
+//         useRandomDefinitions; a new pick each time the notebook opens),
+//         and its tags
 // with the same icons as the phone list (NotebookItemList).
 //
 // Sort (one choice per notebook, utils/itemSort.js): `items` comes sorted.
@@ -51,7 +53,7 @@ const keyOf = (item) => `${item.type}:${item.id}`;
 
 export default function NotebookOverview({
     name, items, search, sort, onSort, selection, playSelected, quizSelected, onAdd, onQuiz,
-    getReadAloudChunks, lastKey, colors, missing,
+    getReadAloudChunks, lastKey, colors, missing, definitions = {},
 }) {
     const dispatch = useDispatch();
     const rootRef = useRef(null);
@@ -107,7 +109,9 @@ export default function NotebookOverview({
                         {snippet ? <MatchSnippet snippet={snippet} where={where} /> : (
                             <>
                                 {isNote && item.preview && <span className="nb-card__preview">{item.preview}</span>}
-                                {!isNote && <span className="nb-card__kind">Word</span>}
+                                {!isNote && definitions[item.id] && (
+                                    <span className="nb-card__preview nb-card__def">{definitions[item.id]}</span>
+                                )}
                             </>
                         )}
                         {tags.length > 0 && (

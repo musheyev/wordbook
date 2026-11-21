@@ -9,6 +9,7 @@ const sv = require("../source-votes");
 const userImages = require("../user-word-images");
 const ttsRefs = require("../tts-refs");
 const wordbookStore = require("../wordbook");
+const randomDefinitions = require("../random-definitions");
 const { getCurentUserFromToken } = require("../auth");
 const curation = require("../image-curation");
 const { requireAdmin } = require("../cognitoUsers");
@@ -272,6 +273,23 @@ dictionaryRouter.post("/source-vote", function (req, res) {
             log("source vote save error: " + error);
             res.status(500).json({ error: "Could not save vote" });
         });
+});
+
+// One random definition per word, for the word cards in a notebook's list
+// (random-definitions.js). Read-only; a new pick every time.
+// POST { words: [...] } -> { <word>: "<definition>" } (words with none left out)
+dictionaryRouter.post("/random-definitions", async function (req, res) {
+    try {
+        await getCurentUserFromToken(req.cookies.id_token);
+    } catch (err) {
+        return res.status(401).end("Please log in.");
+    }
+    try {
+        res.json(await randomDefinitions.randomDefinitions(req.body && req.body.words));
+    } catch (err) {
+        log("random definitions error: " + (err.name || err));
+        res.status(err.status || 500).end(err.status ? err.message : "Couldn't read the definitions.");
+    }
 });
 
 dictionaryRouter.get("/examples", function (req, res) {

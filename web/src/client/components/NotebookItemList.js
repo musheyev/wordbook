@@ -24,8 +24,10 @@ import { DownloadSelectedButton } from './DownloadButtons';
 // without grips, with the passage that matched. Select ticks rows (tapping a
 // row ticks it) for Play selected (`selection`, NotebookSelect.js). The item
 // last opened in this notebook (this session, `lastKey`) is highlighted and
-// scrolled into view when you come back.
-function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, quizSelected, lastKey, colors, reorderWordbookItems }) {
+// scrolled into view when you come back. A word's row shows one of its
+// definitions, picked at random (`definitions`, useRandomDefinitions); kept
+// blank until it comes, so the rows don't change height.
+function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, quizSelected, lastKey, colors, definitions = {}, reorderWordbookItems }) {
     const rootRef = useRef(null);
     useEffect(() => {
         // A moment later: going Back, the browser first puts the page back
@@ -60,7 +62,7 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
                 <span className="nb-row__text">
                     <span className="nb-row__title">{item.title}<ItemBadge notebook={wordbook} item={item} /></span>
                     {after || (
-                        <span className="nb-row__sub">{isCard ? (item.preview || 'Note') : 'Word'}</span>
+                        <span className="nb-row__sub">{isCard ? (item.preview || 'Note') : (definitions[item.id] || '\u00a0')}</span>
                     )}
                 </span>
                 <i className="chevron right icon nb-row__chev" aria-hidden="true"></i>

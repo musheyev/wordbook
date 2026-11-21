@@ -1249,6 +1249,22 @@ export const fetchAllNotebookItems = () => async (dispatch, getState, api) => {
   return [...byKey.values()];
 };
 
+/**
+ * One random definition of each word, for a notebook's word cards
+ * (utils/useRandomDefinitions.js; API: POST /dictionary/random-definitions,
+ * which reads the kept definitions and saves nothing). Asked in batches of
+ * 500 so a big notebook stays under the server's limit.
+ * @param {string[]} words
+ * @returns {Promise<Object<string, string>>} word -> definition
+ */
+export const fetchRandomDefinitions = (words) => async (dispatch, getState, api) => {
+  const batches = [];
+  for (let i = 0; i < words.length; i += 500) batches.push(words.slice(i, i + 500));
+  const answers = await Promise.all(batches.map((batch) =>
+    api.post('/dictionary/random-definitions', { words: batch }, JSON_HEADERS)));
+  return Object.assign({}, ...answers.map((res) => (res.data && typeof res.data === 'object' ? res.data : {})));
+};
+
 /** A word's note (its HTML, '' when it has none), without showing it. */
 export const getWordNoteContent = (word) => async (dispatch, getState, api) => {
   const res = await api.get(`/dictionary/note?word=${encodeURIComponent(word)}`);
