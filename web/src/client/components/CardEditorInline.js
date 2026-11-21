@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { connect } from 'react-redux';
-import { closeCardEditor, createCard, updateCard, deleteCard, requestErrorMessage } from '../actions';
+import { closeCardEditor, createCard, updateCard, deleteCard, requestErrorMessage, isSignedOutError } from '../actions';
 import RichTextEditor from './LazyRichTextEditor';
 import AddToCardbook from './AddToCardbook';
 import useDraft from '../utils/useDraft';
@@ -8,6 +8,9 @@ import { useNoteZoom } from '../utils/noteZoom';
 import { reportNoteAudio } from '../utils/ttsPlayer';
 import { timeAgo } from '../utils/timeAgo';
 import { keepPlace, useRestoredPlace } from '../utils/notePlace';
+import { isNativeApp } from '../native/platform';
+import { nativeSignIn } from '../native/auth';
+import { COGNITO_LOGIN } from '../utils/cognito';
 
 // In-place card editor. Rendered inside the detail pane (no modal/overlay) so
 // creating and editing a card happens right where the card is read. Layout:
@@ -69,6 +72,16 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
     const [content, setContent] = useState(savedContent);
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
+    // The save failed because the sign-in ran out (401): offer Sign in.
+    // On the website it opens in a new tab, so this editor and its text
+    // stay; come back and press Try again. The iPhone app restarts after
+    // signing in; the text waits on the phone (useDraft), and the editor
+    // offers Restore when the note is opened again.
+    const [signedOut, setSignedOut] = useState(false);
+    const signIn = () => {
+        if (isNativeApp()) nativeSignIn('login');
+        else window.open(COGNITO_LOGIN, '_blank', 'noopener');
+    };
     // Bumped to remount the rich text editor with restored content.
     const [editorKey, setEditorKey] = useState(0);
     const [showWbPopup, setShowWbPopup] = useState(false);
@@ -112,6 +125,7 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
         if (title.trim() === '' || saving) return;
         setSaving(true);
         setSaveError('');
+        setSignedOut(false);
         try {
             if (isEdit) {
                 keepMyPlace();
@@ -136,6 +150,7 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
                 closeCardEditor();
             }
         } catch (err) {
+            setSignedOut(isSignedOutError(err));
             setSaveError(requestErrorMessage(err, "Couldn't save the note."));
             setSaving(false);
         }
@@ -221,7 +236,19 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
 
             {saveError && (
                 <div className="card-editor__error" role="alert">
-                    <span>{saveError} Your text is kept on this device until it's saved.</span>
+                    {signedOut ? (
+                        <span>
+                            You're signed out, so this wasn't saved. Your text is kept on this device.
+                            {isNativeApp()
+                                ? ' Sign in, then open this note again and press Restore.'
+                                : ' Sign in (it opens in a new tab), then come back and press Try again.'}
+                        </span>
+                    ) : (
+                        <span>{saveError} Your text is kept on this device until it's saved.</span>
+                    )}
+                    {signedOut && (
+                        <button type="button" className="cb-btn cb-btn--accent" onClick={signIn}>Sign in</button>
+                    )}
                     <button type="button" className="cb-btn" onClick={onSave}>Try again</button>
                 </div>
             )}
