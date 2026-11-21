@@ -117,24 +117,35 @@ const HIGHLIGHTS = [
 ];
 
 // Font family and size choices for the desktop-only dropdowns.
-// "Basic" are generic system stacks (no download); "Fonts" are self-hosted
+// "Basic" are generic system stacks (no download); the rest are self-hosted
 // web fonts (see src/client/fonts.js) so they render the same on every device.
 // Default is the app's own font, Lato (so Lato isn't listed again).
+// "· Hebrew": the font has Hebrew letters of its own, so Hebrew lines match
+// the rest (other fonts borrow the device's Hebrew font for those).
 const FONTS = [
     { group: 'Basic', name: 'Default', value: '' },
     { group: 'Basic', name: 'Serif', value: 'Georgia, "Times New Roman", serif' },
     { group: 'Basic', name: 'Mono', value: 'ui-monospace, Menlo, Consolas, monospace' },
-    { group: 'Fonts', name: 'Inter', value: "'Inter', sans-serif" },
-    { group: 'Fonts', name: 'Montserrat', value: "'Montserrat', sans-serif" },
-    { group: 'Fonts', name: 'Merriweather', value: "'Merriweather', serif" },
-    { group: 'Fonts', name: 'Lora', value: "'Lora', serif" },
-    { group: 'Fonts', name: 'Playfair Display', value: "'Playfair Display', serif" },
-    { group: 'Fonts', name: 'JetBrains Mono', value: "'JetBrains Mono', monospace" },
-    { group: 'Fonts', name: 'Caveat', value: "'Caveat', cursive" },
-    { group: 'Fonts', name: 'Kalam', value: "'Kalam', cursive" },
-    { group: 'Fonts', name: 'Indie Flower', value: "'Indie Flower', cursive" },
+    { group: 'Clean', name: 'Source Sans 3', value: "'Source Sans 3', sans-serif" },
+    { group: 'Clean', name: 'Nunito Sans', value: "'Nunito Sans', sans-serif" },
+    { group: 'Clean', name: 'Open Sans · Hebrew', value: "'Open Sans', sans-serif" },
+    { group: 'Clean', name: 'Rubik · Hebrew', value: "'Rubik', sans-serif" },
+    { group: 'Clean', name: 'Assistant · Hebrew', value: "'Assistant', sans-serif" },
+    { group: 'Clean', name: 'Atkinson Hyperlegible', value: "'Atkinson Hyperlegible', sans-serif" },
+    { group: 'Clean', name: 'IBM Plex Sans', value: "'IBM Plex Sans', sans-serif" },
+    { group: 'Clean', name: 'Figtree', value: "'Figtree', sans-serif" },
+    { group: 'Clean', name: 'Inter', value: "'Inter', sans-serif" },
+    { group: 'Clean', name: 'Montserrat', value: "'Montserrat', sans-serif" },
+    { group: 'Book-like', name: 'Source Serif 4', value: "'Source Serif 4', serif" },
+    { group: 'Book-like', name: 'Literata', value: "'Literata', serif" },
+    { group: 'Book-like', name: 'Newsreader', value: "'Newsreader', serif" },
+    { group: 'Book-like', name: 'Frank Ruhl Libre · Hebrew', value: "'Frank Ruhl Libre', serif" },
+    { group: 'Book-like', name: 'Lora', value: "'Lora', serif" },
+    { group: 'Handwritten', name: 'Caveat', value: "'Caveat', cursive" },
+    { group: 'Handwritten', name: 'Kalam', value: "'Kalam', cursive" },
+    { group: 'Handwritten', name: 'Indie Flower', value: "'Indie Flower', cursive" },
 ];
-const FONT_GROUPS = ['Basic', 'Fonts'];
+const FONT_GROUPS = ['Basic', 'Clean', 'Book-like', 'Handwritten'];
 const SIZES = [11, 13, 15, 17, 19, 22, 26, 32];
 
 // The H ▾ menu: normal text or a heading level (Ctrl/⌘+Alt+1/2/3 too).
