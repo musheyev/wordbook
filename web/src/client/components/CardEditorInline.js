@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import { closeCardEditor, createCard, updateCard, deleteCard, requestErrorMessage } from '../actions';
 import RichTextEditor from './LazyRichTextEditor';
@@ -7,6 +7,7 @@ import useDraft from '../utils/useDraft';
 import { useNoteZoom } from '../utils/noteZoom';
 import { reportNoteAudio } from '../utils/ttsPlayer';
 import { timeAgo } from '../utils/timeAgo';
+import { keepPlace, useRestoredPlace } from '../utils/notePlace';
 
 // In-place card editor. Rendered inside the detail pane (no modal/overlay) so
 // creating and editing a card happens right where the card is read. Layout:
@@ -84,6 +85,15 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
     const draft = useDraft(isEdit && card ? `note:${card.card_id}` : `note:new:${currentWordbook}`,
         { title, content }, { title: savedTitle, content: savedContent });
 
+    // Your place in the note (utils/notePlace.js): the editor opens at the
+    // paragraph that was at the top while reading it, and Save or Cancel
+    // note the one at the top here, so reading opens there again.
+    const rootRef = useRef(null);
+    const editorText = () => rootRef.current && rootRef.current.querySelector('.rte-content .ProseMirror');
+    const noteId = isEdit && card ? card.card_id : null;
+    useRestoredPlace(noteId, editorText, !!noteId);
+    const keepMyPlace = () => { if (noteId) keepPlace(noteId, editorText()); };
+
     const restoreDraft = () => {
         const value = draft.takeRestorable();
         if (!value) return;
@@ -104,6 +114,7 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
         setSaveError('');
         try {
             if (isEdit) {
+                keepMyPlace();
                 const saved = await updateCard(card.card_id, title, content, { open: !popup });
                 draft.clear();
                 reportNoteAudio(`card:${card.card_id}`, content);
@@ -131,12 +142,13 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
     };
 
     const onCancel = () => {
+        keepMyPlace();
         draft.clear();
         closeCardEditor();
     };
 
     return (
-        <div className="card-editor">
+        <div className="card-editor" ref={rootRef}>
             {/* Title and buttons. Phones put them in one slim row that stays
                 at the top — ✕ cancel, the title, ⋯ (delete, notebooks),
                 ✓ save — so Cancel and Save are always on screen (styles.css,

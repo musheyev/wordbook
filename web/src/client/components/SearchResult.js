@@ -34,6 +34,7 @@ import AudioPausesButton from './AudioPausesButton';
 import SelectionPlayButton from './SelectionPlayButton';
 import ItemColorButton from './ItemColorButton';
 import { colorOf } from '../utils/itemColors';
+import { keepPlace, useRestoredPlace } from '../utils/notePlace';
 
 // True when a note's HTML has no visible text (empty editor, whitespace only).
 function isEmptyHtml(html) {
@@ -219,6 +220,10 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
     const cardForThis = isCard && currentCard != null && currentCard.card_id === currentWord;
     const cardLoadError = cardForThis && currentCard.loadError ? currentCard.loadError : null;
     const cardReady = cardForThis && !cardLoadError;
+    // Back from the editor (Save or Cancel): open at the paragraph that was
+    // at the top there, not at the start (utils/notePlace.js).
+    const noteText = () => cardRef.current && cardRef.current.querySelector('.note-zoom-text');
+    useRestoredPlace(cardReady ? currentCard.card_id : null, noteText, cardReady);
 
     // Shared "Add to cardbook" bookmark button + popover (used by both words and
     // cards). The popover is anchored to the button so it drops right under it.
@@ -293,7 +298,7 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                             visible no matter how long the card is. */}
                         {/* Offline (iPhone app), edits are kept and sent later (offline/outbox.js). */}
                         <button className="card-tool" title="Edit note" aria-label="Edit note"
-                            onClick={() => openCardEditor({ mode: 'edit', card: currentCard })}>
+                            onClick={() => { keepPlace(currentCard.card_id, noteText()); openCardEditor({ mode: 'edit', card: currentCard }); }}>
                             <i className="edit icon"></i>
                         </button>
                         <button className="card-tool card-tool--danger" title={noConnection ? 'Needs a connection' : 'Delete note'}
