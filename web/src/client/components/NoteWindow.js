@@ -5,6 +5,7 @@ import { sanitizeCardHtml } from '../utils/sanitize';
 import { showApiImages } from '../offline/images';
 import { renderMathIn } from '../utils/math';
 import { cardChunks } from '../utils/tts';
+import { keepPlace, useRestoredPlace } from '../utils/notePlace';
 import ReadAloud from './ReadAloud';
 import CardEditorInline from './CardEditorInline';
 
@@ -43,6 +44,11 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
     const geomRef = useRef(geom);
     geomRef.current = geom;
     const bodyRef = useRef(null);
+    // Switching between reading and editing keeps your place in the note
+    // (utils/notePlace.js): the pencil notes the paragraph at the top, and
+    // reading again after Save or Cancel opens at the one the editor showed.
+    const viewText = () => bodyRef.current && bodyRef.current.querySelector(':scope > .card-content');
+    useRestoredPlace(win.cardId, viewText, content != null && !failed && !editing);
 
     useEffect(() => {
         let cancelled = false;
@@ -108,7 +114,7 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
                         <>
                             <ReadAloud title={title} getChunks={() => cardChunks({ card_id: win.cardId, content })} />
                             <button type="button" className="card-tool" title="Edit note" aria-label="Edit note"
-                                onClick={() => setEditing(true)}>
+                                onClick={() => { keepPlace(win.cardId, viewText()); setEditing(true); }}>
                                 <i className="edit outline icon"></i>
                             </button>
                         </>
