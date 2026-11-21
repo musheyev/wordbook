@@ -5,6 +5,8 @@ const userSettings = require("../user-settings.js");
 const ttsRefs = require("../tts-refs.js");
 const notebookSearch = require("../notebook-search.js");
 const noteLinks = require("../note-links.js");
+const versions = require("../card-versions.js");
+const { getCurentUserFromToken } = require("../auth");
 
 let wordbookRouter = express.Router();
 
@@ -465,6 +467,64 @@ wordbookRouter.post("/card/update", function (req, res) {
 });
 
 // Fetch a single card's content (lazy load on click). Body: { card_id }
+// ---------------------------------------------------------------------------
+// Note history (card-versions.js): a note's earlier versions, 30 days.
+//   GET  /card/versions?card_id=…          -> { versions: [{ key, title, saved_at, kept_at, reason, words }]
+//                                             newest first, now_words } (now_words: the note as it
+//                                             is now, counted the same way, to compare lengths)
+//   GET  /card/version?card_id=…&key=…     -> { key, title, content, saved_at, reason }
+//   POST /card/restore { card_id, key }    -> { card, before } (before: the key of
+//        the version kept from the note as it was, for Undo)
+// ---------------------------------------------------------------------------
+const historyError = (res, err, what) => {
+    console.log(`${what} error: ${err.name || err}`);
+    if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError" || err.message === "Invalid token") {
+        return res.status(401).end("You're signed out. Sign in again.");
+    }
+    if (err.status) return res.status(err.status).end(err.message);
+    res.status(500).end("Couldn't read this note's history.");
+};
+
+wordbookRouter.get("/card/versions", async function (req, res) {
+    try {
+        const userName = await getCurentUserFromToken(req.cookies.id_token);
+        const cardId = String(req.query.card_id || "");
+        const [list, current] = await Promise.all([
+            versions.listVersions(userName, cardId),
+            cards.getCard(req.cookies.id_token, cardId).catch(() => null),
+        ]);
+        res.json({ versions: list, now_words: versions.wordCount(current && current.content) });
+    } catch (err) {
+        historyError(res, err, "card/versions");
+    }
+});
+
+wordbookRouter.get("/card/version", async function (req, res) {
+    try {
+        const userName = await getCurentUserFromToken(req.cookies.id_token);
+        const version = await versions.getVersion(userName, String(req.query.card_id || ""), String(req.query.key || ""));
+        if (!version) return res.status(404).end("That version isn't there any more.");
+        res.json(version);
+    } catch (err) {
+        historyError(res, err, "card/version");
+    }
+});
+
+wordbookRouter.post("/card/restore", async function (req, res) {
+    const { card_id, key } = req.body || {};
+    const token = req.cookies.id_token;
+    try {
+        const result = await cards.restoreCardVersion(token, card_id, key);
+        // As after any save: its links, and the notebooks' "updated" time.
+        await noteLinks.recordLinksForToken(token, { type: "card", id: card_id, title: result.card.title },
+            result.card.content);
+        await wordbook.touchWordbooksForCard(token, card_id).catch(() => {});
+        res.json(result);
+    } catch (err) {
+        historyError(res, err, "card/restore");
+    }
+});
+
 wordbookRouter.post("/card/get", function (req, res) {
     const { card_id } = req.body;
     const { id_token: token } = req.cookies;

@@ -13,6 +13,7 @@
 const crypto = require("crypto");
 const getCurentUserFromToken = require("./auth").getCurentUserFromToken;
 const database = require("./dynamoDb");
+const versions = require("./card-versions");
 
 const CARDS_TABLE = "dictionary_cards";
 
@@ -93,13 +94,17 @@ function updateCard(userIdToken, cardId, title, content) {
                         ":content": content || "",
                         ":now": new Date().toISOString(),
                     },
-                    ReturnValues: "NONE",
+                    // The note as it was, so the version it replaces goes
+                    // into its history (card-versions.js).
+                    ReturnValues: "ALL_OLD",
                 };
 
                 database
                     .dynamoDbClientInstance()
                     .update(params)
                     .promise()
+                    .then((data) => versions.keepVersionSafely(userName, data.Attributes,
+                        { title, content }, "edit"))
                     .then(() =>
                         resolve({ card_id: cardId, title: title || "", content: content || "" })
                     )
@@ -244,13 +249,17 @@ function deleteCard(userIdToken, cardId) {
                                 .promise()
                         );
 
+                        // Its last version stays in its history for 30 days
+                        // (card-versions.js), so a deleted note could come back.
                         const cardDelete = database
                             .dynamoDbClientInstance()
                             .delete({
                                 TableName: CARDS_TABLE,
                                 Key: { user_name: userName, card_id: cardId },
+                                ReturnValues: "ALL_OLD",
                             })
-                            .promise();
+                            .promise()
+                            .then((deleted) => versions.keepVersionSafely(userName, deleted.Attributes, null, "deleted"));
 
                         return Promise.all([...membershipDeletes, cardDelete]);
                     })
@@ -321,9 +330,56 @@ function _getCardSummaries(userName, cardIds) {
     });
 }
 
+/**
+ * Bring a note back to one of its earlier versions (the History window).
+ * The note as it is now is kept as a version first ("restore"), and the
+ * restore is refused if that can't be done, so restoring never loses
+ * anything: restoring the version it kept puts the note back (Undo).
+ *
+ * @param {string} userIdToken
+ * @param {string} cardId
+ * @param {string} versionKey from listVersions
+ * @returns {Promise<{card: {card_id, title, content}, before: string|null}>}
+ *   the note as restored, and the key of the version kept from before it
+ */
+async function restoreCardVersion(userIdToken, cardId, versionKey) {
+    return restoreVersionFor(await getCurentUserFromToken(userIdToken), cardId, versionKey);
+}
+
+/** restoreCardVersion for a user name (also used by the history test). */
+async function restoreVersionFor(userName, cardId, versionKey) {
+    const version = await versions.getVersion(userName, cardId, versionKey);
+    if (!version) {
+        const err = new Error("That version isn't there any more.");
+        err.status = 404;
+        throw err;
+    }
+    const db = database.dynamoDbClientInstance();
+    const current = (await db.get({ TableName: CARDS_TABLE, Key: { user_name: userName, card_id: cardId } }).promise()).Item;
+    if (!current) {
+        const err = new Error("This note isn't there any more.");
+        err.status = 404;
+        throw err;
+    }
+    // Kept first; if this fails the restore stops here, before any change.
+    const before = await versions.keepVersion(userName, current,
+        { title: version.title, content: version.content }, "restore");
+    await db.update({
+        TableName: CARDS_TABLE,
+        Key: { user_name: userName, card_id: cardId },
+        ConditionExpression: "attribute_exists(card_id)",
+        UpdateExpression: "set #title = :title, #content = :content, #updated = :now",
+        ExpressionAttributeNames: { "#title": "title", "#content": "content", "#updated": "updated_datetime" },
+        ExpressionAttributeValues: { ":title": version.title, ":content": version.content, ":now": new Date().toISOString() },
+    }).promise();
+    return { card: { card_id: cardId, title: version.title, content: version.content }, before };
+}
+
 module.exports = {
     createCard,
     updateCard,
+    restoreCardVersion,
+    restoreVersionFor,
     getCard,
     listCards,
     deleteCard,
