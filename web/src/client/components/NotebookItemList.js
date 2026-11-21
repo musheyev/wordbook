@@ -6,28 +6,25 @@ import { itemPath } from '../utils/notebookPaths';
 import { inPlainView } from '../utils/lastVisited';
 import SortableList from './SortableList';
 import GripIcon from './GripIcon';
-import NotebookSearchBar, {
-    NotebookSearchStatus, MatchSnippet, TagPicker, SortSelect,
-} from './NotebookSearchBar';
-import { SelectBar, SelectCheck } from './NotebookSelect';
-import ItemColorButton from './ItemColorButton';
+import { MatchSnippet } from './NotebookSearchBar';
+import { SelectCheck } from './NotebookSelect';
 import { colorOf } from '../utils/itemColors';
 import { ItemBadge } from './DownloadBadge';
-import { DownloadSelectedButton } from './DownloadButtons';
 
 // A notebook's items as tappable rows (the page a notebook opens on, on
-// phones), in the notebook's sort (`items` comes sorted; Sort changes it).
-// In My order, drag a row's grip (⋮⋮) up or down to change the order; the
-// new order is saved to the notebook (see reorderWordbookItems). A search box
-// above filters by title or tag, or searches everything (`search`, from
-// WordbookPage's useNotebookSearch); while searching, the matches show
-// without grips, with the passage that matched. Select ticks rows (tapping a
-// row ticks it) for Play selected (`selection`, NotebookSelect.js). The item
-// last opened in this notebook (this session, `lastKey`) is highlighted and
-// scrolled into view when you come back. A word's row shows one of its
-// definitions, picked at random (`definitions`, useRandomDefinitions); kept
-// blank until it comes, so the rows don't change height.
-function NotebookItemList({ wordbook, items, search, sort, onSort, selection, playSelected, quizSelected, lastKey, colors, definitions = {}, reorderWordbookItems }) {
+// phones), in the notebook's sort (`items` comes sorted). Everything above
+// the rows (search, Play all, Add, Select, count and sort) is the phone
+// header, PhoneNotebookBar. While searching (`search`, WordbookPage's
+// useNotebookSearch), the matches show, with the passage that matched.
+// Select ticks rows (tapping a row ticks it, `selection`, NotebookSelect.js).
+// In Reorder (`reordering`, from the header's ⋯, in My order) each row gets
+// a grip (⋮⋮) to drag it up or down; the new order is saved to the notebook
+// (see reorderWordbookItems). The item last opened in this notebook (this
+// session, `lastKey`) is highlighted and scrolled into view when you come
+// back. A word's row shows one of its definitions, picked at random
+// (`definitions`, useRandomDefinitions); kept blank until it comes, so the
+// rows don't change height.
+function NotebookItemList({ wordbook, items, search, selection, reordering = false, lastKey, colors, definitions = {}, reorderWordbookItems }) {
     const rootRef = useRef(null);
     useEffect(() => {
         // A moment later: going Back, the browser first puts the page back
@@ -38,9 +35,6 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
         }, 120);
         return () => clearTimeout(timer);
     }, [wordbook, lastKey]);
-    const notes = items.filter((item) => item.type === 'card').length;
-    const words = items.length - notes;
-    const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
     const linkTo = (item) => itemPath(wordbook, item)
         + (search.textSearch && !search.tooShort ? `?q=${encodeURIComponent(search.query.trim())}` : '');
 
@@ -70,29 +64,9 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
         );
     };
 
-    const shownItems = search.results.map((r) => r.item);
-    const tools = (
-        <>
-            <NotebookSearchBar search={search} className="nb-search--list" />
-            <TagPicker search={search} items={items} />
-            {ticking && (
-                <SelectBar selection={selection} shownItems={shownItems} getChunks={playSelected} title={wordbook}
-                    onQuiz={quizSelected}
-                    extra={selection.picked.size > 0 && (
-                        <>
-                            <ItemColorButton items={items.filter((item) => selection.isPicked(item))} />
-                            <DownloadSelectedButton notebook={wordbook} items={items.filter((item) => selection.isPicked(item))} />
-                        </>
-                    )} />
-            )}
-        </>
-    );
-
     if (search.searching) {
         return (
             <div className="nb-list" ref={rootRef}>
-                {tools}
-                <NotebookSearchStatus search={search} />
                 <ul className="nb-list__rows">
                     {search.results.map(({ item, snippet, where }) => (
                         <li key={`${item.type}:${item.id}`}>
@@ -106,26 +80,10 @@ function NotebookItemList({ wordbook, items, search, sort, onSort, selection, pl
 
     return (
         <div className="nb-list" ref={rootRef}>
-            {tools}
-            <div className="nb-list__count">
-                <span>
-                    {plural(items.length, 'item', 'items')}
-                    {notes > 0 && words > 0 && ` · ${plural(notes, 'note', 'notes')}, ${plural(words, 'word', 'words')}`}
-                </span>
-                <span className="nb-list__count-tools">
-                    {!ticking && (
-                        <button type="button" className="nb-list__select" onClick={selection.start}>Select</button>
-                    )}
-                    <SortSelect sort={sort} onChange={onSort} />
-                </span>
-            </div>
-            {sort !== 'custom' && (
-                <div className="nb-list__hint">To rearrange by dragging, sort by My order.</div>
-            )}
             <SortableList
                 className="nb-list__rows"
                 items={items}
-                disabled={sort !== 'custom' || ticking}
+                disabled={!reordering || ticking}
                 getKey={(item) => `${item.type}:${item.id}`}
                 onReorder={(reordered) => reorderWordbookItems(wordbook, reordered)}
                 renderItem={(item, handleProps) => (

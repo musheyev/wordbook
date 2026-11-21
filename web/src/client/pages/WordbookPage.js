@@ -9,11 +9,10 @@ import {
 } from '../actions';
 import SearchResult from '../components/SearchResult';
 import CardEditorInline from '../components/CardEditorInline';
-import NotebookMenu from '../components/NotebookMenu';
 import NotebookItemList from '../components/NotebookItemList';
+import PhoneNotebookBar from '../components/PhoneNotebookBar';
 import AddItemSheet from '../components/AddItemSheet';
 import RecentNotesButton from '../components/RecentNotesButton';
-import ReadAloud from '../components/ReadAloud';
 import NotebookOverview from '../components/NotebookOverview';
 import Spinner from '../components/Spinner';
 import LoadError from '../components/LoadError';
@@ -182,6 +181,16 @@ function WordbookPage({
     };
     // The ticked items, in the notebook's order.
     const pickedItems = items.filter((item) => picked.has(keyOf(item)));
+    // Reorder (phones: ⋯ → Reorder, in My order): the rows show their drag
+    // grips until Done. It starts with no search and nothing ticked, and
+    // ends when the notebook or the sort changes.
+    const [reordering, setReordering] = useState(false);
+    useEffect(() => { setReordering(false); }, [name, sort]);
+    const reorder = {
+        on: reordering,
+        start: () => { search.setQuery(''); selection.cancel(); setReordering(true); },
+        stop: () => setReordering(false),
+    };
     const listReady = haveList;
     const listFresh = haveList && !wordbookWordsInProgress;
     const loadError = !haveList && wordbookWordsError && wordbookWordsError.wordbook === name
@@ -368,31 +377,15 @@ function WordbookPage({
         body = (
             <>
                 <div className="cb-mbar">
-                    <div className="cb-mbar__head">
-                        <Link className="cb-mbar__back" to={backPath} aria-label={backLabel} title={backLabel}>
-                            <i className="chevron left icon" aria-hidden="true"></i>
-                        </Link>
-                        <NotebookMenu name={name} />
-                    </div>
-                    {/* The buttons get a row of their own, so the notebook's
-                        name above has the whole width. */}
-                    <div className="cb-mbar__actions">
-                        <button type="button" className="cb-mbar__add" onClick={() => setAddOpen(true)}>
-                            <i className="plus icon" aria-hidden="true"></i>Add
-                        </button>
-                        {isAdmin && items.length > 0 && (
-                            <button type="button" className="cb-mbar__add" onClick={() => startQuiz(shownItems)}>
-                                <i className="question circle outline icon" aria-hidden="true"></i>Quiz
-                            </button>
-                        )}
-                        {items.length > 0 && (
-                            <ReadAloud getChunks={() => notebookChunks(shownItems)} title={name} label="Play all" firstSentence />
-                        )}
-                    </div>
+                    <PhoneNotebookBar name={name} backPath={backPath} backLabel={backLabel}
+                        items={listReady ? items : []} shownItems={shownItems} search={search}
+                        sort={sort} onSort={setSort} selection={selection} pickedItems={pickedItems}
+                        reorder={reorder} isAdmin={isAdmin} onAdd={() => setAddOpen(true)}
+                        onQuiz={startQuiz} getChunks={notebookChunks} />
                     {listReady ? (
                         items.length > 0 && (
-                            <NotebookItemList wordbook={name} items={items} search={search} sort={sort} onSort={setSort}
-                                selection={selection} playSelected={() => notebookChunks(pickedItems)} quizSelected={quizSelected}
+                            <NotebookItemList wordbook={name} items={items} search={search}
+                                selection={selection} reordering={reordering}
                                 lastKey={getLastVisited(name)} colors={itemColors} definitions={definitions} />
                         )
                     ) : loadError ? (
