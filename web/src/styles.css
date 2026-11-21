@@ -4607,3 +4607,64 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
   .pnb + .nb-list .nb-list__rows li:first-child .nb-row,
   .pnb + .nb-list .nb-list__rows li:first-child .nb-row-wrap { border-top: none; }
 }
+
+/* ---- Note history (NoteHistory.js) ----
+   Wide screens: a dialog with the versions on the left and the picked one
+   on the right. Phones: full screen, the list first, then the version with
+   "All versions" to go back. */
+.nh-overlay { z-index: 320; }
+.nh {
+  width: 100%; max-width: 1000px; height: min(82vh, 760px);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--cb-surface-2); border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius); box-shadow: 0 16px 40px rgba(15, 20, 35, 0.24);
+}
+.nh__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 12px; border-bottom: 1px solid var(--cb-border); }
+.nh__heading { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.nh__title { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--cb-ink); }
+.nh__note { color: var(--cb-ink-2); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nh__body { flex: 1; min-height: 0; display: grid; grid-template-columns: 280px 1fr; }
+.nh__list { overflow-y: auto; border-right: 1px solid var(--cb-border); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.nh__row {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; width: 100%;
+  padding: 9px 10px; border: 1px solid transparent; border-radius: var(--cb-radius-sm);
+  background: none; font-family: inherit; color: var(--cb-ink); cursor: pointer;
+}
+.nh__row:hover { background: var(--cb-surface); }
+.nh__row.is-on { background: var(--cb-accent-weak); border-color: var(--cb-accent); }
+.nh__when { font-weight: 600; font-size: 0.92rem; }
+.nh__sub { font-size: 0.8rem; color: var(--cb-ink-2); }
+.nh__reason {
+  display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 8px;
+  background: #fff4d6; color: #7a5200; font-size: 0.74rem; font-weight: 600;
+}
+.nh__foot { margin-top: auto; padding: 10px 6px 2px; font-size: 0.78rem; color: var(--cb-ink-3); }
+.nh__empty { padding: 16px; color: var(--cb-ink-2); font-size: 0.92rem; line-height: 1.45; }
+.nh__pick { margin: auto; }
+.nh__preview { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.nh__bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--cb-border); }
+.nh__spacer { flex: 1; }
+.nh__back { display: none; }
+.nh__seg { display: inline-flex; border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm); overflow: hidden; }
+.nh__seg button { border: none; background: var(--cb-surface-2); color: var(--cb-ink-2); padding: 6px 10px; font-family: inherit; font-size: 0.85rem; cursor: pointer; }
+.nh__seg button + button { border-left: 1px solid var(--cb-border-strong); }
+.nh__seg button.is-on { background: var(--cb-accent-weak); color: var(--cb-ink); font-weight: 600; }
+.nh__error { margin: 8px 14px 0; color: var(--cb-danger); font-size: 0.88rem; }
+.nh__legend { display: flex; gap: 12px; padding: 10px 18px 0; font-size: 0.8rem; color: var(--cb-ink-2); }
+.nh__text { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 18px 18px; }
+.nh__changes { white-space: pre-wrap; line-height: 1.6; color: var(--cb-ink); }
+.nh-add { background: #dcf5e3; color: #14532d; text-decoration: none; border-radius: 2px; }
+.nh-del { background: #fde2e2; color: #991b1b; text-decoration: line-through; border-radius: 2px; }
+@media (max-width: 768px), (max-height: 500px) {
+  .nh-overlay { padding: 0; align-items: stretch; }
+  .nh { max-width: none; height: 100%; border-radius: 0; border: none; padding-top: env(safe-area-inset-top, 0px); }
+  .nh__body { grid-template-columns: 1fr; }
+  .nh__list { border-right: none; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .nh--picked .nh__list { display: none; }
+  .nh:not(.nh--picked) .nh__preview { display: none; }
+  .nh__back {
+    display: inline-flex; align-items: center; gap: 2px; width: 100%;
+    border: none; background: none; padding: 0 0 4px; color: var(--cb-accent); font-family: inherit; font-size: 0.9rem; cursor: pointer;
+  }
+  .nh__text { padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+}

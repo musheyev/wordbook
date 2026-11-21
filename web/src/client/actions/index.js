@@ -49,7 +49,20 @@ export const clearCurrentSelection = () => (dispatch) => {
 
 // What to tell the user when a request fails: the server's own message when
 // it sent one, else whether it timed out or the connection dropped.
+/**
+ * A save the server answered without confirming it (no note in its reply).
+ * Thrown so the editor treats it as failed: it stays open, keeps the text
+ * and its copy on this device (useDraft), and offers Try again. (A signed-out
+ * save used to come back like this and was taken as saved: 2026-11-21.)
+ */
+const notConfirmed = () => Object.assign(
+  new Error("The server didn't confirm the save. Your text is kept; try again."), { notConfirmed: true });
+
+/** Whether a request failed because the user is signed out (401). */
+export const isSignedOutError = (err) => Boolean(err && err.response && err.response.status === 401);
+
 export const requestErrorMessage = (err, fallback = "Something went wrong. Try again.") => {
+  if (err && err.notConfirmed) return err.message;
   // No connection, and nothing downloaded for it (offline/apiCache.js).
   if (err && err.isOffline) return "You're offline, and this wasn't downloaded.";
   if (err && (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT')) {
@@ -262,7 +275,8 @@ export const createCard = (title, content, wordbooks = [], { open = true } = {})
     ? { data: await queueCardCreate(title, content, wordbooks) }
     : await api.post('/wordbook/card/create', { title, content, wordbooks }, JSON_HEADERS);
   const card = res.data;
-  if (open && card && card.card_id) {
+  if (!card || !card.card_id) throw notConfirmed();
+  if (open) {
     latestSelection++; // a word or note still loading is now out of date
     dispatch({ type: SET_CURRENT_WORD, payload: card.card_id });
     dispatch({ type: SET_CURRENT_WORD_TYPE, payload: 'card' });
@@ -289,6 +303,7 @@ export const updateCard = (cardId, title, content, { open = true } = {}) => asyn
   const res = isQueueing()
     ? { data: await queueCardUpdate(cardId, title, content) }
     : await api.post('/wordbook/card/update', { card_id: cardId, title, content }, JSON_HEADERS);
+  if (!res.data || res.data.card_id !== cardId) throw notConfirmed();
 
   // Refresh the open card viewer with the new content.
   if (open || getState().currentWord === cardId) dispatch({ type: FETCH_CARD_DATA, payload: res.data });
@@ -1263,6 +1278,43 @@ export const fetchRandomDefinitions = (words) => async (dispatch, getState, api)
   const answers = await Promise.all(batches.map((batch) =>
     api.post('/dictionary/random-definitions', { words: batch }, JSON_HEADERS)));
   return Object.assign({}, ...answers.map((res) => (res.data && typeof res.data === 'object' ? res.data : {})));
+};
+
+// ---------------------------------------------------------------------------
+// Note history (API: api/card-versions.js; the History window, NoteHistory.js)
+// ---------------------------------------------------------------------------
+
+/**
+ * A note's earlier versions, newest first, without their text, and the
+ * note's length now, counted the same way (to say "40 more than now").
+ * @returns {Promise<{versions: Array<{key, title, saved_at, kept_at, reason, words}>, nowWords: number}>}
+ */
+export const fetchNoteVersions = (cardId) => async (dispatch, getState, api) => {
+  const res = await api.get(`/wordbook/card/versions?card_id=${encodeURIComponent(cardId)}`);
+  const data = res.data || {};
+  return { versions: Array.isArray(data.versions) ? data.versions : [], nowWords: data.now_words || 0 };
+};
+
+/** One earlier version with its text: { key, title, content, saved_at, reason }. */
+export const fetchNoteVersion = (cardId, key) => async (dispatch, getState, api) => {
+  const res = await api.get(`/wordbook/card/version?card_id=${encodeURIComponent(cardId)}&key=${encodeURIComponent(key)}`);
+  return res.data;
+};
+
+/**
+ * Make an earlier version the note again. The server keeps the note as it
+ * was as a version first; `before` is that version's key, so restoring it
+ * puts the note back (Undo). The open note and the notebook's list follow.
+ * @returns {Promise<{card: {card_id, title, content}, before: string|null}>}
+ */
+export const restoreNoteVersion = (cardId, key) => async (dispatch, getState, api) => {
+  const res = await api.post('/wordbook/card/restore', { card_id: cardId, key }, JSON_HEADERS);
+  const { card, before } = res.data || {};
+  if (!card || card.card_id !== cardId) throw new Error("The server didn't confirm the restore.");
+  if (getState().currentWord === cardId) dispatch({ type: FETCH_CARD_DATA, payload: card });
+  const currentWordbook = getState().currentWordbook;
+  if (currentWordbook) dispatch(fetchWordbookWords(currentWordbook));
+  return { card, before: before || null };
 };
 
 /** A word's note (its HTML, '' when it has none), without showing it. */

@@ -11,7 +11,7 @@ const express = require("express");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-const { refreshSession, appTokenHeader } = require("./session");
+const { refreshSession, appTokenHeader, requireSignInToChange } = require("./session");
 
 const rootRouter = require("./routes/rootRouter");
 const dictionaryRouter = require("./routes/dictionaryRouter");
@@ -53,6 +53,12 @@ app.use(cors());                                  // allow cross-origin requests
 app.set("view engine", "ejs");
 
 // Routers: each handles every path under its prefix, e.g. /wordbook/list.
+// Changes sent while signed out are refused (401), never quietly "saved"
+// (session.js requireSignInToChange). These are the routes whose storage
+// code used to accept them and do nothing; the newer routers check sign-in
+// themselves.
+app.use(["/wordbook", "/tags", "/dictionary/note", "/dictionary/source-vote"], requireSignInToChange);
+
 app.use("/", rootRouter);
 app.use("/dictionary", dictionaryRouter);
 app.use("/wordbook", wordbookRouter);

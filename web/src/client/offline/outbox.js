@@ -324,8 +324,10 @@ export async function syncOutbox() {
                 await send(entry);
             } catch (err) {
                 const status = err.response && err.response.status;
-                // No answer, or the server's own trouble: try again later.
-                if (!status || status >= 500) break;
+                // No answer, the server's own trouble, or signed out (401,
+                // the sign-in ran out): keep it and try again later, once
+                // signed in again. Never dropped for that.
+                if (!status || status >= 500 || status === 401) break;
                 // Refused (e.g. the note was deleted elsewhere): drop it.
                 notice(entry.kind === 'card-update'
                     ? `${describe(entry)} couldn’t be saved: it may have been deleted on another device.`

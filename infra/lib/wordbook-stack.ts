@@ -30,6 +30,9 @@ const DYNAMO_TABLES = [
   'dictionary_examples',
   // Manual notes/cards content (api/cards.js). PK user_name, SK card_id.
   'dictionary_cards',
+  // Earlier versions of notes, 30 days (api/card-versions.js). PK user_name,
+  // SK version_key = "<card_id>#<time kept>"; expired rows removed by TTL.
+  'dictionary_card_versions',
   // Items shared with a user (api/inbox.js). PK user_name (recipient),
   // SK inbox_id; also holds per-sender daily share counters.
   'dictionary_inbox',
