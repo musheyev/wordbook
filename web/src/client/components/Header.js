@@ -41,7 +41,7 @@ const phoneMore = (state) => `${mainClass(state)} nav-phone-more`;
 // Cardbook navigation. A left rail on desktop, a bottom tab bar on mobile.
 //
 // On desktop the rail can be collapsed to a narrow column of icons
-// ("Collapse panel" at the bottom; the same spot opens it again). Collapsed,
+// (« at the bottom, "Collapse panel" on hover; the same spot opens it again). Collapsed,
 // the labels are hidden and each link shows its name as a tooltip.
 // Inside a cardbook, while one of its notes (or words) is open, the rail
 // (desktop only) shows the notebook's items under the main links, to jump
@@ -335,12 +335,13 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
                             <i className="sign out icon"></i>
                             <span className="nav-label">Log out</span>
                         </button>
-                        {/* Desktop only: fold the panel down to its icons, or open it again. */}
+                        {/* Desktop only: fold the panel down to its icons, or open it again.
+                            Just the « / » (no words); its name shows on hover. */}
                         <button type="button" className="nav-item nav-collapse" onClick={toggleCollapsed}
-                            title={tip('Expand panel')} aria-label={collapsed ? 'Expand panel' : 'Collapse panel'}
+                            title={collapsed ? 'Expand panel' : 'Collapse panel'}
+                            aria-label={collapsed ? 'Expand panel' : 'Collapse panel'}
                             aria-expanded={!collapsed}>
                             <i className={`angle double ${collapsed ? 'right' : 'left'} icon`}></i>
-                            <span className="nav-label">Collapse panel</span>
                         </button>
                     </>
                 ) : (
