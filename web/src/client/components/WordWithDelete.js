@@ -29,7 +29,7 @@ const WordWithDelete = ({ item, wordbook, selected, color, handleProps, noteWind
         // Window mode (desktop only): notes open in a floating window instead of
         // taking over the main pane. Words always use the normal page.
         if (isCard && noteWindowMode && !isPhoneLayout()) {
-            openNoteWindow(item);
+            openNoteWindow(item, wordbook);
             return;
         }
         navigate(itemPath(wordbook, item));

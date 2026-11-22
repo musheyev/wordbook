@@ -98,7 +98,7 @@ export default function NotebookOverview({
                     style={color ? { '--item-tint': color.tint, '--item-ink': color.ink } : undefined}
                     aria-pressed={ticking ? picked : undefined}
                     onClick={ticking ? (e) => { e.preventDefault(); selection.toggle(item); }
-                        : (isNote && noteWindowMode ? (e) => { e.preventDefault(); dispatch(openNoteWindow(item)); } : undefined)}>
+                        : (isNote && noteWindowMode ? (e) => { e.preventDefault(); dispatch(openNoteWindow(item, name)); } : undefined)}>
                     {ticking && <SelectCheck on={picked} />}
                     <span className={`nb-card__icon nb-row__icon nb-row__icon--${isNote ? 'card' : 'word'}`}
                         aria-hidden="true">
