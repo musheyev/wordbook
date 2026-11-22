@@ -18,7 +18,7 @@ import { COGNITO_LOGIN } from '../utils/cognito';
 //   [ delete · bookmark · cancel · save ]   (icon cluster, left-aligned)
 //   [ formatting toolbar + body ]           (RichTextEditor)
 //
-// Save keeps you in the editor (with "Saved · 10:42" beside the buttons);
+// Save keeps you in the editor (a quiet grey "Saved · 10:42" at the right);
 // ✕ closes it. With changes not saved yet, ✕ first asks: Save and close,
 // Discard changes, or Keep editing, so closing never quietly loses text.
 // A new note's first Save creates it, and the editor carries on editing it.
@@ -266,7 +266,6 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
                     {saving && <span className="card-editor__status">Saving…</span>}
                     {!saving && savedAt && !draft.dirty && (
                         <span className="card-editor__saved" role="status">
-                            <i className="check icon" aria-hidden="true"></i>
                             Saved · {savedAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                         </span>
                     )}

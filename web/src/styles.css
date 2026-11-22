@@ -4669,20 +4669,20 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
   .nh__text { padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
 }
 
-/* The note editor after a Save (CardEditorInline): "✓ Saved · 10:42" beside
-   the buttons while nothing has changed since. Phones have no room in the
-   slim top row, so it shows as a small tag under the row's right end. And
+/* The note editor after a Save (CardEditorInline): a quiet grey "Saved ·
+   10:42" at the right end of the button row while nothing has changed since.
+   Phones have no room in the slim top row, so it sits just under the row's
+   right end. And
    ✕ with unsaved changes: Keep editing / Discard changes / Save and close. */
 .card-editor__saved {
-  align-self: center; display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.85rem; color: #15803d; white-space: nowrap;
+  align-self: center; margin-left: auto; display: inline-flex; align-items: center; gap: 3px;
+  font-size: 0.8rem; color: var(--cb-ink-3); white-space: nowrap;
 }
-.card-editor__saved i.icon { margin: 0; font-size: 0.8rem; }
 .card-editor__ask .card-confirm__actions { flex-wrap: wrap; }
 @media (max-width: 768px), (max-height: 500px) {
   .card-editor__top { position: relative; }
   .card-editor__top .card-editor__saved {
-    display: inline-flex; position: absolute; right: 4px; top: calc(100% + 2px); z-index: 5;
-    padding: 2px 8px; border-radius: 10px; background: #e8f7ec; font-size: 0.75rem;
+    display: inline-flex; position: absolute; right: 10px; top: calc(100% + 1px); z-index: 5;
+    font-size: 0.7rem; margin: 0; padding: 0 4px; background: var(--cb-bg);
   }
 }
