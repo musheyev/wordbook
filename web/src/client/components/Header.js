@@ -14,6 +14,8 @@ import { site } from '../utils/site';
 import ClassroomsNav, { useClassroomsSummary } from './ClassroomsNav';
 import NewNotePopup from './NewNotePopup';
 import TagItemList from './TagItemList';
+import BrowseNotebookList from './BrowseNotebookList';
+import SidePanelNotebookPicker from './SidePanelNotebookPicker';
 import { tagFromPathname, isTagItemPathname, itemsWithTag } from '../utils/tagPaths';
 
 // Two choices about the side panel, remembered in this browser (like its
@@ -89,6 +91,19 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
     const [addOpen, setAddOpen] = React.useState(false);
     const [collapsed, setCollapsed] = React.useState(() => readYes(COLLAPSED_KEY));
     const [notesOpen, setNotesOpen] = React.useState(() => readYes(NOTES_OPEN_KEY));
+    // Looking at another notebook's notes in the side panel ('' = the page's
+    // own notebook), picked from the name's menu. Not remembered: opening a
+    // notebook, or reloading, always starts on the page's notebook.
+    const [browse, setBrowse] = React.useState('');
+    const [picking, setPicking] = React.useState(false);
+    const [browseCount, setBrowseCount] = React.useState(null);
+    React.useEffect(() => { setBrowse(''); setPicking(false); }, [cardbookName]);
+    const shownNotebook = browse || cardbookName;
+    const pickNotebook = (name) => {
+        setPicking(false);
+        setBrowse(name === cardbookName ? '' : name);
+        setNotesOpen(true); writeYes(NOTES_OPEN_KEY, true);
+    };
 
     const toggleCollapsed = () => {
         setCollapsed((was) => { writeYes(COLLAPSED_KEY, !was); return !was; });
@@ -102,7 +117,7 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
         setNotesOpen(true); writeYes(NOTES_OPEN_KEY, true);
     };
     // How many notes and words the notebook has, once its list has loaded.
-    const notesCount = notesFor === cardbookName ? notesLength : null;
+    const notesCount = browse ? browseCount : (notesFor === cardbookName ? notesLength : null);
     // Collapsed, each link's name shows as a tooltip instead of a label.
     const tip = (label) => (collapsed ? label : undefined);
 
@@ -137,13 +152,28 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
                             {/* The notebook's notes: a header row that opens and
                                 closes the list (closed until you open it, then
                                 remembered), with the window and + buttons. */}
+                            {/* The arrow opens and closes the list; the name opens a
+                                menu to look through another notebook's notes here
+                                (SidePanelNotebookPicker), the page staying as it is. */}
                             <div className="nav-ctx__labelrow">
-                                <button type="button" className="nav-ctx__toggle" aria-expanded={notesOpen}
-                                    onClick={toggleNotes} title={notesOpen ? 'Hide notes' : 'Show notes'}>
+                                <button type="button" className="nav-ctx__toggle nav-ctx__arrow" aria-expanded={notesOpen}
+                                    onClick={toggleNotes} title={notesOpen ? 'Hide notes' : 'Show notes'}
+                                    aria-label={notesOpen ? 'Hide notes' : 'Show notes'}>
                                     <i className={`${notesOpen ? 'angle down' : 'angle right'} icon`} aria-hidden="true"></i>
-                                    <span className="nav-ctx__name">{cardbookName}</span>
-                                    {notesCount !== null && <span className="nav-ctx__count">{notesCount}</span>}
                                 </button>
+                                <span className="nav-ctx__pickwrap">
+                                    <button type="button" className="nav-ctx__toggle nav-ctx__pick" aria-haspopup="menu"
+                                        aria-expanded={picking} onClick={() => setPicking((v) => !v)}
+                                        title="Show another notebook’s notes here">
+                                        <span className="nav-ctx__name">{shownNotebook}</span>
+                                        <i className="chevron down icon nav-ctx__pickicon" aria-hidden="true"></i>
+                                        {notesCount !== null && <span className="nav-ctx__count">{notesCount}</span>}
+                                    </button>
+                                    {picking && (
+                                        <SidePanelNotebookPicker current={cardbookName} shown={shownNotebook}
+                                            onPick={pickNotebook} onClose={() => setPicking(false)} />
+                                    )}
+                                </span>
                                 <span className="nav-ctx__tools">
                                     <button type="button"
                                         className={`nav-ctx__winbtn${noteWindowMode ? ' on' : ''}`}
@@ -159,9 +189,19 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
                                     </button>
                                 </span>
                             </div>
+                            {browse && (
+                                <div className="nav-ctx__browsing" role="status">
+                                    <span>Browsing</span>
+                                    <button type="button" onClick={() => setBrowse('')}>
+                                        ‹ Back to {cardbookName}
+                                    </button>
+                                </div>
+                            )}
                             {notesOpen && (
                                 <div className="nav-ctx__list">
-                                    <WordList wordbook={cardbookName} />
+                                    {browse
+                                        ? <BrowseNotebookList notebook={browse} onCount={setBrowseCount} />
+                                        : <WordList wordbook={cardbookName} />}
                                 </div>
                             )}
                         </>
@@ -172,10 +212,10 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
                         z-index, is painted UNDER the page next to it. */}
                     {createPortal(
                         <>
-                            <NewNotePopup open={newNoteOpen} wordbook={cardbookName}
+                            <NewNotePopup open={newNoteOpen} wordbook={shownNotebook}
                                 onClose={() => setNewNoteOpen(false)}
                                 onLookUpWord={() => { setNewNoteOpen(false); setAddOpen(true); }} />
-                            <AddItemSheet open={addOpen} wordbook={cardbookName} onClose={() => setAddOpen(false)} />
+                            <AddItemSheet open={addOpen} wordbook={shownNotebook} onClose={() => setAddOpen(false)} />
                         </>,
                         document.body,
                     )}

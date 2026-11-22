@@ -217,7 +217,9 @@ export const CLOSE_NOTE_WINDOW = 'close_note_window';
 export const FOCUS_NOTE_WINDOW = 'focus_note_window';
 
 export const toggleNoteWindowMode = () => ({ type: TOGGLE_NOTE_WINDOW_MODE });
-export const openNoteWindow = (item) => ({ type: OPEN_NOTE_WINDOW, payload: { cardId: item.id, title: item.title } });
+// `notebook`: the notebook it was opened from (the window's "Open on page"
+// opens it there; NoteWindow.js finds one when it isn't known).
+export const openNoteWindow = (item, notebook = '') => ({ type: OPEN_NOTE_WINDOW, payload: { cardId: item.id, title: item.title, notebook } });
 export const closeNoteWindow = (id) => ({ type: CLOSE_NOTE_WINDOW, payload: id });
 export const focusNoteWindow = (id) => ({ type: FOCUS_NOTE_WINDOW, payload: id });
 
@@ -1171,6 +1173,19 @@ export const searchNotebook = (wordbook, q, definitions) => async (dispatch, get
 };
 
 export const FETCH_WORD_WORDBOOKS = 'fetch_word_wordbooks';
+/** Which notebooks hold a note or word (names), without changing the store. */
+export const getItemNotebooks = (id) => async (dispatch, getState, api) => {
+  const res = await api.post('/wordbook/word/wordbooks', { word: id }, JSON_HEADERS);
+  return Array.isArray(res.data) ? res.data : [];
+};
+
+/** A notebook's items ([{ type, id, title, preview? }]), without changing the
+ * store: the side panel's list of another notebook (BrowseNotebookList.js). */
+export const getNotebookItems = (wordbook) => async (dispatch, getState, api) => {
+  const res = await api.post('/wordbook/words', { wordbook }, JSON_HEADERS);
+  return Array.isArray(res.data) ? res.data : [];
+};
+
 export const fetchWordWordbooks = (word) => async (dispatch, getState, api) => {
   console.log("fetchWordWordbooks called");
 

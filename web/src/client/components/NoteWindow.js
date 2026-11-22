@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { connect } from 'react-redux';
-import { getCardContent, closeNoteWindow, focusNoteWindow } from '../actions';
+import { useNavigate } from 'react-router-dom';
+import { getCardContent, closeNoteWindow, focusNoteWindow, getItemNotebooks } from '../actions';
+import { itemPath } from '../utils/notebookPaths';
+import { readSavedGeom, saveGeom } from '../utils/noteWindowsSaved';
 import { sanitizeCardHtml } from '../utils/sanitize';
 import { showApiImages } from '../offline/images';
 import { renderMathIn } from '../utils/math';
@@ -17,6 +20,21 @@ const MIN_H = 220;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+// Where a window was last time (utils/noteWindowsSaved.js), kept inside the
+// browser window in case that's smaller now.
+function savedGeom(cardId) {
+    const g = readSavedGeom(cardId);
+    if (!g) return null;
+    const w = clamp(g.w, MIN_W, Math.max(MIN_W, window.innerWidth - 24));
+    const h = clamp(g.h, MIN_H, Math.max(MIN_H, window.innerHeight - 24));
+    return {
+        x: clamp(g.x, 0, Math.max(0, window.innerWidth - w)),
+        y: clamp(g.y, 0, Math.max(0, window.innerHeight - 40)),
+        w,
+        h,
+    };
+}
+
 // Each newly opened window is offset down-right from the last so they cascade.
 function initialGeom(spawnIndex) {
     const w = Math.min(DEFAULT_W, window.innerWidth - 48);
@@ -30,9 +48,32 @@ function initialGeom(spawnIndex) {
 // A single floating note window. Geometry lives in local state (dragging never
 // touches the store); the store only tracks which windows exist and their focus
 // order (see noteWindowsReducer).
-function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow, focusNoteWindow }) {
-    const [geom, setGeom] = useState(() => initialGeom(spawnIndex));
-    const [maximized, setMaximized] = useState(false);
+function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow, focusNoteWindow, getItemNotebooks }) {
+    // Where it was last time (after a reload), else the next place in the cascade.
+    const [geom, setGeom] = useState(() => savedGeom(win.cardId) || initialGeom(spawnIndex));
+    const [maximized, setMaximized] = useState(() => !!(readSavedGeom(win.cardId) || {}).maximized);
+    const navigate = useNavigate();
+    const [pageError, setPageError] = useState('');
+
+    // Keep its place and size (a moment after it stops moving).
+    useEffect(() => {
+        const timer = setTimeout(() => saveGeom(win.cardId, geom, maximized), 300);
+        return () => clearTimeout(timer);
+    }, [geom, maximized, win.cardId]);
+
+    // Open on page: the note becomes the page's open note, in the notebook it
+    // was opened from (or, when that isn't known, the first one that holds
+    // it), and the window closes.
+    const openOnPage = async () => {
+        setPageError('');
+        let notebook = win.notebook;
+        if (!notebook) {
+            try { notebook = (await getItemNotebooks(win.cardId))[0] || ''; } catch (e) { notebook = ''; }
+        }
+        if (!notebook) { setPageError('This note isn’t in a notebook.'); return; }
+        closeNoteWindow(win.id);
+        navigate(itemPath(notebook, { type: 'card', id: win.cardId }));
+    };
     const [content, setContent] = useState(null); // null = loading
     const [failed, setFailed] = useState(false);
     // The pencil turns the window into the note's editor (CardEditorInline,
@@ -109,9 +150,14 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
             <div className="note-window__bar" onPointerDown={startInteraction('move')}
                 onDoubleClick={() => setMaximized((m) => !m)}>
                 <span className="note-window__title">{title}</span>
+                {win.notebook && <span className="note-window__from" title={`From ${win.notebook}`}>{win.notebook}</span>}
                 <span className="note-window__tools" onPointerDown={(e) => e.stopPropagation()}>
                     {content != null && !failed && !editing && (
                         <>
+                            <button type="button" className="card-tool note-window__onpage" title="Open on page"
+                                aria-label="Open on page" onClick={openOnPage}>
+                                <i className="external alternate icon"></i>
+                            </button>
                             <ReadAloud title={title} getChunks={() => cardChunks({ card_id: win.cardId, content })} />
                             <button type="button" className="card-tool" title="Edit note" aria-label="Edit note"
                                 onClick={() => { keepPlace(win.cardId, viewText()); setEditing(true); }}>
@@ -130,6 +176,7 @@ function NoteWindow({ win, spawnIndex, isActive, getCardContent, closeNoteWindow
                 </span>
             </div>
 
+            {pageError && <div className="note-window__msg note-window__pageerr" role="alert">{pageError}</div>}
             <div className="note-window__body" ref={bodyRef}>
                 {failed ? (
                     <div className="note-window__msg">Couldn't load this note.</div>
@@ -160,6 +207,7 @@ const mapDispatch = (dispatch) => ({
     getCardContent: (id) => dispatch(getCardContent(id)),
     closeNoteWindow: (id) => dispatch(closeNoteWindow(id)),
     focusNoteWindow: (id) => dispatch(focusNoteWindow(id)),
+    getItemNotebooks: (id) => dispatch(getItemNotebooks(id)),
 });
 
 export default connect(null, mapDispatch)(NoteWindow);

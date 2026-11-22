@@ -4703,3 +4703,34 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
   .note-width-grip:hover, .note-width-grip:focus-visible { opacity: 1; color: var(--cb-accent); }
   body.note-width-dragging, body.note-width-dragging * { cursor: ew-resize !important; user-select: none; }
 }
+
+/* Side panel: the arrow opens and closes the notebook's list; the name (with
+   a small ⌄) opens a menu of notebooks to look through another one's notes
+   there (SidePanelNotebookPicker, BrowseNotebookList). While doing so, a
+   yellow line says so, with the way back. */
+.nav-ctx__arrow { flex: none; padding: 6px 4px; }
+.nav-ctx__pickwrap { position: relative; flex: 1; min-width: 0; display: flex; }
+.nav-ctx__pick { flex: 1; }
+.nav-ctx__pick .nav-ctx__pickicon { font-size: 0.65rem; width: auto; }
+.nav-pick { left: 0; right: auto; top: calc(100% + 4px); min-width: 210px; max-width: 260px; z-index: 50; }
+.nav-pick__scroll { max-height: min(320px, 50vh); overflow-y: auto; }
+.nav-pick__item { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; }
+.nav-pick__item.is-on { color: var(--cb-accent); font-weight: 700; }
+.nav-pick__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-pick__note { flex: none; font-size: 0.75rem; color: var(--cb-ink-3); font-weight: 400; }
+.nav-pick__msg { padding: 8px 12px; font-size: 0.85rem; color: var(--cb-ink-3); }
+.nav-pick__all { color: var(--cb-accent) !important; }
+.nav-ctx__browsing {
+  display: flex; align-items: center; gap: 8px; margin: 0 4px 6px; padding: 5px 10px;
+  border-radius: var(--cb-radius-sm); background: #fff7d6; border: 1px solid #f2d675;
+  font-size: 0.8rem; color: #5b4a00; white-space: nowrap;
+}
+.nav-ctx__browsing button {
+  margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; border: none; background: none;
+  padding: 0; color: var(--cb-accent); font: inherit; font-weight: 700; cursor: pointer;
+}
+.nav-ctx__msg { padding: 8px 10px; font-size: 0.85rem; color: var(--cb-ink-3); }
+
+/* A note window's notebook (where it was opened from), beside its title. */
+.note-window__from { flex: none; max-width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: var(--cb-ink-3); margin: 0 4px; }
+.note-window__pageerr { padding: 6px 14px; font-size: 0.85rem; color: var(--cb-danger); }
