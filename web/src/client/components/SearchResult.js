@@ -34,6 +34,7 @@ import AudioPausesButton from './AudioPausesButton';
 import SelectionPlayButton from './SelectionPlayButton';
 import ItemColorButton from './ItemColorButton';
 import NoteHistoryButton from './NoteHistoryButton';
+import NoteWidthGrip from './NoteWidthGrip';
 import { colorOf } from '../utils/itemColors';
 import { keepPlace, useRestoredPlace } from '../utils/notePlace';
 
@@ -362,6 +363,8 @@ function SearchResult({ currentWord, currentWordType, currentCard, wordSearchRes
                     <NoteLinkLists type="card" id={currentCard.card_id} version={currentCard.content} />
                 </div>
                 <SelectionPlayButton rootRef={cardRef} title={currentCard.title} />
+                {/* Desktop: drag to make the note narrower (NoteWidthGrip.js). */}
+                <NoteWidthGrip />
             </div>
         );
     }

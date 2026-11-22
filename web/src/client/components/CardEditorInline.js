@@ -11,6 +11,7 @@ import { keepPlace, useRestoredPlace } from '../utils/notePlace';
 import { isNativeApp } from '../native/platform';
 import { nativeSignIn } from '../native/auth';
 import { COGNITO_LOGIN } from '../utils/cognito';
+import NoteWidthGrip from './NoteWidthGrip';
 
 // In-place card editor. Rendered inside the detail pane (no modal/overlay) so
 // creating and editing a card happens right where the card is read. Layout:
@@ -332,6 +333,8 @@ function CardEditorInline({ cardEditor: storeEditor, popup, onCreated, closeCard
 
             <RichTextEditor key={editorKey} value={content} onChange={setContent}
                 zoom={zoom} onZoom={setZoom} />
+            {/* Desktop, on the page: drag to make the note narrower (NoteWidthGrip.js). */}
+            {!popup && <NoteWidthGrip />}
         </div>
     );
 }
