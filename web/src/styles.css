@@ -4734,3 +4734,99 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
 /* A note window's notebook (where it was opened from), beside its title. */
 .note-window__from { flex: none; max-width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: var(--cb-ink-3); margin: 0 4px; }
 .note-window__pageerr { padding: 6px 14px; font-size: 0.85rem; color: var(--cb-danger); }
+
+/* ---- My Projects (pages/ProjectsPage.js, components/ProjectGantt.js,
+   ProjectTaskWindow.js, ProjectsNav.js). Computers only. ---------------- */
+.nav-projects__add { border: none; background: none; text-align: left; cursor: pointer; font: inherit; font-size: 0.88rem; color: var(--cb-accent); }
+.nav-projects__new { padding: 3px 6px 3px 8px; }
+.nav-projects__input { width: 100%; font: inherit; font-size: 0.88rem; padding: 4px 8px; border: 1px solid var(--cb-accent); border-radius: 6px; outline: none; }
+.nav-projects__error { display: block; font-size: 0.78rem; color: var(--cb-danger); margin-top: 3px; }
+
+.projects-page { padding: 24px 20px 44px; min-width: 0; }
+.projects-page__head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.projects-page__meta { color: var(--cb-ink-3); font-size: 0.92rem; }
+.projects-page__grow { flex: 1; }
+.projects-page__link { border: none; background: none; padding: 0; font: inherit; color: var(--cb-accent); cursor: pointer; text-decoration: underline; }
+.projects-page__nameinput { width: 100%; font: inherit; font-size: 1rem; padding: 8px 10px; margin-bottom: 14px; border: 1px solid var(--cb-border-strong); border-radius: var(--cb-radius-sm); }
+.projects-page__nameinput:focus { outline: none; border-color: var(--cb-accent); }
+
+/* The chart: a table that stays put on the left, a timeline that scrolls. */
+.pg { overflow-x: auto; border-top: 1px solid var(--cb-border); }
+.pg__inner { position: relative; }
+.pg__head { display: flex; border-bottom: 1px solid var(--cb-border-strong); position: relative; }
+.pg__cells { display: flex; align-items: center; flex: none; position: sticky; left: 0; z-index: 3; background: var(--cb-bg); height: 100%; }
+.pg__cells--head { align-items: flex-end; padding-bottom: 7px; }
+.pg__th { flex: none; padding: 0 8px; font-size: 0.75rem; font-weight: 700; color: var(--cb-ink-3); text-transform: uppercase; letter-spacing: 0.04em; }
+.pg-scale { position: relative; flex: none; height: 100%; }
+.pg-scale__month { position: absolute; top: 4px; font-size: 0.82rem; font-weight: 700; color: var(--cb-ink-2); white-space: nowrap; }
+.pg-scale__week { position: absolute; bottom: 7px; font-size: 0.75rem; color: var(--cb-ink-3); }
+.pg__body { position: relative; }
+.pg__row { display: flex; border-bottom: 1px solid #f0f2f6; }
+.pg__row--on, .pg__row--on .pg__cells { background: #f3f7ff; }
+.pg__row--group, .pg__row--group .pg__cells { background: var(--cb-surface); }
+.pg__td { flex: none; padding: 0 8px; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pg__td--dim { color: var(--cb-ink-2); font-size: 0.86rem; }
+.pg__taskname { border: none; background: none; text-align: left; font: inherit; font-size: 0.92rem; color: var(--cb-ink); cursor: pointer; height: 100%; }
+.pg__taskname:hover { color: var(--cb-accent); }
+.pg__groupname { border: none; background: none; font: inherit; font-weight: 700; color: var(--cb-ink); cursor: pointer; padding: 0 8px; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.pg__groupname i.icon { margin: 0; color: var(--cb-ink-3); }
+.pg__groupcount { font-weight: 400; color: var(--cb-ink-3); font-size: 0.85rem; margin-left: 4px; }
+.pg__notes { color: var(--cb-ink-2); font-size: 0.8rem; font-weight: 700; }
+.pg__notes i.icon { margin: 0 2px 0 0; }
+.pg__track { position: relative; flex: none; height: 100%; }
+.pg-bar { position: absolute; top: 10px; height: 18px; border: none; padding: 0; border-radius: 5px; background: var(--cb-accent); cursor: pointer; z-index: 2; min-width: 4px; }
+.pg-bar:hover { filter: brightness(1.1); }
+.pg-bar--on { box-shadow: 0 0 0 3px #bfd3fb; }
+.pg-bar--span { top: 15px; height: 8px; border-radius: 2px; background: var(--cb-ink-2); cursor: default; }
+.pg__overlay { position: absolute; top: 0; pointer-events: none; z-index: 1; }
+.pg-weekend { position: absolute; top: 0; bottom: 0; background: rgba(15, 20, 35, 0.025); }
+.pg-gridline { position: absolute; top: 0; bottom: 0; width: 1px; background: #eceff4; }
+.pg-today { position: absolute; top: -8px; bottom: 0; width: 2px; margin-left: -1px; background: #ef4444; z-index: 2; }
+.pg-today span { position: absolute; bottom: -18px; left: -15px; font-size: 0.7rem; font-weight: 800; color: #ef4444; }
+.pg-arrows { position: absolute; top: 0; left: 0; overflow: visible; z-index: 1; }
+.pg-arrows path { fill: none; stroke: #8b97ad; stroke-width: 1.5; marker-end: url(#pg-arrowhead); }
+.pg-arrows marker path { fill: #8b97ad; stroke: none; }
+.pg-who { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 0.86rem; color: var(--cb-ink-2); }
+.pg-who__dot { flex: none; font-style: normal; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; color: #fff; }
+.pg-who__name { overflow: hidden; text-overflow: ellipsis; }
+
+/* A task's window: bottom right, like a note window. Under dialogs (60),
+   sheets (300) and note windows (1000+), so they open on top of it. */
+.ptw {
+  position: fixed; right: 22px; bottom: 22px; z-index: 50; width: 470px; max-width: calc(100vw - 44px); max-height: calc(100vh - 44px);
+  display: flex; flex-direction: column; background: var(--cb-bg); border: 1px solid var(--cb-border); border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(30, 40, 60, 0.22);
+}
+.ptw__head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--cb-border); }
+.ptw__title { font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ptw__from { margin-left: auto; color: var(--cb-ink-3); font-size: 0.85rem; white-space: nowrap; }
+.ptw__close { border: 1px solid var(--cb-border); background: none; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; color: var(--cb-ink-2); }
+.ptw__close i.icon { margin: 0; }
+.ptw__body { padding: 10px 16px 14px; overflow-y: auto; }
+.ptw__row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.ptw__row--wrap { flex-wrap: wrap; }
+.ptw__k { width: 78px; flex: none; color: var(--cb-ink-3); font-size: 0.85rem; }
+.ptw__input { font: inherit; font-size: 0.92rem; padding: 5px 9px; border: 1px solid var(--cb-border-strong); border-radius: 7px; background: var(--cb-bg); color: var(--cb-ink); min-width: 0; }
+.ptw__input:focus { outline: none; border-color: var(--cb-accent); box-shadow: 0 0 0 3px #dbe6fd; }
+.ptw__input--wide { flex: 1; }
+.ptw__input--days { width: 72px; }
+.ptw__locked { padding: 5px 9px; border: 1px dashed var(--cb-border-strong); border-radius: 7px; background: var(--cb-surface); color: var(--cb-ink-2); font-size: 0.9rem; }
+.ptw__hint { color: var(--cb-ink-3); font-size: 0.85rem; }
+.ptw__chip { display: inline-flex; align-items: center; gap: 4px; background: var(--cb-accent-weak); color: var(--cb-accent); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 0.85rem; font-weight: 700; max-width: 100%; }
+.ptw__chip--note { background: #eef1f5; color: var(--cb-ink-2); }
+.ptw__chiplink { border: none; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ptw__chiplink:hover { text-decoration: underline; }
+.ptw__x { border: none; background: none; cursor: pointer; color: var(--cb-ink-3); font-size: 1rem; line-height: 1; padding: 0 4px; }
+.ptw__x:hover { color: var(--cb-ink); }
+.ptw__addsel { -webkit-appearance: none; appearance: none; font: inherit; font-size: 0.85rem; font-weight: 700; color: var(--cb-accent); border: none; background: none; cursor: pointer; padding: 3px 2px; }
+.ptw__addlink { border: none; background: none; cursor: pointer; font: inherit; font-size: 0.85rem; font-weight: 700; color: var(--cb-accent); padding: 3px 2px; }
+.ptw__addlink i.icon { margin: 0 3px 0 0; }
+.ptw__ripple { margin-top: 8px; background: var(--cb-surface); border-radius: 8px; padding: 8px 11px; font-size: 0.85rem; color: var(--cb-ink-2); line-height: 1.45; }
+.ptw__actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.ptw__spacer { flex: 1; }
+.ptw__delete { color: var(--cb-danger); }
+.ptw__who { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.ptw__menu { position: absolute; top: calc(100% + 4px); left: 0; min-width: 230px; z-index: 5; display: flex; flex-direction: column; padding: 5px; background: var(--cb-bg); border: 1px solid var(--cb-border-strong); border-radius: 10px; box-shadow: 0 10px 28px rgba(30, 40, 60, 0.18); }
+.ptw__menuitem { border: none; background: none; text-align: left; padding: 6px 8px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 0.9rem; }
+.ptw__menuitem:hover { background: var(--cb-accent-weak); }
+.ptw__menuitem--add { color: var(--cb-accent); font-weight: 700; border-top: 1px solid var(--cb-border); border-radius: 0; margin-top: 3px; }
