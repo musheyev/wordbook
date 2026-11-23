@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="common.css"><script src="common.js"></script></head><body>
+<h1>B • All projects on one timeline</h1>
+<p class="sub">One page shows every project, each a group you can fold (▸). You see at a glance where projects overlap. Clicking a task opens the same task window as in A. Picking a project in the side panel shows only that one.</p>
+<div class="frame" id="f"></div>
+<script>
+document.getElementById('f').innerHTML = side(`
+  <div class="shead">Projects<span class="n">3</span><span class="plus">+</span></div>
+  <div class="item on">All projects</div>
+  <div class="item">Kitchen remodel<small>Nov 16 – Dec 31</small></div>
+  <div class="item">Spanish B1 exam<small>Nov 16 – Jan 1</small></div>
+  <div class="item">Taxes 2026<small>Jan 4 – Feb 20</small></div>`) +
+  `<div class="main"><div class="top"><h2>My Projects</h2><span class="meta">3 projects · 14 tasks</span><span class="grow"></span><button class="btn">+ Project</button><button class="btn primary">+ Task</button></div><div class="gantt" id="g"></div>
+   <div class="callout" style="left:24px;bottom:22px;width:520px">The dark line on each project’s row shows its whole span. <b>Taxes 2026</b> is folded, so only its line shows.</div>
+  </div>`;
+const k = kitchen();
+const blue = '#2563eb', green = '#16a34a';
+const sp = [
+  { id: 'gram', name: 'Grammar units 5–8', start: 0, len: 21, after: [], notes: 4, color: green },
+  { id: 'talk', name: 'Speaking practice', len: 14, after: ['gram'], notes: 2, color: green },
+  { id: 'mock', name: 'Mock exam', len: 3, after: ['talk'], notes: 1, color: green },
+];
+const name = t => t.group ? `<span style="color:var(--ink-3);margin-right:6px">${t.open ? '▾' : '▸'}</span>${t.group}` : `<span style="padding-left:20px">${t.name}</span>`;
+gantt(document.getElementById('g'), {
+  rows: [{ group: 'Kitchen remodel', from: 0, to: 45, open: true }, ...k,
+         { group: 'Spanish B1 exam', from: 0, to: 38, open: true }, ...sp,
+         { group: 'Taxes 2026', from: 49, to: 63 }],
+  dayW: 9.6,
+  cols: [{ h: "Project / task", w: 230, cell: name }, { h: "Who", w: 150, cell: whoCell }, { h: '', w: 46, cell: t => t.notes ? `<span class="noteic">${ICON.note}${t.notes}</span>` : '' }],
+});
+</script></body></html>

@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="common.css"><script src="common.js"></script></head><body>
+<h1>A • One project per page</h1>
+<p class="sub">Projects are listed in the side panel, like notebooks. The page shows the chosen project: tasks on the left, bars on the right, with arrows for “waits for”. Clicking a task opens it in a window, like a note window. Each task can have one person: type a name, and names you used before are offered again.</p>
+<div class="frame" id="f" style="height:860px"></div>
+<script>
+document.getElementById('f').innerHTML = side(`
+  <div class="shead">Projects<span class="n">3</span><span class="plus">+</span></div>
+  <div class="item on">Kitchen remodel<small>Nov 16 – Dec 31</small></div>
+  <div class="item">Spanish B1 exam<small>Nov 16 – Jan 1</small></div>
+  <div class="item">Taxes 2026<small>Jan 4 – Feb 20</small></div>`) +
+  `<div class="main"><div class="top"><h2>Kitchen remodel</h2><span class="meta">8 tasks · ends Dec 31</span><span class="grow"></span><button class="btn primary">+ Task</button></div><div class="gantt" id="g"></div>
+   <div class="win" style="right:22px;top:440px;width:470px">
+     <div class="wh"><b>Order cabinets</b><span class="from">Kitchen remodel</span><span class="ibtn">${ICON.full}</span><span class="ibtn">${ICON.close}</span></div>
+     <div class="wb">
+       <div class="frow"><span class="k">Who</span><span class="field" style="border-color:var(--accent);box-shadow:0 0 0 3px #dbe6fd;min-width:200px">Mi<span style="color:var(--accent)">|</span></span></div>
+       <div class="dd" style="left:112px;top:104px;width:230px"><div class="hi"><span class="who"><i style="background:#7c3aed">M</i>Mike (contractor)</span></div><div class="addnew">+ Add “Mi” as a new name</div></div>
+       <div class="frow"><span class="k">Waits for</span><span class="chip">Pick cabinets <span class="x">×</span></span><span class="addl">+ Add</span></div>
+       <div class="frow"><span class="k">Starts</span><span class="field locked">Nov 28 · when Pick cabinets ends</span></div>
+       <div class="frow"><span class="k">Takes</span><span class="field">14 days</span><span style="color:var(--ink-3)">ends Dec 12</span></div>
+       <div class="frow"><span class="k">Notes</span><span class="chip gray">${'Cabinet quotes'}</span><span class="chip gray">IKEA vs local shop</span></div>
+       <div class="frow"><span class="k"></span><span class="addl">🔗 Add link</span></div>
+       <div class="ripple">If this changes, <b>Install cabinets</b>, <b>Countertops</b> and <b>Paint</b> move with it.</div>
+     </div>
+   </div>
+  </div>`;
+gantt(document.getElementById('g'), {
+  rows: kitchen(), dayW: 8.1, sel: 'order',
+  cols: [
+    { h: 'Task', w: 190, cell: t => t.name },
+    { h: 'Starts', w: 70, dim: true, cell: t => fmt(t.start) },
+    { h: 'Days', w: 48, dim: true, cell: t => t.len },
+    { h: 'Who', w: 150, cell: whoCell },
+    { h: '', w: 50, cell: t => t.notes ? `<span class="noteic">${ICON.note}${t.notes}</span>` : '' },
+  ],
+});
+</script></body></html>
