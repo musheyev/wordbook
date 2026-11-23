@@ -10,6 +10,7 @@ import ProjectTaskWindow from '../components/ProjectTaskWindow';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Spinner from '../components/Spinner';
 import { PROJECTS_PATH, projectPath } from '../components/ProjectsNav';
+import requireAuth from '../components/hocs/requireAuth';
 
 // My Projects (computers only; decided).
 //
@@ -27,13 +28,16 @@ const readFolded = () => {
     try { return JSON.parse(localStorage.getItem(FOLDED_KEY) || '[]'); } catch (e) { return []; }
 };
 
-export default function ProjectsPage() {
+// Signed out: off to the home page, like the other signed-in pages (requireAuth).
+function ProjectsPage() {
     return (
         <ComputerOnly title="My Projects works on a computer.">
             <Projects />
         </ComputerOnly>
     );
 }
+
+export default requireAuth(ProjectsPage);
 
 function Projects() {
     const dispatch = useDispatch();
