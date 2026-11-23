@@ -35,6 +35,7 @@ const TABLES = [
     "dictionary_word_notes",          // notes on words
     "dictionary_item_tags",           // tags
     "dictionary_note_links",          // links between notes
+    "dictionary_projects",            // My Projects: projects and tasks
     "dictionary_quizzes",             // saved quizzes
     "dictionary_user_settings",       // sorts, colours, bookmarks, recent notes
     "dictionary_user_word_images",    // pictures added to words

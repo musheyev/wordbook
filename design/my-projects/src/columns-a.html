@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="common.css"><script src="common.js"></script></head><body>
+<h1>A • Resize and fold columns</h1>
+<p class="sub">Drag the line between two headers to resize; double-click it to fit. Point at a header and a « folds that column into a thin strip. The line between the table and the timeline moves too, and its « folds the whole table. (Several hover states are shown at once here.)</p>
+<div class="frame" id="f"></div>
+<script>
+document.getElementById('f').innerHTML = side(`
+  <div class="shead">Projects<span class="n">3</span><span class="plus">+</span></div>
+  <div class="item">All projects</div>
+  <div class="item on">Kitchen remodel<small>Nov 16 – Dec 31</small></div>
+  <div class="item">Spanish B1 exam<small>Nov 16 – Jan 1</small></div>
+  <div class="item">Taxes 2026<small>Jan 4 – Feb 20</small></div>`) +
+  `<div class="main"><div class="top"><h2>Kitchen remodel</h2><span class="meta">8 tasks · ends Dec 31</span><span class="grow"></span><button class="btn primary">+ Task</button></div><div class="gantt" id="g"></div>
+   <div class="callout" style="left:24px;top:480px;width:700px">
+     <p><span class="n">1</span><b>Resize:</b> drag the line between “Starts” and “Days”. Double-click it to fit the longest entry.</p>
+     <p><span class="n">2</span><b>Fold a column:</b> point at its header and click «. (Task can’t fold.)</p>
+     <p><span class="n">3</span><b>Folded column:</b> “Who” is folded to a thin strip. Click the strip to open it again.</p>
+     <p><span class="n">4</span><b>Table and timeline:</b> drag this line to share the room; « folds the table to just task names.</p>
+     <p style="margin-top:10px">Widths and folded columns are kept for next time.</p>
+   </div>
+  </div>`;
+gantt(document.getElementById('g'), {
+  rows: kitchen(), dayW: 9.6, sel: null, divider: true,
+  cols: [
+    { h: 'Task', w: 190, cell: t => t.name },
+    { h: 'Starts', w: 70, dim: true, cell: t => fmt(t.start), edge: true },
+    { h: 'Days', w: 64, dim: true, cell: t => t.len, chev: true },
+    { h: 'Who', w: 26, folded: true, cell: whoCell },
+    { h: '', w: 50, cell: t => t.notes ? `<span class="noteic">${ICON.note}${t.notes}</span>` : '' },
+  ],
+});
+const main = document.querySelector('.main'), mr = main.getBoundingClientRect();
+function mark(el, n, dx, dy) { const r = el.getBoundingClientRect(); const b = document.createElement('div'); b.className = 'num'; b.textContent = n; b.style.left = (r.left - mr.left + dx) + 'px'; b.style.top = (r.top - mr.top + dy) + 'px'; main.appendChild(b); }
+mark(document.querySelector('.edge .cur'), 1, -32, -1);
+mark(document.querySelector('.chev'), 2, -1, -30);
+mark(document.querySelectorAll('.fold-c')[2], 3, 1, 7);
+mark(document.querySelector('.dchev'), 4, 34, 1);
+</script></body></html>

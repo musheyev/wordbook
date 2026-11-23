@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="common.css"><script src="common.js"></script></head><body>
+<h1>C • Each task is a note</h1>
+<p class="sub">A project is a notebook whose notes have dates. The notes list sits in the side panel as usual; the page shows them as bars. Clicking a bar opens the note itself, with its dates on top: you write in it, tag it, link it, like any note.</p>
+<div class="frame" id="f"></div>
+<script>
+document.getElementById('f').innerHTML = side(`
+  <div class="shead">Kitchen remodel<span class="n">8</span><span class="plus">+</span></div>
+  ${kitchen().map(t => `<div class="item ${t.id === 'order' ? 'on' : ''}">${t.name}</div>`).join('')}`) +
+  `<div class="main"><div class="top"><h2>Kitchen remodel</h2><span class="meta">8 notes · ends Dec 31</span><span class="grow"></span><button class="btn primary">+ Note</button></div><div class="gantt" id="g"></div>
+   <div class="win" style="right:22px;top:455px;width:540px">
+     <div class="wh"><b>Order cabinets</b><span class="from">Kitchen remodel</span><span class="ibtn">${ICON.pen}</span><span class="ibtn">${ICON.full}</span><span class="ibtn">${ICON.close}</span></div>
+     <div class="wb">
+       <div class="frow" style="flex-wrap:wrap;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--border)"><span class="chip">Waits for Pick cabinets</span><span class="field locked">Nov 28</span>→<span class="field">14 days</span><span style="color:var(--ink-3)">ends Dec 12</span></div>
+       <div style="line-height:1.55;padding:8px 0 4px">Going with the local shop — shaker style, white oak.
+         <ul style="margin:6px 0;padding-left:20px"><li>Deposit 30% on order</li><li>Delivery 2 weeks, they call the day before</li><li>Ask about soft-close hinges</li></ul></div>
+       <div class="frow" style="gap:8px"><span class="chip gray"># kitchen</span><span class="addl">🔗 Add link</span><span class="chip gray">Cabinet quotes</span></div>
+     </div>
+   </div>
+  </div>`;
+gantt(document.getElementById('g'), { rows: kitchen(), dayW: 13, sel: 'order', labelsOnBars: true, cols: [] });
+</script></body></html>

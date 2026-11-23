@@ -50,6 +50,9 @@ const DYNAMO_TABLES = [
   'dictionary_classrooms',
   // Which notes link to which (api/note-links.js). PK user_name, SK link_key.
   'dictionary_note_links',
+  // My Projects: projects and their tasks (api/projects.js). PK user_name,
+  // SK item_key = "project#<id>" or "task#<project id>#<task id>".
+  'dictionary_projects',
   // A user's thumbs on dictionary sources (api/source-votes.js). PK user_name, SK word.
   'dictionary_word_source_votes',
   // Per-account preferences (api/user-settings.js). PK user_name.
