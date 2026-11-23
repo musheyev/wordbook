@@ -24,21 +24,57 @@ import { toDay, fromDay, weekday, todayDate } from '../utils/projectSchedule';
 // The table stays put when the timeline is scrolled sideways (position:
 // sticky). How wide a day is depends on the room there is: the whole span
 // fits when it can, and scrolls when a day would get narrower than MIN_DAY.
+//
+// The table's columns (decided):
+// - Drag the line at the right of a header to resize that column;
+//   double-click the line to fit the column to its longest entry.
+// - Point at a header and « folds that column into a thin strip with its
+//   name standing up; click the strip to open it again. Task can't fold.
+// - The line between the table and the timeline drags too (it resizes the
+//   Task column), and its « folds the whole table down to the task names;
+//   » brings the other columns back as they were.
+// The layout is kept on the account (actions: saveProjectsLayout).
 
 const ROW_H = 38;
 const HEAD_H = 46;
 const MIN_DAY = 6;
 const MAX_DAY = 36;
 
-/** The table's columns. Widths are fixed for now (resizing comes later). */
+/** The table's columns, with the widths they have until resized. */
 const COLUMNS = [
     { key: 'name', label: 'Task', width: 230 },
     { key: 'start', label: 'Starts', width: 74 },
     { key: 'days', label: 'Days', width: 52 },
     { key: 'who', label: 'Who', width: 150 },
-    { key: 'notes', label: '', width: 46 },
+    { key: 'notes', label: 'Notes', width: 58 },
 ];
-const TABLE_W = COLUMNS.reduce((sum, c) => sum + c.width, 0);
+const FOLDED_W = 26;                    // a folded column's strip
+const minWidth = (key) => (key === 'name' ? 100 : 40);
+const MAX_WIDTH = 600;
+const clampWidth = (key, w) => Math.round(Math.min(MAX_WIDTH, Math.max(minWidth(key), w)));
+const EMPTY_LAYOUT = { widths: {}, folded: [], tableFolded: false };
+
+/**
+ * The columns as they show now: each with its width `w`, and `folded`. With
+ * the whole table folded, only Task.
+ */
+function visibleColumns(layout, drag) {
+    return COLUMNS
+        .filter((c) => !layout.tableFolded || c.key === 'name')
+        .map((c) => {
+            const folded = c.key !== 'name' && layout.folded.includes(c.key);
+            const w = folded ? FOLDED_W : (drag && drag.key === c.key ? drag.width : (layout.widths[c.key] || c.width));
+            return { ...c, folded, w };
+        });
+}
+
+/** How wide a cell's content is, even when it's cut off (plus its padding). */
+function contentWidth(cell) {
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    const style = window.getComputedStyle(cell);
+    return range.getBoundingClientRect().width + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + 2;
+}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -112,14 +148,55 @@ function dayRange(placedList, today) {
  * @param {string|null} props.selectedId the task open in the task window
  * @param {(task) => void} props.onOpenTask
  * @param {(projectId) => void} [props.onToggleGroup]
+ * @param {{widths: object, folded: string[], tableFolded: boolean}} [props.layout]
+ *   the table's saved layout
+ * @param {(layout) => void} [props.onLayoutChange] a column was resized or folded
  */
-export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onToggleGroup }) {
+export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onToggleGroup, layout, onLayoutChange }) {
     const boxRef = useRef(null);
     const boxWidth = useWidth(boxRef);
     const today = toDay(todayDate());
+    // While a line is being dragged: { key, width }, shown before it's saved.
+    const [drag, setDrag] = useState(null);
+
+    const saved = { ...EMPTY_LAYOUT, ...(layout || {}) };
+    const cols = visibleColumns(saved, drag);
+    const tableW = cols.reduce((sum, c) => sum + c.w, 0);
+    const change = (next) => onLayoutChange && onLayoutChange({ ...saved, ...next });
+    const widthOf = (key) => cols.find((c) => c.key === key).w;
+
+    // Drag a line: the column's width follows the pointer; saved on letting go.
+    const startResize = (key) => (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startW = widthOf(key);
+        let width = startW;
+        const move = (ev) => { width = clampWidth(key, startW + ev.clientX - startX); setDrag({ key, width }); };
+        const up = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+            setDrag(null);
+            if (width !== startW) change({ widths: { ...saved.widths, [key]: width } });
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+    };
+    // Double-click a line: as wide as the column's longest entry (or its name).
+    const fit = (key) => () => {
+        const box = boxRef.current;
+        if (!box) return;
+        const widths = [...box.querySelectorAll(`[data-col="${key}"]`)].map(contentWidth);
+        if (!widths.length) return;
+        change({ widths: { ...saved.widths, [key]: clampWidth(key, Math.max(...widths)) } });
+    };
+    const fold = (key) => change({ folded: [...saved.folded, key] });
+    const unfold = (key) => change({ folded: saved.folded.filter((k) => k !== key) });
+    const toggleTable = () => change({ tableFolded: !saved.tableFolded });
 
     const range = useMemo(() => dayRange([...placed.values()], today), [placed, today]);
-    const room = Math.max(0, boxWidth - TABLE_W - 2);
+    const room = Math.max(0, boxWidth - tableW - 2);
     const dayW = Math.max(MIN_DAY, Math.min(MAX_DAY, room ? room / range.count : MIN_DAY));
     const timelineW = Math.round(range.count * dayW);
     const x = (date) => (toDay(date) - range.first) * dayW;
@@ -173,11 +250,28 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
     const todayX = (today - range.first) * dayW;
 
     return (
+        <div className={`pg-wrap${drag ? ' pg-wrap--dragging' : ''}`}>
         <div className="pg" ref={boxRef}>
-            <div className="pg__inner" style={{ width: TABLE_W + timelineW }}>
+            <div className="pg__inner" style={{ width: tableW + timelineW }}>
                 <div className="pg__head" style={{ height: HEAD_H }}>
-                    <div className="pg__cells pg__cells--head" style={{ width: TABLE_W }}>
-                        {COLUMNS.map((c) => <div key={c.key} className="pg__th" style={{ width: c.width }}>{c.label}</div>)}
+                    <div className="pg__cells pg__cells--head" style={{ width: tableW }}>
+                        {cols.map((c) => (c.folded ? (
+                            <button key={c.key} type="button" className="pg__th pg__th--folded" style={{ width: c.w }}
+                                title={`Show ${c.label}`} aria-label={`Show the ${c.label} column`} onClick={() => unfold(c.key)}>
+                                <span>{c.label}</span>
+                            </button>
+                        ) : (
+                            <div key={c.key} className="pg__th" style={{ width: c.w }}>
+                                <span className="pg__thlabel" data-col={c.key}>{c.label}</span>
+                                {c.key !== 'name' && (
+                                    <button type="button" className="pg__fold" title={`Fold ${c.label}`}
+                                        aria-label={`Fold the ${c.label} column`} onClick={() => fold(c.key)}>«</button>
+                                )}
+                                <span className="pg__grip" role="separator" aria-orientation="vertical"
+                                    aria-label={`Resize ${c.label}`} title="Drag to resize · double-click to fit"
+                                    onPointerDown={startResize(c.key)} onDoubleClick={fit(c.key)} />
+                            </div>
+                        )))}
                     </div>
                     <div className="pg-scale" style={{ width: timelineW }}>{marks}</div>
                 </div>
@@ -185,7 +279,7 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
                 <div className="pg__body">
                     {rows.map((r) => (r.kind === 'group' ? (
                         <div key={`g${r.project.id}`} className="pg__row pg__row--group" style={{ height: ROW_H }}>
-                            <div className="pg__cells" style={{ width: TABLE_W }}>
+                            <div className="pg__cells" style={{ width: tableW }}>
                                 <button type="button" className="pg__groupname" aria-expanded={!r.folded}
                                     onClick={() => onToggleGroup && onToggleGroup(r.project.id)}>
                                     <i className={`${r.folded ? 'caret right' : 'caret down'} icon`} aria-hidden="true"></i>
@@ -201,12 +295,12 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
                             </div>
                         </div>
                     ) : (
-                        <TaskRow key={r.task.id} row={r} dates={placed.get(r.task.id)} x={x} dayW={dayW}
+                        <TaskRow key={r.task.id} row={r} cols={cols} tableW={tableW} dates={placed.get(r.task.id)} x={x} dayW={dayW}
                             timelineW={timelineW} selected={r.task.id === selectedId} onOpen={onOpenTask} />
                     )))}
 
                     {/* Weekends, week lines, today and the arrows, over the timeline part. */}
-                    <div className="pg__overlay" style={{ left: TABLE_W, width: timelineW, height: rows.length * ROW_H }}>
+                    <div className="pg__overlay" style={{ left: tableW, width: timelineW, height: rows.length * ROW_H }}>
                         {backdrop}
                         {todayX >= 0 && todayX <= timelineW && (
                             <div className="pg-today" style={{ left: todayX + dayW / 2 }}><span>Today</span></div>
@@ -223,31 +317,57 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
                 </div>
             </div>
         </div>
+            {/* The line between the table and the timeline. It's outside the
+                part that scrolls, so it stays at the table's edge. */}
+            <div className="pg-divider" style={{ left: tableW }}>
+                <span className="pg-divider__grip" title="Drag to share the room · double-click to fit"
+                    onPointerDown={startResize('name')} onDoubleClick={fit('name')} />
+                <button type="button" className="pg-divider__btn" onClick={toggleTable}
+                    title={saved.tableFolded ? 'Show all the columns' : 'Fold the table to task names'}
+                    aria-label={saved.tableFolded ? 'Show all the columns' : 'Fold the table to task names'}>
+                    {saved.tableFolded ? '»' : '«'}
+                </button>
+            </div>
+        </div>
     );
 }
 
 /** One task: its cells in the table, its bar on the timeline. Click either to open it. */
-function TaskRow({ row, dates, x, dayW, timelineW, selected, onOpen }) {
+function TaskRow({ row, cols, tableW, dates, x, dayW, timelineW, selected, onOpen }) {
     const { task, color, indent } = row;
     const open = () => onOpen(task);
     const label = dates ? `${task.name}: ${shortDate(dates.start)} – ${shortDate(dates.end)}, ${task.days} ${task.days === 1 ? 'day' : 'days'}` : task.name;
     return (
         <div className={`pg__row${selected ? ' pg__row--on' : ''}`} style={{ height: ROW_H }}>
-            <div className="pg__cells" style={{ width: TABLE_W }}>
-                <button type="button" className="pg__td pg__taskname" style={{ width: COLUMNS[0].width, paddingLeft: indent ? 30 : 8 }}
-                    onClick={open} title={task.name}>
-                    {task.name}
-                </button>
-                <div className="pg__td pg__td--dim" style={{ width: COLUMNS[1].width }}>{dates ? shortDate(dates.start) : ''}</div>
-                <div className="pg__td pg__td--dim" style={{ width: COLUMNS[2].width }}>{task.days}</div>
-                <div className="pg__td" style={{ width: COLUMNS[3].width }}><Person name={task.who} /></div>
-                <div className="pg__td" style={{ width: COLUMNS[4].width }}>
-                    {task.notes && task.notes.length > 0 && (
-                        <span className="pg__notes" title={`${task.notes.length} linked ${task.notes.length === 1 ? 'note' : 'notes'}`}>
-                            <i className="file alternate outline icon" aria-hidden="true"></i>{task.notes.length}
-                        </span>
-                    )}
-                </div>
+            <div className="pg__cells" style={{ width: tableW }}>
+                {cols.map((c) => {
+                    if (c.folded) return <div key={c.key} className="pg__td pg__td--folded" style={{ width: c.w }} />;
+                    switch (c.key) {
+                        case 'name':
+                            return (
+                                <button key={c.key} type="button" className="pg__td pg__taskname" data-col="name"
+                                    style={{ width: c.w, paddingLeft: indent ? 30 : 8 }} onClick={open} title={task.name}>
+                                    {task.name}
+                                </button>
+                            );
+                        case 'start':
+                            return <div key={c.key} className="pg__td pg__td--dim" data-col="start" style={{ width: c.w }}>{dates ? shortDate(dates.start) : ''}</div>;
+                        case 'days':
+                            return <div key={c.key} className="pg__td pg__td--dim" data-col="days" style={{ width: c.w }}>{task.days}</div>;
+                        case 'who':
+                            return <div key={c.key} className="pg__td" data-col="who" style={{ width: c.w }}><Person name={task.who} /></div>;
+                        default:
+                            return (
+                                <div key={c.key} className="pg__td" data-col="notes" style={{ width: c.w }}>
+                                    {task.notes && task.notes.length > 0 && (
+                                        <span className="pg__notes" title={`${task.notes.length} linked ${task.notes.length === 1 ? 'note' : 'notes'}`}>
+                                            <i className="file alternate outline icon" aria-hidden="true"></i>{task.notes.length}
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                    }
+                })}
             </div>
             <div className="pg__track" style={{ width: timelineW }}>
                 {dates && (

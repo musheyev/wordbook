@@ -2,7 +2,8 @@
  * HTTP routes for My Projects (mounted at /projects in app.js). The logic
  * lives in ../projects.js.
  *
- *   GET    /projects                          -> { projects: [...], tasks: [...] }
+ *   GET    /projects                          -> { projects: [...], tasks: [...], layout }
+ *   PUT    /projects/layout          { widths, folded, tableFolded } -> layout (the table's columns)
  *   POST   /projects                { name }  -> project
  *   PUT    /projects/:projectId      { name }  -> project (renamed)
  *   DELETE /projects/:projectId               -> { ok: true }  (and all its tasks)
@@ -52,6 +53,11 @@ projectsRouter.get("/", handle(async (req, res) => {
 
 projectsRouter.post("/", handle(async (req, res) => {
     res.json(await projects.createProject(req.userName, req.body));
+}));
+
+// Before "/:projectId", or "layout" would be taken for a project's id.
+projectsRouter.put("/layout", handle(async (req, res) => {
+    res.json(await projects.setLayout(req.userName, req.body));
 }));
 
 projectsRouter.put("/:projectId", handle(async (req, res) => {

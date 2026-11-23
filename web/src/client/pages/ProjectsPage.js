@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchProjects, createProject, renameProject, deleteProject } from '../actions';
+import { fetchProjects, createProject, renameProject, deleteProject, saveProjectsLayout } from '../actions';
 import { schedule, span } from '../utils/projectSchedule';
 import { ComputerOnly } from '../utils/computerOnly';
 import ProjectGantt, { projectColor, shortDate } from '../components/ProjectGantt';
@@ -164,7 +164,8 @@ function Projects() {
                 </div>
             ) : (
                 <ProjectGantt rows={rows} placed={placed} selectedId={windowFor && windowFor.task ? windowFor.task.id : null}
-                    onOpenTask={(task) => setWindowFor({ projectId: task.projectId, task })} onToggleGroup={toggleGroup} />
+                    onOpenTask={(task) => setWindowFor({ projectId: task.projectId, task })} onToggleGroup={toggleGroup}
+                    layout={data.layout} onLayoutChange={(next) => dispatch(saveProjectsLayout(next))} />
             )}
 
             {windowFor && (
