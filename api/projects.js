@@ -202,12 +202,13 @@ async function getProjectRow(userName, projectId) {
 const projectTaskRows = (userName, projectId) => readRows(userName, `task#${projectId}#`);
 
 /**
- * All the user's projects and tasks (GET /projects). Projects oldest first;
+ * All the user's projects and tasks, and the table's column layout
+ * (GET /projects). Projects oldest first;
  * tasks in their order. Each linked note comes with its title now; notes
  * deleted since are left out (the link quietly goes away).
  *
  * @param {string} userName
- * @returns {Promise<{projects: object[], tasks: object[]}>}
+ * @returns {Promise<{projects: object[], tasks: object[], layout: object}>}
  */
 async function listAll(userName) {
     const rows = await readRows(userName);
@@ -223,7 +224,7 @@ async function listAll(userName) {
             .filter((n) => n.type === "word" || n.id in titles)
             .map((n) => ({ ...n, title: n.type === "card" ? titles[n.id] : n.id }));
     });
-    return { projects, tasks };
+    return { projects, tasks, layout: await getLayout(userName) };
 }
 
 /** Make a project (POST /projects). */
@@ -364,6 +365,58 @@ async function deleteTask(userName, projectId, taskId, starts) {
     return { changed };
 }
 
+// ---- Column layout ----------------------------------------------------------
+// How the chart's table looks: each column's width, which columns are folded
+// to a thin strip, and whether the whole table is folded to task names.
+// Kept on the account (one map on the user's settings row,
+// `dictionary_user_settings`.projects_layout), so it's the same on every
+// computer. Example:
+//   { widths: { name: 260, who: 120 }, folded: ["days"], tableFolded: false }
+const SETTINGS_TABLE = "dictionary_user_settings";
+const LAYOUT_COLUMNS = ["name", "start", "days", "who", "notes"];
+const FOLDABLE = ["start", "days", "who", "notes"];   // the Task column can't fold
+const MIN_WIDTH = { name: 100 };
+const MIN_ANY = 40;
+const MAX_WIDTH = 600;
+
+/**
+ * Checks a layout as sent by the web app; unknown columns and odd values are
+ * dropped rather than refused (it's only how the table looks). Pure.
+ */
+function cleanLayout(input) {
+    const body = input && typeof input === "object" ? input : {};
+    const widths = {};
+    const given = body.widths && typeof body.widths === "object" ? body.widths : {};
+    LAYOUT_COLUMNS.forEach((key) => {
+        const w = Math.round(Number(given[key]));
+        if (Number.isFinite(w)) widths[key] = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH[key] || MIN_ANY, w));
+    });
+    const folded = Array.isArray(body.folded) ? [...new Set(body.folded.filter((k) => FOLDABLE.includes(k)))] : [];
+    return { widths, folded, tableFolded: body.tableFolded === true };
+}
+
+/** The saved layout, or the empty one (the app's own widths) if none. */
+async function getLayout(userName) {
+    const data = await db().get({
+        TableName: SETTINGS_TABLE,
+        Key: { user_name: userName },
+        ProjectionExpression: "projects_layout",
+    }).promise();
+    return cleanLayout(data.Item && data.Item.projects_layout);
+}
+
+/** Save the layout (PUT /projects/layout); returns it as stored. */
+async function setLayout(userName, body) {
+    const layout = cleanLayout(body);
+    await db().update({
+        TableName: SETTINGS_TABLE,
+        Key: { user_name: userName },
+        UpdateExpression: "SET projects_layout = :l",
+        ExpressionAttributeValues: { ":l": layout },
+    }).promise();
+    return layout;
+}
+
 module.exports = {
     listAll,
     createProject,
@@ -376,4 +429,7 @@ module.exports = {
     makesLoop,
     isDate,
     ProjectError,
+    cleanLayout,
+    getLayout,
+    setLayout,
 };

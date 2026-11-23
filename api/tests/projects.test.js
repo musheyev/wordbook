@@ -162,3 +162,18 @@ test("linked notes come with titles; deleted notes drop off", async () => {
         { type: "word", id: "hola", title: "hola" },
     ]);
 });
+
+test("cleanLayout keeps only sensible widths and foldable columns", () => {
+    assert.deepEqual(projects.cleanLayout({
+        widths: { name: 20, who: 180.4, days: 9999, bogus: 50 },
+        folded: ["who", "name", "who", "nope"],
+        tableFolded: "yes",
+    }), { widths: { name: 100, who: 180, days: 600 }, folded: ["who"], tableFolded: false });
+    assert.deepEqual(projects.cleanLayout(null), { widths: {}, folded: [], tableFolded: false });
+});
+
+test("the layout is saved on the account and comes back with GET /projects", async () => {
+    assert.deepEqual((await projects.listAll(USER)).layout, { widths: {}, folded: [], tableFolded: false });
+    await projects.setLayout(USER, { widths: { who: 120 }, folded: ["days"], tableFolded: true });
+    assert.deepEqual((await projects.listAll(USER)).layout, { widths: { who: 120 }, folded: ["days"], tableFolded: true });
+});

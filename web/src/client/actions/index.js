@@ -1723,6 +1723,7 @@ export const PROJECT_SAVED = 'project_saved';
 export const PROJECT_DELETED = 'project_deleted';
 export const TASKS_SAVED = 'tasks_saved';
 export const TASK_DELETED = 'task_deleted';
+export const PROJECTS_LAYOUT_SET = 'projects_layout_set';
 
 // The server answers refusals as { error: "…" }; show its words when it sent some.
 const projectsCall = async (call, fallback) => {
@@ -1794,4 +1795,17 @@ export const deleteTask = (projectId, taskId, starts) => async (dispatch, getSta
   dispatch({ type: TASK_DELETED, payload: taskId });
   const old = (getState().projects && getState().projects.tasks) || [];
   dispatch({ type: TASKS_SAVED, payload: changed.map((t) => ({ ...t, notes: (old.find((o) => o.id === t.id) || t).notes })) });
+};
+
+/**
+ * Save the chart table's layout ({ widths, folded, tableFolded }) on the
+ * account. Shown at once; if saving fails it still applies on this page.
+ */
+export const saveProjectsLayout = (layout) => async (dispatch, getState, api) => {
+  dispatch({ type: PROJECTS_LAYOUT_SET, payload: layout });
+  try {
+    await api.put('/projects/layout', layout, JSON_HEADERS);
+  } catch (err) {
+    // Only how the table looks: keep it for now, it'll be tried again next change.
+  }
 };
