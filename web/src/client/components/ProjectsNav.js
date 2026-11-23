@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProjects, createProject } from '../actions';
 import { useIsComputer } from '../utils/computerOnly';
+import { site } from '../utils/site';
 
 // "My Projects" in the desktop side panel (Header), as a tree like My
 // Classrooms (it uses the same look, ClassroomsNav's classes):
@@ -19,7 +20,8 @@ import { useIsComputer } from '../utils/computerOnly';
 // makes the project and opens it, Escape cancels.
 //
 // Computers only (decided): on phones and in the iPhone app there's no link
-// at all, and the pages say to use a computer.
+// at all, and the pages say to use a computer. And myremembrancer.com only
+// (decided): makeyourwordbook.com shows no link (utils/site.js `projects`).
 const OPEN_KEY = 'nav-projects-open';
 export const PROJECTS_PATH = '/projects';
 export const projectPath = (id) => `${PROJECTS_PATH}/${encodeURIComponent(id)}`;
@@ -47,11 +49,11 @@ export default function ProjectsNav({ signedIn, collapsed }) {
 
     // Loaded once; saves keep the store up to date after that.
     useEffect(() => {
-        if (signedIn && isComputer && data === null) dispatch(fetchProjects()).catch(() => {});
+        if (site.projects && signedIn && isComputer && data === null) dispatch(fetchProjects()).catch(() => {});
     }, [signedIn, isComputer, data, dispatch]);
     useEffect(() => { if (adding && inputRef.current) inputRef.current.focus(); }, [adding]);
 
-    if (!signedIn || !isComputer) return null;
+    if (!site.projects || !signedIn || !isComputer) return null;
 
     const toggle = () => {
         const next = !open;
