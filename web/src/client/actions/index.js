@@ -1713,3 +1713,85 @@ export const saveClassroomItem = (id, itemId, target) => async (dispatch, getSta
 /** A notebook's items ([{ type, id, title }]) for the teacher's Add picker, without touching the open notebook. */
 export const fetchNotebookItemsFor = (name) => async (dispatch, getState, api) =>
   teacherCall(() => api.post('/wordbook/words', { wordbook: name }, JSON_HEADERS), "Couldn't load that notebook.");
+
+// ---- My Projects (api/projects.js; pages/ProjectsPage.js) ------------------
+// The store keeps { projects, tasks } as the server sends them (null until
+// loaded). Start and end dates aren't stored: utils/projectSchedule.js works
+// them out from each task's days and "waits for" whenever the chart is drawn.
+export const SET_PROJECTS = 'set_projects';
+export const PROJECT_SAVED = 'project_saved';
+export const PROJECT_DELETED = 'project_deleted';
+export const TASKS_SAVED = 'tasks_saved';
+export const TASK_DELETED = 'task_deleted';
+
+// The server answers refusals as { error: "…" }; show its words when it sent some.
+const projectsCall = async (call, fallback) => {
+  try {
+    return (await call()).data;
+  } catch (err) {
+    const said = err.response && err.response.data && err.response.data.error;
+    throw new Error(said || fallback);
+  }
+};
+const pid = (id) => encodeURIComponent(id);
+
+/** Load every project and task. */
+export const fetchProjects = () => async (dispatch, getState, api) => {
+  const data = await projectsCall(() => api.get('/projects'), "Couldn't load your projects.");
+  dispatch({ type: SET_PROJECTS, payload: data });
+  return data;
+};
+
+/** A new project, named. Resolves to the project ({ id, name, created_at }). */
+export const createProject = (name) => async (dispatch, getState, api) => {
+  const project = await projectsCall(() => api.post('/projects', { name }, JSON_HEADERS), "Couldn't make the project.");
+  dispatch({ type: PROJECT_SAVED, payload: project });
+  return project;
+};
+
+export const renameProject = (id, name) => async (dispatch, getState, api) => {
+  const project = await projectsCall(() => api.put(`/projects/${pid(id)}`, { name }, JSON_HEADERS), "Couldn't rename the project.");
+  dispatch({ type: PROJECT_SAVED, payload: project });
+  return project;
+};
+
+/** Deletes the project and its tasks (the page asks first). */
+export const deleteProject = (id) => async (dispatch, getState, api) => {
+  await projectsCall(() => api.delete(`/projects/${pid(id)}`), "Couldn't delete the project.");
+  dispatch({ type: PROJECT_DELETED, payload: id });
+};
+
+/**
+ * Save a task: a new one (no `task.id`) or a change (the whole task is sent).
+ * Linked notes go up as [{ type, id }]; their titles stay on the copy here.
+ */
+export const saveTask = (projectId, task) => async (dispatch, getState, api) => {
+  const body = {
+    name: task.name, days: task.days, after: task.after || [], start: task.start || null,
+    who: task.who || '', notes: (task.notes || []).map(({ type, id }) => ({ type, id })), order: task.order,
+  };
+  const saved = await projectsCall(
+    () => (task.id
+      ? api.put(`/projects/${pid(projectId)}/tasks/${pid(task.id)}`, body, JSON_HEADERS)
+      : api.post(`/projects/${pid(projectId)}/tasks`, body, JSON_HEADERS)),
+    "Couldn't save the task.",
+  );
+  // The server doesn't send titles back on a save: keep the ones we have.
+  const withTitles = { ...saved, notes: saved.notes.map((n) => (task.notes || []).find((m) => m.type === n.type && m.id === n.id) || n) };
+  dispatch({ type: TASKS_SAVED, payload: [withTitles] });
+  return withTitles;
+};
+
+/**
+ * Delete a task. `starts`: for tasks that waited only for it, the start they
+ * have now, so they stay put (projectSchedule.startsAfterDeleting).
+ */
+export const deleteTask = (projectId, taskId, starts) => async (dispatch, getState, api) => {
+  const { changed } = await projectsCall(
+    () => api.delete(`/projects/${pid(projectId)}/tasks/${pid(taskId)}`, { data: { starts }, ...JSON_HEADERS }),
+    "Couldn't delete the task.",
+  );
+  dispatch({ type: TASK_DELETED, payload: taskId });
+  const old = (getState().projects && getState().projects.tasks) || [];
+  dispatch({ type: TASKS_SAVED, payload: changed.map((t) => ({ ...t, notes: (old.find((o) => o.id === t.id) || t).notes })) });
+};

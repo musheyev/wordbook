@@ -12,6 +12,7 @@ import { notebookFromPathname, isItemPathname } from '../utils/notebookPaths';
 import { ADMIN_PAGES, TEACHER_REQUESTS_CHANGED } from '../utils/adminPages';
 import { site } from '../utils/site';
 import ClassroomsNav, { useClassroomsSummary } from './ClassroomsNav';
+import ProjectsNav from './ProjectsNav';
 import NewNotePopup from './NewNotePopup';
 import TagItemList from './TagItemList';
 import BrowseNotebookList from './BrowseNotebookList';
@@ -321,6 +322,9 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
                         <span className="nav-label">My Bookmarks</span>
                     </NavLink>
                 )}
+
+                {/* My Projects, as a tree: computers only, never on phones. */}
+                <ProjectsNav signedIn={userExists} collapsed={collapsed} />
 
                 {/* My Quizzes (admins for now): in the desktop rail; on phones, in More. */}
                 {userExists && isAdmin && (

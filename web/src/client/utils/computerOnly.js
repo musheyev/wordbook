@@ -33,8 +33,11 @@ export function useIsComputer() {
 /**
  * The page on a computer; elsewhere: "Teacher tools work on a computer. Open
  * https://makeyourwordbook.com/teacher on your computer."
+ *
+ * @param {string} [title] the first line, for pages other than teacher
+ *   tools (My Projects: "My Projects works on a computer.")
  */
-export function ComputerOnly({ children }) {
+export function ComputerOnly({ children, title = 'Teacher tools work on a computer.' }) {
     const isComputer = useIsComputer();
     const location = useLocation();
     if (isComputer) return children;
@@ -42,7 +45,7 @@ export function ComputerOnly({ children }) {
     return (
         <div className="computer-only">
             <i className="desktop icon computer-only__icon" aria-hidden="true"></i>
-            <p className="computer-only__title">Teacher tools work on a computer.</p>
+            <p className="computer-only__title">{title}</p>
             <p className="computer-only__text">
                 Open <span className="computer-only__url">{address}</span> on your computer.
             </p>

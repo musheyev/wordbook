@@ -11,6 +11,7 @@ import TagViewPage from './pages/TagViewPage';
 import QuizzesPage from './pages/QuizzesPage';
 import NoteLinkPage from './pages/NoteLinkPage';
 import BookmarksPage from './pages/BookmarksPage';
+import ProjectsPage from './pages/ProjectsPage';
 import MorePage from './pages/MorePage';
 import PrivacyPage from './pages/PrivacyPage';
 import SupportPage from './pages/SupportPage';
@@ -107,6 +108,8 @@ export const routes = [
       { path: 'tag/:tag/:type/:id', Component: TagViewPage },
       { path: 'quizzes', Component: QuizzesPage },
       { path: 'bookmarks', Component: BookmarksPage },
+      { path: 'projects', Component: ProjectsPage },
+      { path: 'projects/:projectId', Component: ProjectsPage },
       // A note link's address (utils/noteLinks.js): opens the note in a notebook.
       { path: 'note/:type/:id', Component: NoteLinkPage },
       { path: 'more', Component: MorePage },
