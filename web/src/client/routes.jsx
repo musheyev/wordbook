@@ -20,7 +20,7 @@ import Spinner from './components/Spinner';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from './utils/cognito';
 import { isNativeApp } from './native/platform';
 import { nativeSignIn } from './native/auth';
-import { isRemembrancer } from './utils/site';
+import { isRemembrancer, site } from './utils/site';
 import { placeToRestore } from './utils/lastPlace';
 
 // The original /login and /signup "routes" ran window.location during render,
@@ -108,8 +108,12 @@ export const routes = [
       { path: 'tag/:tag/:type/:id', Component: TagViewPage },
       { path: 'quizzes', Component: QuizzesPage },
       { path: 'bookmarks', Component: BookmarksPage },
-      { path: 'projects', Component: ProjectsPage },
-      { path: 'projects/:projectId', Component: ProjectsPage },
+      // My Projects is on myremembrancer.com only; elsewhere these
+      // addresses fall through to "not found".
+      ...(site.projects ? [
+        { path: 'projects', Component: ProjectsPage },
+        { path: 'projects/:projectId', Component: ProjectsPage },
+      ] : []),
       // A note link's address (utils/noteLinks.js): opens the note in a notebook.
       { path: 'note/:type/:id', Component: NoteLinkPage },
       { path: 'more', Component: MorePage },

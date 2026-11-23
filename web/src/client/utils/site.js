@@ -26,6 +26,8 @@ const SITES = {
         // The address people write to, shown on /support and /privacy.
         email: 'makeyourwordbook@gmail.com',
         domain: 'makeyourwordbook.com',
+        // My Projects (pages/ProjectsPage.js) is on Remembrancer only.
+        projects: false,
     },
     remembrancer: {
         key: 'remembrancer',
@@ -38,6 +40,9 @@ const SITES = {
         // be split later).
         email: 'makeyourwordbook@gmail.com',
         domain: 'myremembrancer.com',
+        // My Projects: here only, and only on a computer (never in the
+        // iPhone app or on phones; utils/computerOnly.js).
+        projects: true,
     },
 };
 
@@ -67,7 +72,7 @@ function detect() {
 }
 
 /**
- * This site: { key, name, icon, nav, wordsPath, homePath, email, domain }.
+ * This site: { key, name, icon, nav, wordsPath, homePath, email, domain, projects }.
  * Decided once, when the page loads.
  */
 export const site = detect();
