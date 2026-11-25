@@ -35,11 +35,12 @@ import ConfirmDialog from './ConfirmDialog';
  * @param {Array<{id, name}>} props.projects for choosing the project of a new
  *   task (on "All projects")
  * @param {Array} props.allTasks every task (for the names offered under Who)
+ * @param {Array<{date, name}>} [props.holidays] skipped like weekends in the dates shown
  * @param {boolean} [props.chooseProject] a new task can go in any project
  *   (on "All projects"); on a project's own page it goes in that one
  * @param {() => void} props.onClose
  */
-export default function ProjectTaskWindow({ target, projects, allTasks, chooseProject = false, onClose }) {
+export default function ProjectTaskWindow({ target, projects, allTasks, chooseProject = false, holidays = [], onClose }) {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const isNew = !target.task;
@@ -67,7 +68,7 @@ export default function ProjectTaskWindow({ target, projects, allTasks, choosePr
     const selfId = draft.id || '(new)';
     // The project as it would be with this draft saved: for the dates shown here.
     const withDraft = useMemo(() => [...others, { ...draft, id: selfId }], [others, draft, selfId]);
-    const placed = useMemo(() => schedule(withDraft), [withDraft]);
+    const placed = useMemo(() => schedule(withDraft, { holidays }), [withDraft, holidays]);
     const mine = placed.get(selfId);
     const nameOf = (id) => (others.find((t) => t.id === id) || {}).name || '';
     const set = (fields) => setDraft((d) => ({ ...d, ...fields }));
@@ -117,7 +118,7 @@ export default function ProjectTaskWindow({ target, projects, allTasks, choosePr
         setSaving(true);
         try {
             const projectTasks = allTasks.filter((t) => t.projectId === projectId);
-            await dispatch(deleteTask(projectId, draft.id, startsAfterDeleting(projectTasks, draft.id)));
+            await dispatch(deleteTask(projectId, draft.id, startsAfterDeleting(projectTasks, draft.id, { holidays })));
             onClose();
         } catch (err) {
             setError(err.message);

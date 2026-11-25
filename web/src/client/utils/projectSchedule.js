@@ -12,6 +12,10 @@
 // spans the weekend in between. A start that falls on a weekend moves to the
 // Monday.
 //
+// Holidays count exactly like weekends (decided): the user keeps one list of
+// dates for all their projects, and those days are skipped too. Every
+// function below takes them as `off`, a Set of day numbers (holidaySet).
+//
 // Dates come and go as "YYYY-MM-DD" strings. Inside, each date is a day
 // number: days since 1 Jan 1970, counted in UTC so time zones and
 // daylight-saving changes can't shift a date by one.
@@ -47,12 +51,24 @@ export function todayDate() {
 /** 0 = Sunday … 6 = Saturday. Day 0 (1 Jan 1970) was a Thursday. */
 export const weekday = (day) => (((day + 4) % 7) + 7) % 7;
 
-export const isWorkday = (day) => weekday(day) !== 0 && weekday(day) !== 6;
+const NO_DAYS_OFF = new Set();
 
-/** The day itself if it's a workday, else the Monday after. */
-export function nextWorkday(day) {
+/**
+ * The holidays as day numbers, for the functions here.
+ * @param {Array<string|{date: string}>} [holidays] "YYYY-MM-DD" or { date, name }
+ */
+export function holidaySet(holidays) {
+    return new Set((holidays || []).map((h) => toDay(typeof h === 'string' ? h : h.date)));
+}
+
+/** Not a Saturday, a Sunday or a holiday. */
+export const isWorkday = (day, off = NO_DAYS_OFF) => weekday(day) !== 0 && weekday(day) !== 6 && !off.has(day);
+
+/** The day itself if it's a workday, else the next one. */
+export function nextWorkday(day, off = NO_DAYS_OFF) {
     let d = day;
-    while (!isWorkday(d)) d += 1;
+    // A guard against a list that blocks every day (it can't, but never loop forever).
+    for (let n = 0; !isWorkday(d, off) && n < 3660; n += 1) d += 1;
     return d;
 }
 
@@ -60,9 +76,9 @@ export function nextWorkday(day) {
  * The last workday of a task that starts on `start` and takes `days`
  * workdays (the start day counts as the first).
  */
-export function endDay(start, days) {
-    let d = nextWorkday(start);
-    for (let left = Math.max(1, days) - 1; left > 0; left -= 1) d = nextWorkday(d + 1);
+export function endDay(start, days, off = NO_DAYS_OFF) {
+    let d = nextWorkday(start, off);
+    for (let left = Math.max(1, days) - 1; left > 0; left -= 1) d = nextWorkday(d + 1, off);
     return d;
 }
 
@@ -71,11 +87,13 @@ export function endDay(start, days) {
  *
  * @param {Array<{id: string, days: number, after?: string[], start?: string|null}>} tasks
  *   one project's tasks (or several projects': ids are unique)
- * @param {{today?: string}} [options] the date used for a task with no start
- *   (only possible with damaged data); defaults to today
+ * @param {{today?: string, holidays?: Array}} [options] `today`: the date used
+ *   for a task with no start (only possible with damaged data), defaults to
+ *   today; `holidays`: days skipped like weekends ("YYYY-MM-DD" or { date })
  * @returns {Map<string, {start: string, end: string}>}
  */
-export function schedule(tasks, { today = todayDate() } = {}) {
+export function schedule(tasks, { today = todayDate(), holidays = [] } = {}) {
+    const off = holidaySet(holidays);
     const byId = new Map(tasks.map((t) => [t.id, t]));
     const days = new Map();         // id → { start, end } as day numbers
     const working = new Set();      // ids being worked out right now (to stop at a loop)
@@ -89,11 +107,11 @@ export function schedule(tasks, { today = todayDate() } = {}) {
         let start;
         if (before.length) {
             const lastEnd = Math.max(...before.map((t) => place(t).end));
-            start = nextWorkday(lastEnd + 1);
+            start = nextWorkday(lastEnd + 1, off);
         } else {
-            start = nextWorkday(toDay(task.start || today));
+            start = nextWorkday(toDay(task.start || today), off);
         }
-        const placed = { start, end: endDay(start, task.days) };
+        const placed = { start, end: endDay(start, task.days, off) };
         working.delete(task.id);
         days.set(task.id, placed);
         return placed;

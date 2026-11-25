@@ -13,6 +13,7 @@ import { schedule, span } from '../utils/projectSchedule';
 import { ComputerOnly } from '../utils/computerOnly';
 import ProjectGantt, { projectColor, shortDate } from '../components/ProjectGantt';
 import ProjectTaskWindow from '../components/ProjectTaskWindow';
+import ProjectHolidays from '../components/ProjectHolidays';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Spinner from '../components/Spinner';
 import { PROJECTS_PATH, projectPath } from '../components/ProjectsNav';
@@ -65,6 +66,8 @@ function Projects() {
     const [picked, setPicked] = useState(null);
     // Renaming a group: its id.
     const [renamingGroup, setRenamingGroup] = useState(null);
+    const [showHolidays, setShowHolidays] = useState(false);
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
         if (data === null) dispatch(fetchProjects()).catch((err) => setLoadError(err.message));
@@ -75,23 +78,25 @@ function Projects() {
     const projects = data ? data.projects : [];
     const tasks = data ? data.tasks : [];
     const groups = (data && data.groups) || [];
+    const holidays = (data && data.holidays) || [];
     const project = projectId ? projects.find((p) => p.id === projectId) : null;
     const colorOf = (id) => projectColor(Math.max(0, projects.findIndex((p) => p.id === id)));
-    const placed = useMemo(() => schedule(tasks), [tasks]);
+    const placed = useMemo(() => schedule(tasks, { holidays }), [tasks, holidays]);
 
     const foldedSet = useMemo(() => new Set(folded), [folded]);
     // This project's list (groups and tasks in order), and the rows shown.
     const arr = useMemo(() => (projectId ? arrangement(projectId, tasks, groups) : null), [projectId, tasks, groups]);
     const dragRows = useMemo(() => (arr ? visibleRows(arr, foldedSet) : null), [arr, foldedSet]);
 
-    const rows = useMemo(() => {
+    /** The chart's rows with these groups and projects folded. */
+    const buildRows = (fset) => {
         const taskById = new Map(tasks.map((t) => [t.id, t]));
         const groupById = new Map(groups.map((g) => [g.id, g]));
         /** The rows of one project, its groups and tasks one level in from `level`. */
         const projectRows = (pid, level, editable) => {
             const color = colorOf(pid);
             const a = pid === projectId && arr ? arr : arrangement(pid, tasks, groups);
-            return visibleRows(a, foldedSet).map((r) => {
+            return visibleRows(a, fset).map((r) => {
                 if (r.type === 'task') return { kind: 'task', task: taskById.get(r.id), color, level: level + (r.group ? 1 : 0) };
                 const memberTasks = (a.groups[r.id] || []).map((t) => taskById.get(t.id));
                 return {
@@ -105,7 +110,7 @@ function Projects() {
         const out = [];
         projects.forEach((p) => {
             const mine = tasks.filter((t) => t.projectId === p.id);
-            const isFolded = foldedSet.has(p.id);
+            const isFolded = fset.has(p.id);
             out.push({
                 kind: 'group', key: p.id, name: p.name, level: 0, folded: isFolded, editable: false,
                 count: mine.length, members: mine.map((t) => t.id), memberTasks: mine, span: span(placed, mine.map((t) => t.id)),
@@ -113,9 +118,10 @@ function Projects() {
             if (!isFolded) out.push(...projectRows(p.id, 1, false));
         });
         return out;
-    // colorOf only depends on projects
+    };
+    // buildRows only depends on these
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [projectId, projects, tasks, groups, foldedSet, placed, arr]);
+    const rows = useMemo(() => buildRows(foldedSet), [projectId, projects, tasks, groups, foldedSet, placed, arr]);
 
     // Save a new arrangement of this project (dragging, Put in group, Take out).
     const saveArrangement = (next) => {
@@ -150,6 +156,26 @@ function Projects() {
         saveArrangement(putInGroup({ top, groups: { ...arr.groups, [group.id]: [] } }, ids, group.id));
         setPicked(new Set());
     };
+    // Export to Excel: the chart as it is now (this project, or all of them),
+    // drawn in cells (utils/projectExcel.js, loaded only when asked for).
+    const exportExcel = async () => {
+        setExporting(true);
+        setError('');
+        try {
+            const { downloadProjectExcel } = await import('../utils/projectExcel');
+            await downloadProjectExcel({
+                title: project ? project.name : 'My Projects',
+                // Every row, folded or not: what's folded here is folded in Excel too.
+                rows: buildRows(new Set()),
+                folded: foldedSet,
+                placed, holidays,
+            });
+        } catch (err) {
+            setError('Couldn’t make the Excel file. Please try again.');
+        }
+        setExporting(false);
+    };
+
     const onGroupAction = (groupId, action) => {
         if (action === 'rename') setRenamingGroup(groupId);
         else dispatch(ungroupTaskGroup(projectId, groupId)).catch((err) => setError(err.message));
@@ -230,6 +256,16 @@ function Projects() {
                 ) : (
                     <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setNaming('new')}>+ Project</button>
                 )}
+                <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setShowHolidays(true)}
+                    title="Days skipped like weekends in all projects">
+                    <i className="calendar alternate outline icon" aria-hidden="true"></i>Holidays
+                </button>
+                {rows.length > 0 && (
+                    <button type="button" className="cb-btn cb-btn--ghost" onClick={exportExcel} disabled={exporting}
+                        title="Download this chart as an Excel file">
+                        <i className="file excel outline icon" aria-hidden="true"></i>{exporting ? 'Exporting…' : 'Export to Excel'}
+                    </button>
+                )}
                 {projects.length > 0 && <button type="button" className="cb-btn cb-btn--accent" onClick={newTask}>+ Task</button>}
             </div>
             {error && <div className="cb-sheet__error" role="alert">{error}</div>}
@@ -256,12 +292,12 @@ function Projects() {
                     layout={data.layout} onLayoutChange={(next) => dispatch(saveProjectsLayout(next))}
                     selection={selection}
                     dragRows={projectId ? dragRows : null} onDrop={projectId ? onDrop : null}
-                    onGroupAction={projectId ? onGroupAction : null} />
+                    onGroupAction={projectId ? onGroupAction : null} holidays={holidays} />
             )}
 
             {windowFor && (
                 <ProjectTaskWindow key={windowFor.task ? windowFor.task.id : `new:${windowFor.projectId}`}
-                    target={windowFor} projects={projects} allTasks={tasks} chooseProject={!projectId}
+                    target={windowFor} projects={projects} allTasks={tasks} chooseProject={!projectId} holidays={holidays}
                     onClose={() => setWindowFor(null)} />
             )}
 
@@ -271,6 +307,7 @@ function Projects() {
                     confirmLabel={naming === 'new' ? 'Make project' : 'Rename'}
                     onSave={saveName} onCancel={() => setNaming(null)} />
             )}
+            {showHolidays && <ProjectHolidays holidays={holidays} onClose={() => setShowHolidays(false)} />}
             {renamingGroup && (
                 <NameDialog title="Rename group" placeholder="Group name"
                     initial={(groups.find((g) => g.id === renamingGroup) || {}).name || ''} confirmLabel="Rename"

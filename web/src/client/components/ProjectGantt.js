@@ -171,10 +171,11 @@ function dayRange(placedList, today) {
  *   them (same order as `rows`); with `onDrop`, tasks and groups can be dragged
  * @param {(dragged: {type, id}, place) => void} [props.onDrop] where it landed
  * @param {(groupId, action: 'rename'|'ungroup') => void} [props.onGroupAction] a group's ⋯
+ * @param {Array<{date, name}>} [props.holidays] shaded like weekends, named on hover
  */
 export default function ProjectGantt({
     rows, placed, selectedId, onOpenTask, onToggleGroup, layout, onLayoutChange,
-    selection, dragRows, onDrop, onGroupAction,
+    selection, dragRows, onDrop, onGroupAction, holidays = [],
 }) {
     const boxRef = useRef(null);
     const boxWidth = useWidth(boxRef);
@@ -273,6 +274,9 @@ export default function ProjectGantt({
     const timelineW = Math.round(range.count * dayW);
     const x = (date) => (toDay(date) - range.first) * dayW;
 
+    // Holidays (all projects): skipped like weekends, shaded like them, and
+    // marked on the dates row with their name on hover.
+    const holidayMarks = new Map(holidays.map((h) => [toDay(h.date), h.name || 'Holiday']));
     // Month names over the 1st of each month (and the first day shown); the
     // day of the month over each Monday.
     const marks = [];
@@ -285,13 +289,21 @@ export default function ProjectGantt({
             marks.push(<span key={`m${i}`} className="pg-scale__month" style={{ left: i * dayW + 3 }}>{MONTHS[Number(date.slice(5, 7)) - 1]}{year}</span>);
         }
         if (weekday(day) === 1) marks.push(<span key={`w${i}`} className="pg-scale__week" style={{ left: i * dayW + 3 }}>{dom}</span>);
+        if (holidayMarks.has(day)) {
+            marks.push(<span key={`h${i}`} className="pg-scale__holiday" title={`${holidayMarks.get(day)} (${shortDate(date)})`} style={{ left: i * dayW, width: Math.max(dayW, 4) }} />);
+        }
     }
 
-    // Shading for weekends, and a line at each Monday.
+    // Shading for weekends and holidays, and a line at each Monday.
+    const holidayOn = holidayMarks;
     const backdrop = [];
     for (let i = 0; i < range.count; i += 1) {
         const wd = weekday(range.first + i);
         if (wd === 6) backdrop.push(<div key={`we${i}`} className="pg-weekend" style={{ left: i * dayW, width: dayW * 2 }} />);
+        if (holidayOn.has(range.first + i) && wd !== 0 && wd !== 6) {
+            backdrop.push(<div key={`ho${i}`} className="pg-weekend pg-holiday" title={`${holidayOn.get(range.first + i)} (${shortDate(fromDay(range.first + i))})`}
+                style={{ left: i * dayW, width: dayW }} />);
+        }
         if (wd === 1 && i > 0) backdrop.push(<div key={`gl${i}`} className="pg-gridline" style={{ left: i * dayW }} />);
     }
 

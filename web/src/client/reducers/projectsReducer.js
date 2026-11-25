@@ -1,15 +1,15 @@
-import { SET_PROJECTS, PROJECT_SAVED, PROJECT_DELETED, TASKS_SAVED, TASK_DELETED, PROJECTS_LAYOUT_SET, PROJECT_STATE } from '../actions';
+import { SET_PROJECTS, PROJECT_SAVED, PROJECT_DELETED, TASKS_SAVED, TASK_DELETED, PROJECTS_LAYOUT_SET, PROJECT_STATE, HOLIDAYS_SET } from '../actions';
 
 // My Projects: { projects: [{ id, name, created_at }], tasks: [{ id,
 // projectId, name, days, after, start, who, notes, order, group }], groups:
-// [{ id, projectId, name, order }], layout: { widths,
+// [{ id, projectId, name, order }], holidays: [{ date, name }], layout: { widths,
 // folded, tableFolded } }, or null until
 // loaded (api/projects.js). Saves come back one task or project at a time and
 // replace the old copy in place, so the chart redraws without a reload.
 export default function projectsReducer(state = null, action) {
     switch (action.type) {
         case SET_PROJECTS:
-            return { groups: [], ...action.payload };
+            return { groups: [], holidays: [], ...action.payload };
         case PROJECT_STATE: {
             if (!state) return state;
             const { projectId, tasks, groups } = action.payload;
@@ -44,6 +44,9 @@ export default function projectsReducer(state = null, action) {
         case TASK_DELETED:
             if (!state) return state;
             return { ...state, tasks: state.tasks.filter((t) => t.id !== action.payload) };
+        case HOLIDAYS_SET:
+            if (!state) return state;
+            return { ...state, holidays: action.payload };
         case PROJECTS_LAYOUT_SET:
             if (!state) return state;
             return { ...state, layout: action.payload };
