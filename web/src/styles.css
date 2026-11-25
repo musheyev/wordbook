@@ -4871,10 +4871,12 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
 .pg__groupname-text { overflow: hidden; text-overflow: ellipsis; }
 .pg__drag {
   position: absolute; top: 9px; left: 4px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
-  color: var(--cb-ink-3); cursor: grab; border-radius: 5px; opacity: 0; touch-action: none; z-index: 2;
+  color: #b4bcc8; cursor: grab; border-radius: 5px; touch-action: none; z-index: 2;
 }
-.pg__row:hover .pg__drag, .pg__drag:focus-visible { opacity: 1; }
-.pg__drag:hover { background: var(--cb-surface); color: var(--cb-ink); }
+/* Always shown (decided: it was hard to find when it only showed on hover);
+   darker on the row you point at. */
+.pg__row:hover .pg__drag { color: var(--cb-ink-2); }
+.pg__drag:hover, .pg__drag:focus-visible { background: var(--cb-surface); color: var(--cb-ink); }
 .pg__row--moving { opacity: 0.4; }
 .pg__row--dropinto .pg__cells, .pg__row--dropinto { background: var(--cb-accent-weak) !important; box-shadow: inset 0 0 0 2px var(--cb-accent); }
 .pg-dropline { position: absolute; height: 3px; border-radius: 2px; background: var(--cb-accent); z-index: 6; pointer-events: none; }
