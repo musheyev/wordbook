@@ -11,6 +11,7 @@ import { clearOfflineData, itemDeleted, notebookDeleted, notebookRenamed } from 
 // server's answer follows (offline/apiCache.js). Elsewhere it's a plain request.
 import { requestSavedFirst } from '../offline/apiCache';
 import { applyPlaces } from '../utils/projectArrange';
+import { rememberSignedIn, signedInOffline, forgetSignedIn } from '../utils/offlineSignIn';
 import {
   isQueueing, queueCardCreate, queueCardUpdate, queueItemColors, queueItemTags, queueQuizSave, queueQuizDelete,
   queueBookmark, queueBookmarksClear,
@@ -28,9 +29,20 @@ export const fetchUsers = () => async (dispatch, getState, api) => {
 };
 
 export const FETCH_CURRENT_USER = 'fetch_current_user';
+// Who's signed in, asked at start-up. On myremembrancer.com (computers) the
+// answer is also remembered, so the site can start with no connection
+// (utils/offlineSignIn.js): then the remembered answer is used, and the
+// question is asked again when the connection comes back.
 export const fetchCurrentUser = () => async (dispatch, getState, api) => {
-  await requestSavedFirst(api, { method: 'get', url: '/auth/current_user' },
-    (res) => dispatch({ type: FETCH_CURRENT_USER, payload: res }));
+  try {
+    await requestSavedFirst(api, { method: 'get', url: '/auth/current_user' },
+      (res) => { rememberSignedIn(res.data); dispatch({ type: FETCH_CURRENT_USER, payload: res }); });
+  } catch (err) {
+    const remembered = !err.response && signedInOffline();
+    if (!remembered) throw err;
+    dispatch({ type: FETCH_CURRENT_USER, payload: { data: remembered } });
+    window.addEventListener('online', () => { dispatch(fetchCurrentUser()).catch(() => {}); }, { once: true });
+  }
 };
 
 export const SET_CURRENT_WORD = "set_current_word";
@@ -430,6 +442,7 @@ export const logoutCurrentUser = () => async (dispatch, getState, api) => {
   else await api.get('auth/logout');
   // Downloads belong to the account: none stay on the device after log out.
   await clearOfflineData();
+  forgetSignedIn();
 
   dispatch({
     type: LOGOUT_CURRENT_USER,
@@ -452,6 +465,7 @@ export const deleteAccount = (username, proof) => async (dispatch, getState, api
     throw new Error(requestErrorMessage(err, "Your account couldn't be scheduled for deletion. Please try again."));
   }
   rememberScheduledNotice(dueAt); // the start page says when (before it's shown)
+  forgetSignedIn();
   if (isNativeApp()) await nativeSignOut();
   await clearOfflineData({ send: false });
   dispatch({ type: SET_CURRENT_WORD, payload: '' });

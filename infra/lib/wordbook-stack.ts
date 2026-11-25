@@ -428,9 +428,12 @@ function handler(event) {
     //                  so a file's content never changes: browsers keep it a
     //                  year and never ask again. A new build has new names.
     //      index.html  same name every build: browsers must check with the
-    //                  server each time (a quick "not modified" when unchanged),
+    //      sw.js       server each time (a quick "not modified" when unchanged),
     //                  so a deploy reaches everyone on their next visit instead
-    //                  of whenever their browser's cached copy expires.
+    //                  of whenever their browser's cached copy expires. sw.js
+    //                  is the service worker (web/src/sw.js, My Projects
+    //                  offline): a year-long copy of it would keep browsers on
+    //                  an old build.
     //    The assets go first, so the new index.html never points at files that
     //    aren't uploaded yet. (Excluded files are also left alone by the first
     //    upload's pruning.)
@@ -447,7 +450,7 @@ function handler(event) {
     const deployAssets = new s3deploy.BucketDeployment(this, 'DeploySpa', {
       sources: [s3deploy.Source.asset(distDir)],
       destinationBucket: siteBucket,
-      exclude: ['index.html'],
+      exclude: ['index.html', 'sw.js'],
       memoryLimit: COPY_MEMORY_MB,
       cacheControl: [s3deploy.CacheControl.fromString('public, max-age=31536000, immutable')],
     });
@@ -455,7 +458,7 @@ function handler(event) {
       sources: [s3deploy.Source.asset(distDir)],
       destinationBucket: siteBucket,
       exclude: ['*'],
-      include: ['index.html'],
+      include: ['index.html', 'sw.js'],
       prune: false,
       memoryLimit: COPY_MEMORY_MB,
       cacheControl: [s3deploy.CacheControl.fromString('no-cache')],
