@@ -65,6 +65,23 @@ const MAX_DAYS = 999;
 const MAX_NOTES = 50;           // linked notes on one task
 const MAX_NOTE_ID = 300;
 
+// The colours a task or a group can be given. Only these names are stored;
+// the web app turns each into its shade (blue is #2563eb, and so on), so the
+// shades can change without touching what's saved.
+const COLORS = ["blue", "green", "amber", "purple", "pink", "teal", "olive", "red"];
+
+/**
+ * A colour as sent: one of COLORS, or nothing (null, "" or missing), which
+ * means "no colour of its own", so it shows its group's or project's.
+ *
+ * @returns {string|null}
+ */
+function cleanColor(value) {
+    if (value == null || value === "") return null;
+    if (!COLORS.includes(value)) throw new ProjectError(400, "Choose one of the colours.");
+    return value;
+}
+
 /** A refusal with a status code and a message for the user. */
 class ProjectError extends Error {
     constructor(status, message) {
@@ -128,7 +145,7 @@ function cleanName(name, what) {
  * Checks a task as sent by the web app and returns the fields to store.
  * Pure (no database), so it can be tested on its own.
  *
- * @param {object} input { name, days, after, start, who, notes, order }
+ * @param {object} input { name, days, after, start, who, notes, order, color? }
  * @returns {{name: string, days: number, after: string[], start: string|null,
  *            who: string, notes: Array<{type: string, id: string}>, order: number}}
  */
@@ -174,7 +191,10 @@ function cleanTask(input) {
     }
 
     const order = Number.isFinite(Number(body.order)) ? Number(body.order) : 0;
-    return { name, days, after, start, who, notes, order };
+    const task = { name, days, after, start, who, notes, order };
+    // Left out (an older copy of the app): no colour field, so an edit keeps the colour it had.
+    if ("color" in body) task.color = cleanColor(body.color);
+    return task;
 }
 
 /**
@@ -231,10 +251,13 @@ const taskOut = (row) => ({
     notes: row.notes || [],
     order: row.order || 0,
     group: row.group || null,
+    color: row.color || null,
 });
 
 /** A stored group row as the web app sees it. */
-const groupOut = (row) => ({ id: row.group_id, projectId: row.project_id, name: row.name, order: row.order || 0 });
+const groupOut = (row) => ({
+    id: row.group_id, projectId: row.project_id, name: row.name, order: row.order || 0, color: row.color || null,
+});
 
 const projectOut = (row) => ({ id: row.project_id, name: row.name, created_at: row.created_at });
 
@@ -376,6 +399,7 @@ async function putTask(userName, projectId, taskId, fields, createdAt) {
     };
     if (row.start == null) delete row.start;
     if (!row.group) delete row.group;
+    if (!row.color) delete row.color;
     await db().put({ TableName: TABLE, Item: row }).promise();
     return row;
 }
@@ -414,6 +438,7 @@ async function updateTask(userName, projectId, taskId, body) {
     // Its place and group only change by arranging (PUT …/arrange).
     fields.order = old.order || 0;
     fields.group = old.group || null;
+    if (!("color" in fields)) fields.color = old.color || null;
     const saved = taskOut(await putTask(userName, projectId, taskId, fields, old.created_at));
     return changedAt ? { ...saved, kept: "yours" } : saved;
 }
@@ -499,20 +524,37 @@ async function createGroup(userName, projectId, body) {
     return { ...(await projectState(userName, projectId)), group: groupOut(row) };
 }
 
-/** Rename a group (PUT /projects/:projectId/groups/:groupId). */
+/**
+ * Rename a group, or change its colour, or both
+ * (PUT /projects/:projectId/groups/:groupId with { name?, color? }).
+ * Whatever is left out stays as it was; `color: null` takes the colour off.
+ */
 async function renameGroup(userName, projectId, groupId, body) {
     checkId(projectId, "project");
     checkId(groupId, "group");
-    const name = cleanName(body && body.name, "group");
-    const changedAt = changedAtOf(body);
+    const given = body && typeof body === "object" ? body : {};
+    const hasColor = "color" in given;
+    // A name is needed unless only the colour is changing.
+    const name = hasColor && given.name == null ? null : cleanName(given.name, "group");
+    const color = hasColor ? cleanColor(given.color) : undefined;
+    const changedAt = changedAtOf(given);
     const row = await getGroupRow(userName, projectId, groupId);
     if (changedSince(row, changedAt)) return { ...(await projectState(userName, projectId)), kept: "theirs" };
+
+    const sets = ["updated_at = :t"];
+    const names = {};
+    const values = { ":t": new Date().toISOString() };
+    if (name != null) { sets.push("#n = :n"); names["#n"] = "name"; values[":n"] = name; }
+    if (color) { sets.push("#c = :c"); names["#c"] = "color"; values[":c"] = color; }
+    // DynamoDB refuses a REMOVE in the same update as a SET of the same name, so only one of them is sent.
+    const remove = hasColor && !color ? " REMOVE #c" : "";
+    if (remove) names["#c"] = "color";
     await db().update({
         TableName: TABLE,
         Key: { user_name: userName, item_key: groupKey(projectId, groupId) },
-        UpdateExpression: "SET #n = :n, updated_at = :t",
-        ExpressionAttributeNames: { "#n": "name" },
-        ExpressionAttributeValues: { ":n": name, ":t": new Date().toISOString() },
+        UpdateExpression: `SET ${sets.join(", ")}${remove}`,
+        ...(Object.keys(names).length ? { ExpressionAttributeNames: names } : {}),
+        ExpressionAttributeValues: values,
     }).promise();
     return { ...(await projectState(userName, projectId)), ...(changedAt ? { kept: "yours" } : {}) };
 }
@@ -722,6 +764,8 @@ module.exports = {
     updateTask,
     deleteTask,
     cleanTask,
+    cleanColor,
+    COLORS,
     makesLoop,
     isDate,
     ProjectError,

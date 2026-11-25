@@ -4,12 +4,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     fetchProjects, createProject, renameProject, deleteProject, saveProjectsLayout,
-    createTaskGroup, renameTaskGroup, ungroupTaskGroup, arrangeProject,
+    createTaskGroup, renameTaskGroup, ungroupTaskGroup, setTaskGroupColor, arrangeProject,
 } from '../actions';
 import {
     arrangement, toPlaces, moveTask, moveGroup, putInGroup, takeOut, visibleRows,
 } from '../utils/projectArrange';
 import { schedule, span } from '../utils/projectSchedule';
+import { colorHex, taskColor } from '../utils/projectColors';
 import { ComputerOnly } from '../utils/computerOnly';
 import ProjectGantt, { projectColor, shortDate } from '../components/ProjectGantt';
 import ProjectTaskWindow from '../components/ProjectTaskWindow';
@@ -91,6 +92,12 @@ function Projects() {
     const project = projectId ? projects.find((p) => p.id === projectId) : null;
     const colorOf = (id) => projectColor(Math.max(0, projects.findIndex((p) => p.id === id)));
     const placed = useMemo(() => schedule(tasks, { holidays }), [tasks, holidays]);
+    /** What a task in this project looks like with no colour of its own: its group's colour, else the project's. */
+    const autoColorOf = (pid, task) => {
+        const group = task && task.group ? groups.find((g) => g.id === task.group) : null;
+        const hex = group && colorHex(group.color);
+        return hex ? { hex, label: 'Same as group' } : { hex: colorOf(pid), label: 'Same as project' };
+    };
 
     const foldedSet = useMemo(() => new Set(folded), [folded]);
     // This project's list (groups and tasks in order), and the rows shown.
@@ -106,10 +113,16 @@ function Projects() {
             const color = colorOf(pid);
             const a = pid === projectId && arr ? arr : arrangement(pid, tasks, groups);
             return visibleRows(a, fset).map((r) => {
-                if (r.type === 'task') return { kind: 'task', task: taskById.get(r.id), color, level: level + (r.group ? 1 : 0) };
+                if (r.type === 'task') {
+                    const task = taskById.get(r.id);
+                    // Its own colour, else its group's, else the project's.
+                    return { kind: 'task', task, color: taskColor(task, r.group ? groupById.get(r.group) : null, color), level: level + (r.group ? 1 : 0) };
+                }
                 const memberTasks = (a.groups[r.id] || []).map((t) => taskById.get(t.id));
+                const group = groupById.get(r.id);
                 return {
-                    kind: 'group', key: r.id, name: groupById.get(r.id).name, level, folded: !r.open, editable,
+                    kind: 'group', key: r.id, name: group.name, level, folded: !r.open, editable,
+                    color: colorHex(group.color), colorKey: group.color || null, autoColor: color,
                     count: memberTasks.length, members: memberTasks.map((t) => t.id), memberTasks,
                     span: span(placed, memberTasks.map((t) => t.id)),
                 };
@@ -185,8 +198,9 @@ function Projects() {
         setExporting(false);
     };
 
-    const onGroupAction = (groupId, action) => {
+    const onGroupAction = (groupId, action, color) => {
         if (action === 'rename') setRenamingGroup(groupId);
+        else if (action === 'color') dispatch(setTaskGroupColor(projectId, groupId, color)).catch((err) => setError(err.message));
         else dispatch(ungroupTaskGroup(projectId, groupId)).catch((err) => setError(err.message));
     };
 
@@ -315,6 +329,7 @@ function Projects() {
             {windowFor && (
                 <ProjectTaskWindow key={windowFor.task ? windowFor.task.id : `new:${windowFor.projectId}`}
                     target={windowFor} projects={projects} allTasks={tasks} chooseProject={!projectId} holidays={holidays}
+                    autoColor={autoColorOf}
                     onClose={() => setWindowFor(null)} />
             )}
 

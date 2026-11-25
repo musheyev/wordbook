@@ -1879,6 +1879,7 @@ export const saveTask = (projectId, task) => async (dispatch, getState, api) => 
   const body = {
     name: task.name, days: task.days, after: task.after || [], start: task.start || null,
     who: task.who || '', notes: (task.notes || []).map(({ type, id: noteId }) => ({ type, id: noteId })), order: task.order,
+    color: task.color || null,
   };
   const keepTitles = (saved) => ({ ...saved, notes: saved.notes.map((n) => (task.notes || []).find((m) => m.type === n.type && m.id === n.id) || n) });
   return onlineOrQueued(async () => {
@@ -1975,6 +1976,21 @@ export const renameTaskGroup = (projectId, groupId, name) => async (dispatch, ge
   const old = (state.groups || []).find((g) => g.id === groupId) || {};
   dispatch({ type: PROJECT_STATE, payload: { projectId, tasks: mine(state.tasks), groups: mine(state.groups || []).map((g) => (g.id === groupId ? { ...g, name } : g)) } });
   queueProjectChange({ kind: 'renameGroup', projectId, groupId, body: { name, changedAt: nowIso() }, label: old.name || name });
+});
+
+/**
+ * Give a group a colour ("teal"), or take it off (null): its tasks' bars and
+ * its own line show it, except tasks that have a colour of their own.
+ */
+export const setTaskGroupColor = (projectId, groupId, color) => async (dispatch, getState, api) => onlineOrQueued(async () => {
+  const data = await projectsCall(() => api.put(`/projects/${pid(projectId)}/groups/${pid(groupId)}`, { color }, JSON_HEADERS), "Couldn't change the group's colour.");
+  dispatch({ type: PROJECT_STATE, payload: data });
+}, () => {
+  const state = getState().projects;
+  const mine = (list) => list.filter((x) => x.projectId === projectId);
+  const old = (state.groups || []).find((g) => g.id === groupId) || {};
+  dispatch({ type: PROJECT_STATE, payload: { projectId, tasks: mine(state.tasks), groups: mine(state.groups || []).map((g) => (g.id === groupId ? { ...g, color } : g)) } });
+  queueProjectChange({ kind: 'groupColor', projectId, groupId, body: { color, changedAt: nowIso() }, label: old.name || 'a group' });
 });
 
 /** Ungroup: the group goes, its tasks stay where it was. */

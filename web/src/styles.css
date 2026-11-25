@@ -4896,10 +4896,26 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
   background: var(--cb-bg); border: 1px solid var(--cb-border-strong); border-radius: 10px; box-shadow: 0 10px 28px rgba(30, 40, 60, 0.18);
 }
 .pg__menu { right: 0; }
+.pg__cells--menu { z-index: 6; }
 .projects-selectbar__menu { left: 0; }
 .pg__menu button, .projects-selectbar__menu button { border: none; background: none; text-align: left; padding: 7px 10px; border-radius: 6px; font: inherit; font-size: 0.9rem; cursor: pointer; color: var(--cb-ink); }
 .pg__menu button:hover, .projects-selectbar__menu button:hover { background: var(--cb-accent-weak); }
 .pg__menu small { color: var(--cb-ink-3); margin-left: 4px; }
+/* Colour choices (components/ColorSwatches.js): a task's window and a group's ⋯ menu. */
+.cswatches { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cswatches__auto { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px 0 6px; border: 1px solid var(--cb-border); border-radius: 999px; background: #fff; font: inherit; font-size: 0.8rem; color: var(--cb-ink-2); cursor: pointer; }
+.cswatches__auto--on { border-color: var(--cb-ink); color: var(--cb-ink); font-weight: 700; }
+.cswatches__dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.cswatches__swatch { width: 20px; height: 20px; padding: 0; border: 2px solid #fff; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 1px rgba(15, 20, 35, 0.12); }
+.cswatches__swatch:hover { transform: scale(1.12); }
+.cswatches__swatch--on { box-shadow: 0 0 0 2px currentColor; }
+/* The menu's own button look would undo these. */
+.pg__menu .cswatches__swatch { padding: 0; border: 2px solid #fff; border-radius: 50%; }
+.pg__menu .cswatches__auto { padding: 0 9px 0 6px; border: 1px solid var(--cb-border); border-radius: 999px; font-size: 0.8rem; color: var(--cb-ink-2); }
+.pg__menu .cswatches__auto--on { border-color: var(--cb-ink); color: var(--cb-ink); }
+.pg__menucolors { border-top: 1px solid var(--cb-border); margin-top: 3px; padding: 8px 10px 6px; display: flex; flex-direction: column; gap: 7px; }
+.pg__menucolors-k { font-size: 0.8rem; font-weight: 700; color: var(--cb-ink-3); }
+.pg__menucolors .cswatches { max-width: 120px; } /* 4 a row */
 .pg__tickcell { flex: none; height: 100%; border: none; background: none; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .projects-page__on { background: var(--cb-accent-weak); color: var(--cb-accent); border-color: var(--cb-accent); }
 .projects-selectbar { margin-bottom: 10px; }

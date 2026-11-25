@@ -102,13 +102,15 @@ export async function savedProjectsCopy() {
 
 /**
  * Keep a change for later. `op`: { kind, projectId?, taskId?, groupId?,
- * body, label }. Edits of the same task (or the same project's order, or
- * holidays, or the layout) replace the waiting one: only the last counts.
+ * body, label }. Edits of the same task (or the same project's order, or a
+ * group's colour, or holidays, or the layout) replace the waiting one: only
+ * the last counts.
  */
 export function queueProjectChange(op) {
     const sameAs = (a) => (
         (op.kind === 'updateTask' && a.kind === 'updateTask' && a.taskId === op.taskId)
         || (op.kind === 'arrange' && a.kind === 'arrange' && a.projectId === op.projectId)
+        || (op.kind === 'groupColor' && a.kind === 'groupColor' && a.groupId === op.groupId)
         || ((op.kind === 'holidays' || op.kind === 'layout') && a.kind === op.kind)
     );
     outbox = [...outbox.filter((a) => !sameAs(a)), { ...op, at: new Date().toISOString() }];
@@ -130,7 +132,8 @@ function send(op) {
         case 'updateTask': return api.put(`${p}/tasks/${pid(op.taskId)}`, op.body, JSON_HEADERS);
         case 'deleteTask': return api.delete(`${p}/tasks/${pid(op.taskId)}`, { data: op.body, ...JSON_HEADERS });
         case 'createGroup': return api.post(`${p}/groups`, op.body, JSON_HEADERS);
-        case 'renameGroup': return api.put(`${p}/groups/${pid(op.groupId)}`, op.body, JSON_HEADERS);
+        case 'renameGroup':
+        case 'groupColor': return api.put(`${p}/groups/${pid(op.groupId)}`, op.body, JSON_HEADERS);
         case 'ungroup': return api.delete(`${p}/groups/${pid(op.groupId)}`);
         case 'arrange': return api.put(`${p}/arrange`, op.body, JSON_HEADERS);
         case 'holidays': return api.put('/projects/holidays', op.body, JSON_HEADERS);
@@ -145,6 +148,7 @@ function keptNotice(op, data) {
     if (op.kind === 'updateTask') notice(`“${data.name || op.label}” was changed elsewhere after your offline edit, so that version was kept.`);
     else if (op.kind === 'deleteTask') notice(`“${op.label}” was changed elsewhere after you deleted it offline, so it was kept.`);
     else if (op.kind === 'renameProject' || op.kind === 'renameGroup') notice(`“${op.label}” was renamed elsewhere after your offline change, so that name was kept.`);
+    else if (op.kind === 'groupColor') notice(`“${op.label}” was changed elsewhere after your offline change, so its colour wasn't changed.`);
 }
 
 /**

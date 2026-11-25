@@ -8,6 +8,7 @@ import { noteLinkHref } from '../utils/noteLinks';
 import { Person, personColor, shortDate } from './ProjectGantt';
 import NoteLinkPicker from './NoteLinkPicker';
 import ConfirmDialog from './ConfirmDialog';
+import ColorSwatches from './ColorSwatches';
 
 // A task's window in My Projects, opened by clicking a task or its bar, or
 // by "+ Task". It looks like a note window and sits at the bottom right.
@@ -20,6 +21,7 @@ import ConfirmDialog from './ConfirmDialog';
 //   Starts     Nov 30 · when Pick cabinets ends
 //   Takes      [14] workdays   ends Dec 17
 //   Notes      (Cabinet quotes ×)  🔗 Add link
+//   Colour     (● Same as group) ● ● ● ● ● ● ● ●
 //   If this changes, Install cabinets and Paint move with it.
 //   [Delete task]                          [Cancel] [Save]
 //
@@ -37,17 +39,19 @@ import ConfirmDialog from './ConfirmDialog';
  * @param {Array} props.allTasks every task (for the names offered under Who)
  * @param {Array<{date, name}>} [props.holidays] skipped like weekends in the dates shown
  * @param {boolean} [props.chooseProject] a new task can go in any project
+ * @param {(projectId, task) => {hex: string, label: string}} [props.autoColor] what the
+ *   task looks like with no colour of its own (its group's or its project's)
  *   (on "All projects"); on a project's own page it goes in that one
  * @param {() => void} props.onClose
  */
-export default function ProjectTaskWindow({ target, projects, allTasks, chooseProject = false, holidays = [], onClose }) {
+export default function ProjectTaskWindow({ target, projects, allTasks, chooseProject = false, holidays = [], autoColor, onClose }) {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const isNew = !target.task;
     const [projectId, setProjectId] = useState(target.projectId);
     const [draft, setDraft] = useState(() => (target.task
         ? { ...target.task, after: [...(target.task.after || [])], notes: [...(target.task.notes || [])] }
-        : { name: '', days: 1, after: [], start: todayDate(), who: '', notes: [] }));
+        : { name: '', days: 1, after: [], start: todayDate(), who: '', notes: [], color: null }));
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
     const [picking, setPicking] = useState(false);
@@ -210,6 +214,14 @@ export default function ProjectTaskWindow({ target, projects, allTasks, choosePr
                         <i className="linkify icon" aria-hidden="true"></i>Add link
                     </button>
                 </div>
+
+                {autoColor && (
+                    <div className="ptw__row ptw__row--wrap">
+                        <span className="ptw__k">Colour</span>
+                        <ColorSwatches value={draft.color || null} auto={autoColor(projectId, target.task)}
+                            onChange={(color) => set({ color })} />
+                    </div>
+                )}
 
                 {moving.length > 0 && (
                     <div className="ptw__ripple">If this changes, {listNames(moving)} {moving.length === 1 ? 'moves' : 'move'} with it.</div>
