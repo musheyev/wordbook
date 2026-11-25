@@ -35,6 +35,18 @@
 //   notes   linked notes and words, [{ type: "card"|"word", id }]; optional
 //   order   the row's place in the project's list
 //
+// Offline (decided): the web app can work on projects with no connection and
+// send the changes later. Two things make that safe here:
+// - New projects, tasks and groups can come with an id the web app made
+//   (`id`). Sending the same "make" twice returns what's there instead of
+//   making a second one, so a change sent again after a dropped connection
+//   is harmless.
+// - A change made offline says when it was made (`changedAt`). If the
+//   stored task, group or project was changed after that (on another
+//   computer, say), the stored one is newer and is kept: the latest change
+//   wins (decided, like notes). The answer says which was kept:
+//   `kept: "yours"` or `kept: "theirs"`.
+//
 // The server's own job is to keep the data sound: names and numbers in
 // range, "waits for" only on tasks of the same project, and no loops (A waits
 // for B, B waits for A: neither could ever start).
@@ -67,12 +79,34 @@ const taskKey = (projectId, taskId) => `task#${projectId}#${taskId}`;
 const groupKey = (projectId, groupId) => `group#${projectId}#${groupId}`;
 const newId = () => crypto.randomUUID();
 
+/**
+ * When an offline change was made, as an ISO time, or null for a change made
+ * online (that one always applies).
+ */
+function changedAtOf(body) {
+    const value = body && body.changedAt;
+    if (value == null || value === "") return null;
+    const time = new Date(value);
+    if (Number.isNaN(time.getTime())) throw new ProjectError(400, "That change has no proper time.");
+    return time.toISOString();
+}
+
+/** Latest wins: was the stored row changed after this offline change? */
+const changedSince = (row, changedAt) => !!(changedAt && row.updated_at && row.updated_at > changedAt);
+
 /** Ids we made (UUIDs); anything else in a URL is refused before it reaches a key. */
 const isId = (id) => typeof id === "string" && /^[A-Za-z0-9-]{1,64}$/.test(id);
 
 function checkId(id, what) {
     if (!isId(id)) throw new ProjectError(400, `That ${what} wasn't found.`);
     return id;
+}
+
+/** The id the web app made for something new (offline), or a new one. */
+function idFor(body, what) {
+    if (!body || body.id == null) return newId();
+    if (!isId(body.id) || body.id.length < 8) throw new ProjectError(400, `That ${what} needs a proper id.`);
+    return body.id;
 }
 
 /** A calendar date as "YYYY-MM-DD" that really exists (no Feb 30). */
@@ -262,10 +296,13 @@ async function projectState(userName, projectId) {
 /** Make a project (POST /projects). */
 async function createProject(userName, body) {
     const name = cleanName(body && body.name, "project");
+    const projectId = idFor(body, "project");
+    // Sent again (a dropped connection): it's there already.
+    const existing = await db().get({ TableName: TABLE, Key: { user_name: userName, item_key: projectKey(projectId) } }).promise();
+    if (existing.Item) return projectOut(existing.Item);
     const rows = await readRows(userName, "project#");
     if (rows.length >= MAX_PROJECTS) throw new ProjectError(413, `You can have up to ${MAX_PROJECTS} projects.`);
     const now = new Date().toISOString();
-    const projectId = newId();
     const row = { user_name: userName, item_key: projectKey(projectId), project_id: projectId, name, created_at: now, updated_at: now };
     await db().put({ TableName: TABLE, Item: row }).promise();
     return projectOut(row);
@@ -275,7 +312,9 @@ async function createProject(userName, body) {
 async function renameProject(userName, projectId, body) {
     checkId(projectId, "project");
     const name = cleanName(body && body.name, "project");
+    const changedAt = changedAtOf(body);
     const row = await getProjectRow(userName, projectId);
+    if (changedSince(row, changedAt)) return { ...projectOut(row), kept: "theirs" };
     await db().update({
         TableName: TABLE,
         Key: { user_name: userName, item_key: projectKey(projectId) },
@@ -283,7 +322,7 @@ async function renameProject(userName, projectId, body) {
         ExpressionAttributeNames: { "#n": "name" },
         ExpressionAttributeValues: { ":n": name, ":t": new Date().toISOString() },
     }).promise();
-    return projectOut({ ...row, name });
+    return { ...projectOut({ ...row, name }), ...(changedAt ? { kept: "yours" } : {}) };
 }
 
 /** Delete rows by key, 25 at a time (DynamoDB's batch limit), retrying leftovers. */
@@ -346,9 +385,13 @@ async function createTask(userName, projectId, body) {
     checkId(projectId, "project");
     const fields = cleanTask(body);
     await getProjectRow(userName, projectId);
-    const tasks = (await projectTaskRows(userName, projectId)).map(taskOut);
+    const taskId = idFor(body, "task");
+    const rows = await projectTaskRows(userName, projectId);
+    // Sent again (a dropped connection): it's there already.
+    const already = rows.find((r) => r.task_id === taskId);
+    if (already) return taskOut(already);
+    const tasks = rows.map(taskOut);
     if (tasks.length >= MAX_TASKS) throw new ProjectError(413, `A project can have up to ${MAX_TASKS} tasks.`);
-    const taskId = newId();
     checkAfter(tasks, taskId, fields.after);
     // A new task goes at the end of the project's list, in no group.
     const groups = (await projectGroupRows(userName, projectId)).map(groupOut);
@@ -365,11 +408,14 @@ async function updateTask(userName, projectId, taskId, body) {
     const rows = await projectTaskRows(userName, projectId);
     const old = rows.find((r) => r.task_id === taskId);
     if (!old) throw new ProjectError(404, "That task wasn't found.");
+    const changedAt = changedAtOf(body);
+    if (changedSince(old, changedAt)) return { ...taskOut(old), kept: "theirs" };
     checkAfter(rows.map(taskOut), taskId, fields.after);
     // Its place and group only change by arranging (PUT …/arrange).
     fields.order = old.order || 0;
     fields.group = old.group || null;
-    return taskOut(await putTask(userName, projectId, taskId, fields, old.created_at));
+    const saved = taskOut(await putTask(userName, projectId, taskId, fields, old.created_at));
+    return changedAt ? { ...saved, kept: "yours" } : saved;
 }
 
 /**
@@ -379,15 +425,23 @@ async function updateTask(userName, projectId, taskId, body) {
  * `starts` ({ taskId: "YYYY-MM-DD" }). Without one, it starts where the
  * deleted task started.
  *
- * @returns {Promise<{changed: object[]}>} the tasks that changed because of it
+ * @param {string} [changedAtValue] when it was deleted, for a delete made offline
+ * @returns {Promise<{changed: object[], kept?: string}>} the tasks that changed because of it
  */
-async function deleteTask(userName, projectId, taskId, starts) {
+async function deleteTask(userName, projectId, taskId, starts, changedAtValue) {
     checkId(projectId, "project");
     checkId(taskId, "task");
     const given = starts && typeof starts === "object" ? starts : {};
+    const changedAt = changedAtOf({ changedAt: changedAtValue });
     const rows = await projectTaskRows(userName, projectId);
     const gone = rows.find((r) => r.task_id === taskId);
-    if (!gone) throw new ProjectError(404, "That task wasn't found.");
+    // Deleted already (sent again, or deleted elsewhere too): nothing to do.
+    if (!gone) {
+        if (changedAt) return { changed: [], kept: "yours" };
+        throw new ProjectError(404, "That task wasn't found.");
+    }
+    // Deleted offline, but changed elsewhere after that: the change is newer, so the task stays.
+    if (changedSince(gone, changedAt)) return { changed: [], kept: "theirs", task: taskOut(gone) };
 
     const changed = [];
     for (const row of rows) {
@@ -431,8 +485,11 @@ async function createGroup(userName, projectId, body) {
     const name = cleanName(body && body.name, "group");
     await getProjectRow(userName, projectId);
     const [taskRows, groupRows] = await Promise.all([projectTaskRows(userName, projectId), projectGroupRows(userName, projectId)]);
+    const groupId = idFor(body, "group");
+    // Sent again (a dropped connection): it's there already.
+    const already = groupRows.find((r) => r.group_id === groupId);
+    if (already) return { ...(await projectState(userName, projectId)), group: groupOut(already) };
     if (groupRows.length >= MAX_GROUPS) throw new ProjectError(413, `A project can have up to ${MAX_GROUPS} groups.`);
-    const groupId = newId();
     const now = new Date().toISOString();
     const row = {
         user_name: userName, item_key: groupKey(projectId, groupId), project_id: projectId, group_id: groupId,
@@ -447,7 +504,9 @@ async function renameGroup(userName, projectId, groupId, body) {
     checkId(projectId, "project");
     checkId(groupId, "group");
     const name = cleanName(body && body.name, "group");
-    await getGroupRow(userName, projectId, groupId);
+    const changedAt = changedAtOf(body);
+    const row = await getGroupRow(userName, projectId, groupId);
+    if (changedSince(row, changedAt)) return { ...(await projectState(userName, projectId)), kept: "theirs" };
     await db().update({
         TableName: TABLE,
         Key: { user_name: userName, item_key: groupKey(projectId, groupId) },
@@ -455,7 +514,7 @@ async function renameGroup(userName, projectId, groupId, body) {
         ExpressionAttributeNames: { "#n": "name" },
         ExpressionAttributeValues: { ":n": name, ":t": new Date().toISOString() },
     }).promise();
-    return projectState(userName, projectId);
+    return { ...(await projectState(userName, projectId)), ...(changedAt ? { kept: "yours" } : {}) };
 }
 
 /** Set a task's or group's place (and a task's group) without touching anything else. */
