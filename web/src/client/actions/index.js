@@ -440,6 +440,10 @@ export const logoutCurrentUser = () => async (dispatch, getState, api) => {
     payload: ""
   });
 
+  // My Projects changes made offline and still waiting: send them while
+  // still signed in (if there's a connection), before the copy is cleared.
+  if (hasPendingProjectChanges() && !isProjectsOffline()) await syncProjects().catch(() => {});
+
   // The iPhone app keeps its own tokens (native/auth.js); the website's
   // are cookies the server clears.
   if (isNativeApp()) await nativeSignOut();

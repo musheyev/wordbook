@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { connect } from 'react-redux';
 import requireAuth from '../components/hocs/requireAuth';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { useLogoutWording } from '../utils/logoutWording';
 import { logoutCurrentUser } from '../actions';
 import { useClassroomsSummary } from '../components/ClassroomsNav';
 
@@ -16,6 +17,8 @@ import { useClassroomsSummary } from '../components/ClassroomsNav';
 function MorePage({ auth, isAdmin, logoutCurrentUser }) {
     const navigate = useNavigate();
     const [confirmingLogout, setConfirmingLogout] = React.useState(false);
+    // Warns when offline changes to My Projects are still waiting (utils/logoutWording.js).
+    const logoutWording = useLogoutWording();
 
     const onLogoutConfirmed = () => {
         setConfirmingLogout(false);
@@ -71,10 +74,10 @@ function MorePage({ auth, isAdmin, logoutCurrentUser }) {
             <ConfirmDialog
                 open={confirmingLogout}
                 title="Log out?"
-                message="You'll need to sign in again to open your notebooks."
-                confirmLabel="Log out"
+                message={logoutWording.message}
+                confirmLabel={logoutWording.confirmLabel}
                 cancelLabel="Cancel"
-                tone="accent"
+                tone={logoutWording.tone}
                 onConfirm={onLogoutConfirmed}
                 onCancel={() => setConfirmingLogout(false)}
             />

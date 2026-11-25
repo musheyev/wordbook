@@ -5,6 +5,7 @@ import { connect } from 'react-redux';
 import { logoutCurrentUser, toggleNoteWindowMode, fetchTeacherRequestCount } from '../actions';
 import WordList from './WordList';
 import ConfirmDialog from './ConfirmDialog';
+import { useLogoutWording } from '../utils/logoutWording';
 import NavRailResizer from './NavRailResizer';
 import AddItemSheet from './AddItemSheet';
 import { COGNITO_LOGIN, COGNITO_SIGNUP } from '../utils/cognito';
@@ -86,6 +87,8 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
         || location.pathname === '/quizzes' || location.pathname === '/bookmarks';
 
     const [confirmingLogout, setConfirmingLogout] = React.useState(false);
+    // Warns when offline changes to My Projects are still waiting (utils/logoutWording.js).
+    const logoutWording = useLogoutWording();
     // The + beside Notes: a new note in a popup (NewNotePopup). Its "look up
     // a word" link swaps it for the Add sheet (AddItemSheet).
     const [newNoteOpen, setNewNoteOpen] = React.useState(false);
@@ -405,10 +408,10 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
             <ConfirmDialog
                 open={confirmingLogout}
                 title="Log out?"
-                message="You'll need to sign in again to open your notebooks."
-                confirmLabel="Log out"
+                message={logoutWording.message}
+                confirmLabel={logoutWording.confirmLabel}
                 cancelLabel="Cancel"
-                tone="accent"
+                tone={logoutWording.tone}
                 onConfirm={onLogoutConfirmed}
                 onCancel={() => setConfirmingLogout(false)}
             />
