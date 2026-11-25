@@ -14,11 +14,18 @@ import { site } from '../utils/site';
 //     Spanish B1 exam
 //     + New project
 //
-// "All projects" shows every project on one timeline; a project's name shows
+// "All projects" (only with two or more projects; decided) shows every
+// project on one timeline; a project's name shows
 // just that one (pages/ProjectsPage.js). The ▸ / ▾ folds the list away: it
 // starts collapsed until you first open it, then it's remembered on this
 // device. "+ New project" turns into a name box: Enter makes the project and
 // opens it, Escape cancels.
+//
+// Colours (decided: "colours have meaning"): blue only marks the section
+// you're in (My Projects). The open project is dark and bold on light grey,
+// with a thin dark line at its left (only with two or more projects: with
+// one there's nothing to tell apart). "+ New project" is a grey last row,
+// darker when pointed at; never blue.
 //
 // Computers only (decided): on phones and in the iPhone app there's no link
 // at all, and the pages say to use a computer. And myremembrancer.com only
@@ -93,13 +100,15 @@ export default function ProjectsNav({ signedIn, collapsed }) {
             </span>
             {open && (
                 <div className="nav-classrooms__list">
-                    <NavLink to={PROJECTS_PATH} end
-                        className={({ isActive }) => `nav-classrooms__room${isActive ? ' on' : ''}`}>
-                        All projects
-                    </NavLink>
+                    {projects.length > 1 && (
+                        <NavLink to={PROJECTS_PATH} end
+                            className={({ isActive }) => `nav-classrooms__room nav-projects__item${isActive ? ' nav-projects__item--open' : ''}`}>
+                            All projects
+                        </NavLink>
+                    )}
                     {projects.map((p) => (
                         <NavLink key={p.id} to={projectPath(p.id)} title={p.name}
-                            className={({ isActive }) => `nav-classrooms__room${isActive ? ' on' : ''}`}>
+                            className={({ isActive }) => `nav-classrooms__room nav-projects__item${isActive && projects.length > 1 ? ' nav-projects__item--open' : ''}`}>
                             {p.name}
                         </NavLink>
                     ))}
