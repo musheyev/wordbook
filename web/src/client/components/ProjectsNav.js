@@ -23,7 +23,8 @@ import { site } from '../utils/site';
 //
 // Colours (decided: "colours have meaning"): blue only marks the section
 // you're in (My Projects). The open project is dark and bold on light grey,
-// with a thin dark line at its left. "+ New project" is a grey last row,
+// with a thin dark line at its left (only with two or more projects: with
+// one there's nothing to tell apart). "+ New project" is a grey last row,
 // darker when pointed at; never blue.
 //
 // Computers only (decided): on phones and in the iPhone app there's no link
@@ -107,7 +108,7 @@ export default function ProjectsNav({ signedIn, collapsed }) {
                     )}
                     {projects.map((p) => (
                         <NavLink key={p.id} to={projectPath(p.id)} title={p.name}
-                            className={({ isActive }) => `nav-classrooms__room nav-projects__item${isActive ? ' nav-projects__item--open' : ''}`}>
+                            className={({ isActive }) => `nav-classrooms__room nav-projects__item${isActive && projects.length > 1 ? ' nav-projects__item--open' : ''}`}>
                             {p.name}
                         </NavLink>
                     ))}
