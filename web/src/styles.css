@@ -4742,6 +4742,9 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
    ProjectTaskWindow.js, ProjectsNav.js). Computers only. ---------------- */
 .nav-projects__add { border: none; background: none; text-align: left; cursor: pointer; font: inherit; font-size: 0.88rem; color: var(--cb-ink-3); }
 .nav-projects__add:hover { color: var(--cb-ink); background: #eef0f4; }
+/* A little less indent than the My Classrooms tree (30px): the projects sit
+   closer under My Projects. */
+.nav-projects .nav-classrooms__list { margin-left: 20px; }
 /* The open project: dark and bold on light grey, a thin dark line at its
    left; no blue (blue marks the section, My Projects). */
 .nav-projects__item--open, .nav-projects__item--open:hover {
