@@ -11,8 +11,15 @@
  *   PUT    /projects/:projectId/tasks/:taskId  (the whole task, as for POST) -> task
  *   DELETE /projects/:projectId/tasks/:taskId  { starts? } -> { changed: [tasks] }
  *
+ *   POST   /projects/:projectId/groups            { name } -> { projectId, tasks, groups, group }
+ *   PUT    /projects/:projectId/groups/:groupId   { name } -> { projectId, tasks, groups }  (rename)
+ *   DELETE /projects/:projectId/groups/:groupId   -> { projectId, tasks, groups }  (ungroup: its tasks stay)
+ *   PUT    /projects/:projectId/arrange           { groups: [{ id, order }], tasks: [{ id, group, order }] }
+ *          -> { projectId, tasks, groups }  (new places, and which group each task is in)
+ *
  * A project:  { id, name, created_at }
- * A task:     { id, projectId, name, days, after, start, who, notes: [{ type, id, title }], order }
+ * A task:     { id, projectId, name, days, after, start, who, notes: [{ type, id, title }], order, group }
+ * A group:    { id, projectId, name, order }
  */
 const express = require("express");
 const { getCurentUserFromToken } = require("../auth");
@@ -80,6 +87,22 @@ projectsRouter.put("/:projectId/tasks/:taskId", handle(async (req, res) => {
 projectsRouter.delete("/:projectId/tasks/:taskId", handle(async (req, res) => {
     const starts = req.body && req.body.starts;
     res.json(await projects.deleteTask(req.userName, req.params.projectId, req.params.taskId, starts));
+}));
+
+projectsRouter.post("/:projectId/groups", handle(async (req, res) => {
+    res.json(await projects.createGroup(req.userName, req.params.projectId, req.body));
+}));
+
+projectsRouter.put("/:projectId/groups/:groupId", handle(async (req, res) => {
+    res.json(await projects.renameGroup(req.userName, req.params.projectId, req.params.groupId, req.body));
+}));
+
+projectsRouter.delete("/:projectId/groups/:groupId", handle(async (req, res) => {
+    res.json(await projects.ungroup(req.userName, req.params.projectId, req.params.groupId));
+}));
+
+projectsRouter.put("/:projectId/arrange", handle(async (req, res) => {
+    res.json(await projects.arrange(req.userName, req.params.projectId, req.body));
 }));
 
 module.exports = projectsRouter;

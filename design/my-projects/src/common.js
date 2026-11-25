@@ -105,3 +105,14 @@ const kitchen = () => [
 const PEOPLE = { 'Mike (contractor)': '#7c3aed', 'Rosa (plumber)': '#0891b2', 'Stone Co.': '#b45309', 'Ana (tutor)': '#db2777' };
 const WHO = { demo: 'Mike (contractor)', plumb: 'Rosa (plumber)', install: 'Mike (contractor)', counter: 'Stone Co.', paint: 'Mike (contractor)', talk: 'Ana (tutor)' };
 const whoCell = (t) => t.who || WHO[t.id] ? (n => `<span class="who"><i style="background:${PEOPLE[n]}">${n[0]}</i>${n}</span>`)(t.who || WHO[t.id]) : '';
+
+/** The side panel as of PR #88 (myremembrancer.com): My Projects as a tree, then Words and Inbox. */
+function side2(current) {
+  const link = (i, t, on) => `<div class="nav${on ? ' on' : ''}">${ICON[i]}${t}</div>`;
+  const items = ['All projects', 'Kitchen remodel', 'Spanish B1 exam']
+    .map((p) => `<div class="item${p === current ? ' on' : ''}" style="padding:5px 12px 5px 18px;font-size:14px">${p}</div>`).join('');
+  return `<div class="side">${link('books', 'My Notebooks')}${link('book', 'My Wordbooks')}${link('star', 'My Bookmarks')}${link('tag', 'My Tags')}`
+    + `<div class="nav on">${ICON.proj}My Projects<span style="margin-left:auto;color:var(--ink-3)">▾</span></div>`
+    + `<div style="margin:0 0 6px 30px;border-left:1px solid var(--border)">${items}<div style="padding:5px 12px 5px 18px;font-size:14px;color:var(--accent)">+ New project</div></div>`
+    + `${link('search', 'Words')}${link('inbox', 'Inbox')}</div>`;
+}

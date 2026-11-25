@@ -1,5 +1,7 @@
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toDay, fromDay, weekday, todayDate } from '../utils/projectSchedule';
+import { placeFromRows } from '../utils/projectArrange';
+import GripIcon from './GripIcon';
 
 // The Gantt chart of My Projects (pages/ProjectsPage.js): a table of tasks on
 // the left, and on the right a timeline with one bar per task.
@@ -34,6 +36,14 @@ import { toDay, fromDay, weekday, todayDate } from '../utils/projectSchedule';
 //   Task column), and its « folds the whole table down to the task names;
 //   » brings the other columns back as they were.
 // The layout is kept on the account (actions: saveProjectsLayout).
+//
+// Groups (a project's own page): a group is a row like a project's, with its
+// name, its number of tasks and a dark line for its span; ▾ folds it. While
+// folded, arrows to and from its tasks join its row. There, tasks and groups
+// can be dragged by their grip ⋮⋮ (a blue line shows where they'll land),
+// a group's ⋯ has Rename and Ungroup, and "Select" puts tick boxes on tasks
+// (clicking a task then ticks it). On "All projects" the groups show and
+// fold, nothing more.
 
 const ROW_H = 38;
 const HEAD_H = 46;
@@ -53,6 +63,8 @@ const minWidth = (key) => (key === 'name' ? 100 : 40);
 const MAX_WIDTH = 600;
 const clampWidth = (key, w) => Math.round(Math.min(MAX_WIDTH, Math.max(minWidth(key), w)));
 const EMPTY_LAYOUT = { widths: {}, folded: [], tableFolded: false };
+const TICK_W = 34;                      // the tick-box column while selecting
+const LEVEL_W = 22;                     // indent per level (project › group › task)
 
 /**
  * The columns as they show now: each with its width `w`, and `folded`. With
@@ -142,7 +154,9 @@ function dayRange(placedList, today) {
  * @param {object} props
  * @param {Array} props.rows what to draw, top to bottom:
  *   { kind: 'group', project, color, span: {start,end}|null, folded, count }
- *   or { kind: 'task', task, color, indent }
+ *   { kind: 'group', key, name, level, span, folded, count, editable,
+ *     members: [task ids], memberTasks: [tasks] }  (a project or a group of tasks)
+ *   or { kind: 'task', task, color, level }
  * @param {Map<string, {start: string, end: string}>} props.placed every task's
  *   dates (projectSchedule.schedule)
  * @param {string|null} props.selectedId the task open in the task window
@@ -151,8 +165,17 @@ function dayRange(placedList, today) {
  * @param {{widths: object, folded: string[], tableFolded: boolean}} [props.layout]
  *   the table's saved layout
  * @param {(layout) => void} [props.onLayoutChange] a column was resized or folded
+ * @param {{active: boolean, isPicked: (id) => boolean, toggle: (id) => void}} [props.selection]
+ *   while selecting, tasks show tick boxes and clicking one ticks it
+ * @param {Array} [props.dragRows] the rows as projectArrange.visibleRows gives
+ *   them (same order as `rows`); with `onDrop`, tasks and groups can be dragged
+ * @param {(dragged: {type, id}, place) => void} [props.onDrop] where it landed
+ * @param {(groupId, action: 'rename'|'ungroup') => void} [props.onGroupAction] a group's ⋯
  */
-export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onToggleGroup, layout, onLayoutChange }) {
+export default function ProjectGantt({
+    rows, placed, selectedId, onOpenTask, onToggleGroup, layout, onLayoutChange,
+    selection, dragRows, onDrop, onGroupAction,
+}) {
     const boxRef = useRef(null);
     const boxWidth = useWidth(boxRef);
     const today = toDay(todayDate());
@@ -161,7 +184,56 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
 
     const saved = { ...EMPTY_LAYOUT, ...(layout || {}) };
     const cols = visibleColumns(saved, drag);
-    const tableW = cols.reduce((sum, c) => sum + c.w, 0);
+    const selecting = !!(selection && selection.active);
+    const tableW = cols.reduce((sum, c) => sum + c.w, 0) + (selecting ? TICK_W : 0);
+    const bodyRef = useRef(null);
+    // A task or group being dragged: { item, gap, into, inside, y }.
+    const [moving, setMoving] = useState(null);
+    // The group whose ⋯ menu is open.
+    const [menuFor, setMenuFor] = useState(null);
+    useEffect(() => {
+        if (!menuFor) return undefined;
+        const close = (e) => { if (!e.target.closest || !e.target.closest('.pg__menu')) setMenuFor(null); };
+        window.addEventListener('pointerdown', close);
+        return () => window.removeEventListener('pointerdown', close);
+    }, [menuFor]);
+    const canDrag = !!(onDrop && dragRows);
+    // How far a row's name is indented: by level, with room for the grip when dragging is on.
+    const indentOf = (level) => (canDrag ? 26 : 8) + level * LEVEL_W;
+
+    // Drag by the grip: follow the pointer over the rows; the gap it's over
+    // (or a group's name, to drop into that group) is where it lands.
+    const startMove = (item) => (e) => {
+        if (e.button !== 0 || !canDrag) return;
+        e.preventDefault();
+        e.stopPropagation();
+        let state = null;
+        const at = (ev) => {
+            const box = bodyRef.current.getBoundingClientRect();
+            const y = Math.max(0, Math.min(rows.length * ROW_H - 1, ev.clientY - box.top));
+            const index = Math.floor(y / ROW_H);
+            const frac = y / ROW_H - index;
+            const over = dragRows[index];
+            const into = item.type === 'task' && over && over.type === 'group' && frac > 0.3 && frac < 0.7 ? over.id : null;
+            const inside = ev.clientX - box.left > (selecting ? TICK_W : 0) + indentOf(1) + 10;
+            return { item, gap: frac < 0.5 ? index : index + 1, into, inside, y };
+        };
+        const move = (ev) => { state = at(ev); setMoving(state); };
+        const up = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+            setMoving(null);
+            if (!state) return;
+            const place = state.into ? { group: state.into, before: null } : placeFromRows(dragRows, state.gap, item, state.inside);
+            onDrop(item, place);
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+    };
+    // Where the dragged thing would land, for the blue line.
+    const landing = moving && !moving.into
+        ? placeFromRows(dragRows, moving.gap, moving.item, moving.inside)
+        : null;
     const change = (next) => onLayoutChange && onLayoutChange({ ...saved, ...next });
     const widthOf = (key) => cols.find((c) => c.key === key).w;
 
@@ -228,14 +300,27 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
     // with a jog back left when it starts right after (it usually does).
     const rowOf = new Map();
     rows.forEach((r, i) => { if (r.kind === 'task') rowOf.set(r.task.id, i); });
-    const arrows = [];
+    // A folded group's tasks aren't shown: their arrows join the group's row.
     rows.forEach((r, i) => {
-        if (r.kind !== 'task') return;
-        (r.task.after || []).forEach((beforeId) => {
+        if (r.kind === 'group' && r.folded) (r.members || []).forEach((id) => { if (!rowOf.has(id)) rowOf.set(id, i); });
+    });
+    const taskById = new Map();
+    rows.forEach((r) => { if (r.kind === 'task') taskById.set(r.task.id, r.task); });
+    rows.forEach((r) => { if (r.kind === 'group') (r.memberTasks || []).forEach((t) => taskById.set(t.id, t)); });
+    const arrows = [];
+    const drawn = new Set();
+    taskById.forEach((task) => {
+        const i = rowOf.get(task.id);
+        if (i === undefined) return;
+        (task.after || []).forEach((beforeId) => {
             const j = rowOf.get(beforeId);
             const a = placed.get(beforeId);
-            const b = placed.get(r.task.id);
-            if (j === undefined || !a || !b) return;
+            const b = placed.get(task.id);
+            if (j === undefined || j === i || !a || !b) return;
+            // Several hidden tasks can make the same arrow between two rows: once is enough.
+            const key = `${j}>${i}`;
+            if (drawn.has(key)) return;
+            drawn.add(key);
             const xe = x(a.end) + dayW;
             const xs = x(b.start);
             const y1 = j * ROW_H + ROW_H / 2;
@@ -243,7 +328,7 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
             const d = xs >= xe + 14
                 ? `M${xe} ${y1} H${xe + 7} V${y2} H${xs - 1}`
                 : `M${xe} ${y1} H${xe + 7} V${y2 + (y2 > y1 ? -ROW_H / 2 : ROW_H / 2)} H${xs - 8} V${y2} H${xs - 1}`;
-            arrows.push(<path key={`${beforeId}>${r.task.id}`} d={d} />);
+            arrows.push(<path key={key} d={d} />);
         });
     });
 
@@ -255,6 +340,7 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
             <div className="pg__inner" style={{ width: tableW + timelineW }}>
                 <div className="pg__head" style={{ height: HEAD_H }}>
                     <div className="pg__cells pg__cells--head" style={{ width: tableW }}>
+                        {selecting && <div className="pg__th" style={{ width: TICK_W }} />}
                         {cols.map((c) => (c.folded ? (
                             <button key={c.key} type="button" className="pg__th pg__th--folded" style={{ width: c.w }}
                                 title={`Show ${c.label}`} aria-label={`Show the ${c.label} column`} onClick={() => unfold(c.key)}>
@@ -276,28 +362,60 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
                     <div className="pg-scale" style={{ width: timelineW }}>{marks}</div>
                 </div>
 
-                <div className="pg__body">
-                    {rows.map((r) => (r.kind === 'group' ? (
-                        <div key={`g${r.project.id}`} className="pg__row pg__row--group" style={{ height: ROW_H }}>
+                <div className="pg__body" ref={bodyRef}>
+                    {rows.map((r, i) => (r.kind === 'group' ? (
+                        <div key={`g${r.key}`}
+                            className={`pg__row pg__row--group pg__row--level${r.level}${moving && moving.into === r.key ? ' pg__row--dropinto' : ''}${moving && moving.item.type === 'group' && moving.item.id === r.key ? ' pg__row--moving' : ''}`}
+                            style={{ height: ROW_H }}>
                             <div className="pg__cells" style={{ width: tableW }}>
+                                {r.editable && canDrag && (
+                                    <span className="pg__drag" role="button" aria-label={`Move ${r.name}`} title="Drag to move"
+                                        style={{ left: (selecting ? TICK_W : 0) + indentOf(r.level) - 22 }}
+                                        onPointerDown={startMove({ type: 'group', id: r.key })}>
+                                        <GripIcon size={14} />
+                                    </span>
+                                )}
                                 <button type="button" className="pg__groupname" aria-expanded={!r.folded}
-                                    onClick={() => onToggleGroup && onToggleGroup(r.project.id)}>
+                                    style={{ paddingLeft: indentOf(r.level) + (selecting ? TICK_W : 0) }}
+                                    onClick={() => onToggleGroup && onToggleGroup(r.key)}>
                                     <i className={`${r.folded ? 'caret right' : 'caret down'} icon`} aria-hidden="true"></i>
-                                    {r.project.name}
+                                    <span className="pg__groupname-text">{r.name}</span>
                                     <span className="pg__groupcount">{r.count}</span>
                                 </button>
+                                {r.editable && onGroupAction && (
+                                    <span className="pg__menuwrap">
+                                        <button type="button" className="pg__dots" aria-label={`${r.name}: more`} aria-haspopup="menu"
+                                            aria-expanded={menuFor === r.key} onClick={() => setMenuFor(menuFor === r.key ? null : r.key)}>⋯</button>
+                                        {menuFor === r.key && (
+                                            <span className="pg__menu" role="menu">
+                                                <button type="button" role="menuitem" onClick={() => { setMenuFor(null); onGroupAction(r.key, 'rename'); }}>Rename</button>
+                                                <button type="button" role="menuitem" onClick={() => { setMenuFor(null); onGroupAction(r.key, 'ungroup'); }}>
+                                                    Ungroup <small>its tasks stay</small>
+                                                </button>
+                                            </span>
+                                        )}
+                                    </span>
+                                )}
                             </div>
                             <div className="pg__track" style={{ width: timelineW }}>
                                 {r.span && (
-                                    <div className="pg-bar pg-bar--span" title={`${r.project.name}: ${shortDate(r.span.start)} – ${shortDate(r.span.end)}`}
+                                    <div className="pg-bar pg-bar--span" title={`${r.name}: ${shortDate(r.span.start)} – ${shortDate(r.span.end)}`}
                                         style={{ left: x(r.span.start), width: x(r.span.end) + dayW - x(r.span.start) }} />
                                 )}
                             </div>
                         </div>
                     ) : (
                         <TaskRow key={r.task.id} row={r} cols={cols} tableW={tableW} dates={placed.get(r.task.id)} x={x} dayW={dayW}
-                            timelineW={timelineW} selected={r.task.id === selectedId} onOpen={onOpenTask} />
+                            timelineW={timelineW} selected={r.task.id === selectedId} onOpen={onOpenTask}
+                            selection={selecting ? selection : null} indentOf={indentOf}
+                            onGrip={canDrag ? startMove({ type: 'task', id: r.task.id }) : null}
+                            moving={!!(moving && moving.item.type === 'task' && moving.item.id === r.task.id)} />
                     )))}
+
+                    {/* Where a dragged task or group will land. */}
+                    {moving && !moving.into && (
+                        <div className="pg-dropline" style={{ top: moving.gap * ROW_H - 1, left: indentOf(landing && landing.group ? 1 : 0) + (selecting ? TICK_W : 0) - 4, width: Math.max(120, tableW - 40) }} />
+                    )}
 
                     {/* Weekends, week lines, today and the arrows, over the timeline part. */}
                     <div className="pg__overlay" style={{ left: tableW, width: timelineW, height: rows.length * ROW_H }}>
@@ -333,20 +451,34 @@ export default function ProjectGantt({ rows, placed, selectedId, onOpenTask, onT
 }
 
 /** One task: its cells in the table, its bar on the timeline. Click either to open it. */
-function TaskRow({ row, cols, tableW, dates, x, dayW, timelineW, selected, onOpen }) {
-    const { task, color, indent } = row;
-    const open = () => onOpen(task);
+function TaskRow({ row, cols, tableW, dates, x, dayW, timelineW, selected, onOpen, selection, onGrip, moving, indentOf }) {
+    const { task, color, level = 0 } = row;
+    const picked = !!(selection && selection.isPicked(task.id));
+    // While selecting, a click ticks the task instead of opening it.
+    const open = () => (selection ? selection.toggle(task.id) : onOpen(task));
     const label = dates ? `${task.name}: ${shortDate(dates.start)} – ${shortDate(dates.end)}, ${task.days} ${task.days === 1 ? 'day' : 'days'}` : task.name;
     return (
-        <div className={`pg__row${selected ? ' pg__row--on' : ''}`} style={{ height: ROW_H }}>
+        <div className={`pg__row${selected || picked ? ' pg__row--on' : ''}${moving ? ' pg__row--moving' : ''}`} style={{ height: ROW_H }}>
             <div className="pg__cells" style={{ width: tableW }}>
+                {selection && (
+                    <button type="button" className="pg__tickcell" style={{ width: TICK_W }} onClick={open}
+                        role="checkbox" aria-checked={picked} aria-label={`Select ${task.name}`}>
+                        <span className={`nb-check${picked ? ' is-on' : ''}`} aria-hidden="true">{picked && <i className="check icon"></i>}</span>
+                    </button>
+                )}
+                {onGrip && (
+                    <span className="pg__drag" role="button" aria-label={`Move ${task.name}`} title="Drag to move"
+                        style={{ left: (selection ? TICK_W : 0) + indentOf(level) - 22 }} onPointerDown={onGrip}>
+                        <GripIcon size={14} />
+                    </span>
+                )}
                 {cols.map((c) => {
                     if (c.folded) return <div key={c.key} className="pg__td pg__td--folded" style={{ width: c.w }} />;
                     switch (c.key) {
                         case 'name':
                             return (
                                 <button key={c.key} type="button" className="pg__td pg__taskname" data-col="name"
-                                    style={{ width: c.w, paddingLeft: indent ? 30 : 8 }} onClick={open} title={task.name}>
+                                    style={{ width: c.w, paddingLeft: indentOf(level) }} onClick={open} title={task.name}>
                                     {task.name}
                                 </button>
                             );

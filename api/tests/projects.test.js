@@ -18,13 +18,17 @@ const done = (value) => ({ promise: async () => value });
 const fake = {
     get: ({ TableName, Key }) => done({ Item: rows.get(keyOf(TableName, Key)) }),
     put: ({ TableName, Item }) => { rows.set(keyOf(TableName, Item), { ...Item }); return done({}); },
-    // Only "SET a = :x, #b = :y" updates, which is all projects.js uses.
-    update: ({ TableName, Key, UpdateExpression, ExpressionAttributeNames = {}, ExpressionAttributeValues = {} }) => {
-        const row = { ...(rows.get(keyOf(TableName, Key)) || Key) };
-        UpdateExpression.replace(/^SET /, "").split(",").forEach((part) => {
-            const [lhs, rhs] = part.split("=").map((s) => s.trim());
+    // "SET a = :x, #b = :y [REMOVE #c]" updates, which is all projects.js uses.
+    update: ({ TableName, Key, UpdateExpression, ExpressionAttributeNames = {}, ExpressionAttributeValues = {}, ConditionExpression }) => {
+        const existing = rows.get(keyOf(TableName, Key));
+        if (ConditionExpression && !existing) return { promise: async () => { throw Object.assign(new Error("ConditionalCheckFailed"), { name: "ConditionalCheckFailedException" }); } };
+        const row = { ...(existing || Key) };
+        const [setPart, removePart] = UpdateExpression.split(" REMOVE ");
+        setPart.replace(/^SET /, "").split(",").forEach((part) => {
+            const [lhs, rhs] = part.split("=").map((x) => x.trim());
             row[ExpressionAttributeNames[lhs] || lhs] = ExpressionAttributeValues[rhs];
         });
+        if (removePart) removePart.split(",").forEach((name) => { delete row[ExpressionAttributeNames[name.trim()] || name.trim()]; });
         rows.set(keyOf(TableName, Key), row);
         return done({});
     },
@@ -176,4 +180,85 @@ test("the layout is saved on the account and comes back with GET /projects", asy
     assert.deepEqual((await projects.listAll(USER)).layout, { widths: {}, folded: [], tableFolded: false });
     await projects.setLayout(USER, { widths: { who: 120 }, folded: ["days"], tableFolded: true });
     assert.deepEqual((await projects.listAll(USER)).layout, { widths: { who: 120 }, folded: ["days"], tableFolded: true });
+});
+
+// ---- Groups and order --------------------------------------------------------
+
+/** A project with tasks A, B, C (C waits for A). */
+async function abc() {
+    const p = await projects.createProject(USER, { name: "Kitchen" });
+    const a = await projects.createTask(USER, p.id, { name: "A", days: 2, start: MON });
+    const b = await projects.createTask(USER, p.id, { name: "B", days: 1, start: MON });
+    const c = await projects.createTask(USER, p.id, { name: "C", days: 1, after: [a.id] });
+    return { p, a, b, c };
+}
+
+test("new tasks and groups go at the end of the project's list", async () => {
+    const { p, a, b, c } = await abc();
+    assert.deepEqual([a.order, b.order, c.order], [1, 2, 3]);
+    assert.equal(a.group, null);
+    const made = await projects.createGroup(USER, p.id, { name: "Cabinets" });
+    assert.equal(made.group.order, 4);
+    const d = await projects.createTask(USER, p.id, { name: "D", days: 1, start: MON });
+    assert.equal(d.order, 5);
+    assert.deepEqual((await projects.listAll(USER)).groups.map((g) => g.name), ["Cabinets"]);
+});
+
+test("arrange puts tasks in a group and keeps them there when the task is edited", async () => {
+    const { p, a, b, c } = await abc();
+    const { group } = await projects.createGroup(USER, p.id, { name: "Cabinets" });
+    const state = await projects.arrange(USER, p.id, {
+        groups: [{ id: group.id, order: 1 }],
+        tasks: [{ id: b.id, group: null, order: 2 }, { id: a.id, group: group.id, order: 1 }, { id: c.id, group: group.id, order: 2 }],
+    });
+    const byId = Object.fromEntries(state.tasks.map((t) => [t.id, t]));
+    assert.equal(byId[a.id].group, group.id);
+    assert.equal(byId[c.id].order, 2);
+    assert.equal(state.groups[0].order, 1);
+    // Editing a task in the window doesn't move it out of its group.
+    const edited = await projects.updateTask(USER, p.id, a.id, { name: "A!", days: 3, start: MON, order: 99 });
+    assert.equal(edited.group, group.id);
+    assert.equal(edited.order, 1);
+    // Unknown tasks or groups are refused.
+    await refuses(projects.arrange(USER, p.id, { tasks: [{ id: a.id, group: "nope", order: 1 }] }), 400);
+    await refuses(projects.arrange(USER, p.id, { tasks: [{ id: "nope", group: null, order: 1 }] }), 400);
+});
+
+test("taking a task out of its group removes the group from the task", async () => {
+    const { p, a } = await abc();
+    const { group } = await projects.createGroup(USER, p.id, { name: "G" });
+    await projects.arrange(USER, p.id, { tasks: [{ id: a.id, group: group.id, order: 1 }] });
+    const state = await projects.arrange(USER, p.id, { tasks: [{ id: a.id, group: null, order: 5 }] });
+    assert.equal(state.tasks.find((t) => t.id === a.id).group, null);
+});
+
+test("ungroup keeps the tasks, in the group's place", async () => {
+    const { p, a, b, c } = await abc();
+    const { group } = await projects.createGroup(USER, p.id, { name: "G" });
+    // List: B, G(A, C)
+    await projects.arrange(USER, p.id, {
+        groups: [{ id: group.id, order: 2 }],
+        tasks: [{ id: b.id, group: null, order: 1 }, { id: a.id, group: group.id, order: 1 }, { id: c.id, group: group.id, order: 2 }],
+    });
+    const state = await projects.ungroup(USER, p.id, group.id);
+    assert.deepEqual(state.groups, []);
+    assert.deepEqual(state.tasks.map((t) => [t.name, t.order, t.group]), [["B", 1, null], ["A", 2, null], ["C", 3, null]]);
+});
+
+test("renaming a group; deleting a project deletes its groups", async () => {
+    const { p } = await abc();
+    const { group } = await projects.createGroup(USER, p.id, { name: "G" });
+    const renamed = await projects.renameGroup(USER, p.id, group.id, { name: "Finishing" });
+    assert.equal(renamed.groups[0].name, "Finishing");
+    await refuses(projects.renameGroup(USER, p.id, "nope", { name: "x" }), 404);
+    await projects.deleteProject(USER, p.id);
+    assert.deepEqual((await projects.listAll(USER)).groups, []);
+});
+
+test("deleting a task keeps the group of the tasks that waited for it", async () => {
+    const { p, a, c } = await abc();
+    const { group } = await projects.createGroup(USER, p.id, { name: "G" });
+    await projects.arrange(USER, p.id, { tasks: [{ id: c.id, group: group.id, order: 1 }] });
+    const { changed } = await projects.deleteTask(USER, p.id, a.id, { [c.id]: "2026-11-18" });
+    assert.equal(changed[0].group, group.id);
 });

@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="common.css"><script src="common.js"></script></head><body>
+<h1>A • Select tasks, put them in a group</h1>
+<p class="sub">“Select” works like it does in a notebook: tick boxes appear on the tasks and a bar shows what you can do with the ticked ones. “Put in group” offers the project’s groups, or a new one.</p>
+<div class="frame" id="f" style="height:700px"></div>
+<script>
+document.getElementById('f').innerHTML = side2('Kitchen remodel') +
+  `<div class="main"><div class="top"><h2>Kitchen remodel</h2><span class="meta">8 tasks · ends Dec 31</span><span class="grow"></span><button class="btn" style="background:var(--accent-weak);color:var(--accent);border-color:var(--accent)">✓ Select</button><button class="btn">Rename</button><button class="btn">Delete</button><button class="btn primary">+ Task</button></div>
+   <div class="selbar"><b>3 selected</b><button class="btn" style="border-color:var(--accent);color:var(--accent)">Put in group ▾</button><button class="btn">Take out of group</button><span class="grow"></span><span class="lnk">Select all</span><span class="lnk">Cancel</span></div>
+   <div class="gantt" id="g"></div>
+   <div class="win" style="left:118px;top:120px;width:250px;padding:6px">
+     <div style="padding:7px 10px;border-radius:6px;font-size:14px">Prep</div>
+     <div style="padding:7px 10px;border-top:1px solid var(--border);margin-top:4px;font-size:14px;color:var(--accent);font-weight:700">+ New group</div>
+     <div style="padding:4px 10px 8px"><span class="field" style="display:block;border-color:var(--accent);box-shadow:0 0 0 3px #dbe6fd;font-size:14px">Cabinets<span style="color:var(--accent)">|</span></span></div>
+   </div>
+   <div class="callout" style="left:24px;bottom:22px;width:600px">Clicking a task while selecting ticks it instead of opening it. Groups belong to one project. Ticked tasks can be moved into a group, or taken out of one.</div>
+  </div>`;
+const k = kitchen();
+const picked = ['pick', 'order', 'install'];
+const prep = ['plan', 'demo', 'plumb'];
+const tick = (t) => t.group ? '' : `<span class="tick ${picked.includes(t.id) ? 'on' : ''}">${picked.includes(t.id) ? '✓' : ''}</span>`;
+const name = (t) => t.group ? `<span class="grp-name"><span class="car">▾</span>${t.group}<span class="cnt">3</span></span>` : `<span style="padding-left:${prep.includes(t.id) ? 18 : 0}px">${t.name}</span>`;
+const by = Object.fromEntries(k.map((t) => [t.id, t]));
+const rows = [{ group: 'Prep', from: 0, to: 15 }, by.plan, by.demo, by.plumb, by.pick, by.order, by.install, by.counter, by.paint];
+gantt(document.getElementById('g'), {
+  rows, dayW: 8.6, sel: null,
+  cols: [{ h: '', w: 34, cell: tick }, { h: 'Task', w: 210, cell: name }, { h: 'Starts', w: 70, dim: true, cell: (t) => t.group ? '' : fmt(t.start) }, { h: 'Days', w: 48, dim: true, cell: (t) => t.group ? '' : t.len }, { h: 'Who', w: 150, cell: (t) => t.group ? '' : whoCell(t) }],
+});
+document.querySelectorAll('.grow-row').forEach((r, i) => { if ([4, 5, 6].includes(i)) r.style.background = '#f3f7ff'; });
+</script></body></html>
