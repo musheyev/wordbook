@@ -15,9 +15,10 @@ import { site } from '../utils/site';
 //     + New project
 //
 // "All projects" shows every project on one timeline; a project's name shows
-// just that one (pages/ProjectsPage.js). The ▸ / ▾ folds the list away,
-// remembered on this device. "+ New project" turns into a name box: Enter
-// makes the project and opens it, Escape cancels.
+// just that one (pages/ProjectsPage.js). The ▸ / ▾ folds the list away: it
+// starts collapsed until you first open it, then it's remembered on this
+// device. "+ New project" turns into a name box: Enter makes the project and
+// opens it, Escape cancels.
 //
 // Computers only (decided): on phones and in the iPhone app there's no link
 // at all, and the pages say to use a computer. And myremembrancer.com only
@@ -26,8 +27,9 @@ const OPEN_KEY = 'nav-projects-open';
 export const PROJECTS_PATH = '/projects';
 export const projectPath = (id) => `${PROJECTS_PATH}/${encodeURIComponent(id)}`;
 
+// Collapsed until you open it (decided), then as you left it.
 const readOpen = () => {
-    try { return localStorage.getItem(OPEN_KEY) !== 'no'; } catch (e) { return true; }
+    try { return localStorage.getItem(OPEN_KEY) === 'yes'; } catch (e) { return false; }
 };
 
 /**

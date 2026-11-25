@@ -32,7 +32,7 @@ function MorePage({ auth, isAdmin, logoutCurrentUser }) {
                 ? `${classrooms.invitations} ${classrooms.invitations === 1 ? 'invitation' : 'invitations'} waiting`
                 : 'Classrooms you teach or are in',
         }] : []),
-        { to: '/tags', icon: 'tags', label: 'Tags', hint: 'Everything you tagged, by tag' },
+        { to: '/tags', icon: 'tags', label: 'My Tags', hint: 'Everything you tagged, by tag' },
         { to: '/bookmarks', icon: 'star outline', label: 'My Bookmarks', hint: 'Notes and words you starred' },
         ...(isAdmin ? [{ to: '/quizzes', icon: 'question circle outline', label: 'My Quizzes', hint: 'Quizzes you saved' }] : []),
         ...(isAdmin ? [{ to: '/admin', icon: 'shield alternate', label: 'Admin', hint: 'Users, images, audio clean-up' }] : []),
