@@ -278,3 +278,58 @@ test("holidays are kept on the account and come back with GET /projects", async 
     await projects.setHolidays(USER, [{ date: "2026-12-25", name: "Christmas" }]);
     assert.deepEqual((await projects.listAll(USER)).holidays, [{ date: "2026-12-25", name: "Christmas" }]);
 });
+
+// ---- Offline: ids made by the web app, latest change wins ---------------------
+const LONG_AGO = "2000-01-01T00:00:00.000Z";   // an offline change older than anything stored
+const LATER = "2999-01-01T00:00:00.000Z";      // …and one newer than anything stored
+
+test("making the same project, task or group twice makes it once", async () => {
+    const p1 = await projects.createProject(USER, { id: "proj-0001", name: "Kitchen" });
+    const p2 = await projects.createProject(USER, { id: "proj-0001", name: "Kitchen" });
+    assert.equal(p1.id, "proj-0001");
+    assert.equal(p2.id, "proj-0001");
+    await projects.createTask(USER, p1.id, { id: "task-0001", name: "A", days: 1, start: MON });
+    await projects.createTask(USER, p1.id, { id: "task-0001", name: "A", days: 1, start: MON });
+    await projects.createGroup(USER, p1.id, { id: "group-0001", name: "G" });
+    const again = await projects.createGroup(USER, p1.id, { id: "group-0001", name: "G" });
+    assert.equal(again.group.id, "group-0001");
+    const all = await projects.listAll(USER);
+    assert.deepEqual([all.projects.length, all.tasks.length, all.groups.length], [1, 1, 1]);
+    await refuses(projects.createProject(USER, { id: "bad id!", name: "x" }), 400);
+});
+
+test("an offline edit older than the stored task: the stored one is kept", async () => {
+    const p = await projects.createProject(USER, { name: "Kitchen" });
+    const a = await projects.createTask(USER, p.id, { name: "A", days: 5, start: MON });
+    const old = await projects.updateTask(USER, p.id, a.id, { name: "A", days: 9, start: MON, changedAt: LONG_AGO });
+    assert.equal(old.kept, "theirs");
+    assert.equal(old.days, 5);
+    const newer = await projects.updateTask(USER, p.id, a.id, { name: "A", days: 9, start: MON, changedAt: LATER });
+    assert.equal(newer.kept, "yours");
+    assert.equal(newer.days, 9);
+    // Made online (no changedAt): always saved, no `kept`.
+    const online = await projects.updateTask(USER, p.id, a.id, { name: "A", days: 3, start: MON });
+    assert.equal(online.kept, undefined);
+    await refuses(projects.updateTask(USER, p.id, a.id, { name: "A", days: 3, start: MON, changedAt: "not a time" }), 400);
+});
+
+test("renames made offline: latest wins too", async () => {
+    const p = await projects.createProject(USER, { name: "Kitchen" });
+    assert.equal((await projects.renameProject(USER, p.id, { name: "Old", changedAt: LONG_AGO })).kept, "theirs");
+    assert.equal((await projects.listAll(USER)).projects[0].name, "Kitchen");
+    assert.equal((await projects.renameProject(USER, p.id, { name: "New", changedAt: LATER })).kept, "yours");
+    const { group } = await projects.createGroup(USER, p.id, { name: "G" });
+    assert.equal((await projects.renameGroup(USER, p.id, group.id, { name: "Old", changedAt: LONG_AGO })).kept, "theirs");
+    assert.equal((await projects.renameGroup(USER, p.id, group.id, { name: "Finishing", changedAt: LATER })).groups[0].name, "Finishing");
+});
+
+test("a delete made offline: kept if the task changed after it; harmless if sent twice", async () => {
+    const p = await projects.createProject(USER, { name: "Kitchen" });
+    const a = await projects.createTask(USER, p.id, { name: "A", days: 1, start: MON });
+    const kept = await projects.deleteTask(USER, p.id, a.id, {}, LONG_AGO);
+    assert.equal(kept.kept, "theirs");
+    assert.equal((await projects.listAll(USER)).tasks.length, 1);
+    await projects.deleteTask(USER, p.id, a.id, {}, LATER);
+    assert.equal((await projects.listAll(USER)).tasks.length, 0);
+    assert.equal((await projects.deleteTask(USER, p.id, a.id, {}, LATER)).kept, "yours");
+});

@@ -18,6 +18,10 @@
  *   PUT    /projects/:projectId/arrange           { groups: [{ id, order }], tasks: [{ id, group, order }] }
  *          -> { projectId, tasks, groups }  (new places, and which group each task is in)
  *
+ * Offline: "make" routes take an `id` the web app made (sending it again is
+ * harmless), and changes made offline take `changedAt`; if what's stored
+ * changed after that, it's kept and the answer says `kept: "theirs"`.
+ *
  * A project:  { id, name, created_at }
  * A task:     { id, projectId, name, days, after, start, who, notes: [{ type, id, title }], order, group }
  * A group:    { id, projectId, name, order }
@@ -91,8 +95,8 @@ projectsRouter.put("/:projectId/tasks/:taskId", handle(async (req, res) => {
 }));
 
 projectsRouter.delete("/:projectId/tasks/:taskId", handle(async (req, res) => {
-    const starts = req.body && req.body.starts;
-    res.json(await projects.deleteTask(req.userName, req.params.projectId, req.params.taskId, starts));
+    const body = req.body || {};
+    res.json(await projects.deleteTask(req.userName, req.params.projectId, req.params.taskId, body.starts, body.changedAt));
 }));
 
 projectsRouter.post("/:projectId/groups", handle(async (req, res) => {

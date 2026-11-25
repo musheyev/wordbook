@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="common.css"><script src="common.js"></script></head><body>
+<h1 id="h"></h1><p class="sub" id="sub"></p>
+<div class="frame" id="f" style="height:640px"></div>
+<script>
+const V = 'b';
+document.getElementById('h').textContent = V === 'a' ? 'A • Offline, changes waiting' : 'B • Back online';
+document.getElementById('sub').textContent = V === 'a'
+  ? 'No connection: the bar says so and counts the changes waiting. An amber dot marks each task changed offline. Everything works, except deleting the whole project.'
+  : 'Connection back: the bar turns blue while the changes are sent, then green for a moment. If a task had changed elsewhere after your offline edit, a notice says which version was kept (the latest).';
+const bars = V === 'a'
+  ? '<div class="obar">📶 Offline — 3 changes waiting to be sent</div>'
+  : '<div class="obar sending">⟳ Sending 3 changes…</div><div class="onote"><span>“Order cabinets” was changed on another computer after your offline edit, so that version was kept (Takes 12 days).</span><b style="color:var(--ink-2)">×</b></div>';
+document.getElementById('f').innerHTML = side2('Kitchen remodel') +
+  `<div class="main"><div class="top"><h2>Kitchen remodel</h2><span class="meta">8 tasks · ends Dec 31</span><span class="grow"></span><button class="btn">Select</button><button class="btn">Rename</button><button class="btn ${V === 'a' ? 'off' : ''}" id="del">Delete</button><button class="btn">Holidays</button><button class="btn">Export to Excel</button><button class="btn primary">+ Task</button></div>
+   ${bars}<div class="gantt" id="g"></div>
+   ${V === 'b' ? '<div class="callout" style="left:24px;bottom:22px;width:640px">A moment later, once everything is sent: <span class="obar saved" style="display:inline-flex;margin:0 0 0 6px;padding:3px 10px">✓ All changes saved</span> — then the bar goes away.</div>' : ''}
+  </div>`;
+const pending = V === 'a' ? ['order', 'install', 'paint'] : [];
+gantt(document.getElementById('g'), {
+  rows: kitchen(), dayW: 8.4,
+  cols: [{ h: 'Task', w: 210, cell: (t) => t.name + (pending.includes(t.id) ? '<span class="pend" title="Changed offline, waiting to be sent"></span>' : '') },
+         { h: 'Starts', w: 70, dim: true, cell: (t) => fmt(t.start) }, { h: 'Days', w: 48, dim: true, cell: (t) => (t.id === 'order' ? (V === 'a' ? 15 : 12) : t.len) }, { h: 'Who', w: 150, cell: whoCell }],
+});
+if (V === 'a') {
+  const main = document.querySelector('.main'), mr = main.getBoundingClientRect(), d = document.getElementById('del').getBoundingClientRect();
+  const tip = document.createElement('div'); tip.className = 'tip'; tip.textContent = 'Deleting a project needs an internet connection';
+  tip.style.left = (d.left - mr.left - 120) + 'px'; tip.style.top = (d.bottom - mr.top + 8) + 'px'; main.appendChild(tip);
+  const c = document.createElement('div'); c.className = 'callout'; c.style.cssText = 'left:24px;bottom:22px;width:560px';
+  c.innerHTML = 'The amber dot: changed offline, not sent yet. Hover it: “Changed offline, waiting to be sent”.'; main.appendChild(c);
+}
+</script></body></html>
