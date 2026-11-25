@@ -2,8 +2,9 @@
  * HTTP routes for My Projects (mounted at /projects in app.js). The logic
  * lives in ../projects.js.
  *
- *   GET    /projects                          -> { projects: [...], tasks: [...], layout }
+ *   GET    /projects                          -> { projects, tasks, groups, layout, holidays }
  *   PUT    /projects/layout          { widths, folded, tableFolded } -> layout (the table's columns)
+ *   PUT    /projects/holidays        [{ date, name }] -> the list as kept (skipped like weekends, all projects)
  *   POST   /projects                { name }  -> project
  *   PUT    /projects/:projectId      { name }  -> project (renamed)
  *   DELETE /projects/:projectId               -> { ok: true }  (and all its tasks)
@@ -65,6 +66,11 @@ projectsRouter.post("/", handle(async (req, res) => {
 // Before "/:projectId", or "layout" would be taken for a project's id.
 projectsRouter.put("/layout", handle(async (req, res) => {
     res.json(await projects.setLayout(req.userName, req.body));
+}));
+
+// Before "/:projectId" too.
+projectsRouter.put("/holidays", handle(async (req, res) => {
+    res.json(await projects.setHolidays(req.userName, req.body));
 }));
 
 projectsRouter.put("/:projectId", handle(async (req, res) => {

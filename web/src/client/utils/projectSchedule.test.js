@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    toDay, fromDay, weekday, nextWorkday, endDay, schedule, movesWith, startsAfterDeleting, makesLoop, span,
+    toDay, fromDay, weekday, nextWorkday, endDay, schedule, movesWith, startsAfterDeleting, makesLoop, span, holidaySet,
 } from './projectSchedule.js';
 
 // 16 Nov 2026 is a Monday.
@@ -124,4 +124,20 @@ test('span is the first start and last end', () => {
     ]);
     assert.deepEqual(span(placed, ['a', 'b']), { start: MON, end: '2026-11-24' });
     assert.equal(span(placed, []), null);
+});
+
+test('holidays are skipped like weekends', () => {
+    const off = holidaySet(['2026-11-26', { date: '2026-11-27', name: 'Day after' }]);   // Thu, Fri
+    assert.equal(fromDay(nextWorkday(toDay('2026-11-26'), off)), '2026-11-30');           // Thu → Mon
+    assert.equal(fromDay(endDay(toDay('2026-11-24'), 3, off)), '2026-11-30');             // Tue, Wed, Mon
+});
+
+test('schedule takes the holidays: later tasks move past them', () => {
+    const tasks = [
+        { id: 'a', days: 3, after: [], start: '2026-11-23' },   // Mon
+        { id: 'b', days: 2, after: ['a'] },
+    ];
+    assert.deepEqual(schedule(tasks).get('b'), { start: '2026-11-26', end: '2026-11-27' });
+    const withThanksgiving = schedule(tasks, { holidays: [{ date: '2026-11-26', name: 'Thanksgiving' }] });
+    assert.deepEqual(withThanksgiving.get('b'), { start: '2026-11-27', end: '2026-11-30' });
 });

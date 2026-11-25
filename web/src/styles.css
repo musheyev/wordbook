@@ -4898,3 +4898,17 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
 .projects-selectbar__add { color: var(--cb-accent) !important; font-weight: 700 !important; border-top: 1px solid var(--cb-border) !important; border-radius: 0 !important; margin-top: 3px; }
 .projects-selectbar__new { padding: 5px 6px; border-top: 1px solid var(--cb-border); margin-top: 3px; }
 .projects-selectbar__new input { width: 100%; font: inherit; font-size: 0.9rem; padding: 5px 8px; border: 1px solid var(--cb-accent); border-radius: 6px; outline: none; }
+
+/* Holidays (My Projects): the window, and the mark on the chart's dates row. */
+.pg-scale__holiday { position: absolute; bottom: 0; height: 4px; background: #f59e0b; border-radius: 2px 2px 0 0; cursor: help; }
+.holidays { max-width: 520px; }
+.holidays__head { display: flex; align-items: center; justify-content: space-between; }
+.holidays__list { list-style: none; margin: 0 0 12px; padding: 0; max-height: 280px; overflow-y: auto; border: 1px solid var(--cb-border); border-radius: 8px; }
+.holidays__row { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-bottom: 1px solid var(--cb-border); font-size: 0.9rem; }
+.holidays__row:last-child { border-bottom: none; }
+.holidays__date { width: 150px; flex: none; font-weight: 600; }
+.holidays__name { flex: 1; color: var(--cb-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.holidays__empty { color: var(--cb-ink-3); font-size: 0.9rem; margin-bottom: 12px; }
+.holidays__add { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.holidays__nameinput { flex: 1; }
+.holidays__hint { color: var(--cb-ink-3); font-size: 0.82rem; margin-bottom: 8px; }

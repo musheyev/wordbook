@@ -1727,6 +1727,7 @@ export const TASK_DELETED = 'task_deleted';
 export const PROJECTS_LAYOUT_SET = 'projects_layout_set';
 // One project's tasks and groups, after a change to their order or groups.
 export const PROJECT_STATE = 'project_state';
+export const HOLIDAYS_SET = 'holidays_set';
 
 // The server answers refusals as { error: "…" }; show its words when it sent some.
 const projectsCall = async (call, fallback) => {
@@ -1850,6 +1851,23 @@ export const arrangeProject = (projectId, places) => async (dispatch, getState, 
     dispatch({ type: PROJECT_STATE, payload: data });
   } catch (err) {
     dispatch(fetchProjects()).catch(() => {});
+    throw err;
+  }
+};
+
+/**
+ * Save the holiday list (all projects; skipped like weekends). Shown at
+ * once; resolves to the list as the server kept it (sorted, one per date).
+ */
+export const saveHolidays = (holidays) => async (dispatch, getState, api) => {
+  const before = getState().projects && getState().projects.holidays;
+  dispatch({ type: HOLIDAYS_SET, payload: holidays });
+  try {
+    const kept = await projectsCall(() => api.put('/projects/holidays', holidays, JSON_HEADERS), "Couldn't save the holidays.");
+    dispatch({ type: HOLIDAYS_SET, payload: kept });
+    return kept;
+  } catch (err) {
+    dispatch({ type: HOLIDAYS_SET, payload: before || [] });
     throw err;
   }
 };

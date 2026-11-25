@@ -262,3 +262,19 @@ test("deleting a task keeps the group of the tasks that waited for it", async ()
     const { changed } = await projects.deleteTask(USER, p.id, a.id, { [c.id]: "2026-11-18" });
     assert.equal(changed[0].group, group.id);
 });
+
+// ---- Holidays ---------------------------------------------------------------
+
+test("cleanHolidays: real dates, one per date, sorted, names trimmed", () => {
+    assert.deepEqual(projects.cleanHolidays([
+        { date: "2026-12-25", name: " Christmas " }, "2026-11-26", { date: "2026-12-25", name: "Xmas" },
+    ]), [{ date: "2026-11-26", name: "" }, { date: "2026-12-25", name: "Xmas" }]);
+    assert.throws(() => projects.cleanHolidays([{ date: "2026-02-30" }]), /real date/);
+    assert.throws(() => projects.cleanHolidays("nope"), /list/);
+});
+
+test("holidays are kept on the account and come back with GET /projects", async () => {
+    assert.deepEqual((await projects.listAll(USER)).holidays, []);
+    await projects.setHolidays(USER, [{ date: "2026-12-25", name: "Christmas" }]);
+    assert.deepEqual((await projects.listAll(USER)).holidays, [{ date: "2026-12-25", name: "Christmas" }]);
+});

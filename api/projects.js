@@ -237,7 +237,7 @@ async function addNoteTitles(userName, tasks) {
  * deleted since are left out (the link quietly goes away).
  *
  * @param {string} userName
- * @returns {Promise<{projects: object[], tasks: object[], groups: object[], layout: object}>}
+ * @returns {Promise<{projects: object[], tasks: object[], groups: object[], layout: object, holidays: object[]}>}
  */
 async function listAll(userName) {
     const rows = await readRows(userName);
@@ -248,7 +248,8 @@ async function listAll(userName) {
     const groups = rows.filter((r) => r.item_key.startsWith("group#")).map(groupOut)
         .sort((a, b) => a.order - b.order);
     await addNoteTitles(userName, tasks);
-    return { projects, tasks, groups, layout: await getLayout(userName) };
+    const [layout, holidays] = await Promise.all([getLayout(userName), getHolidays(userName)]);
+    return { projects, tasks, groups, layout, holidays };
 }
 
 /** One project's tasks and groups, as the web app gets them after a change to its groups or order. */
@@ -607,6 +608,52 @@ async function setLayout(userName, body) {
     return layout;
 }
 
+// ---- Holidays -----------------------------------------------------------------
+// Days skipped like weekends in every project (decided: one list for all the
+// user's projects). Kept on the account, on the user's settings row:
+//   dictionary_user_settings.projects_holidays = [{ date: "2026-12-25", name: "Christmas" }]
+// The web app does the date math (utils/projectSchedule.js); the server only
+// keeps the list sound.
+const MAX_HOLIDAYS = 400;
+const MAX_HOLIDAY_NAME = 80;
+
+/** Checks a holiday list as sent by the web app: real dates, one entry per date, sorted. Pure. */
+function cleanHolidays(input) {
+    const list = Array.isArray(input) ? input : (input && Array.isArray(input.holidays) ? input.holidays : null);
+    if (!list) throw new ProjectError(400, "Send the list of holidays.");
+    if (list.length > MAX_HOLIDAYS) throw new ProjectError(413, `You can have up to ${MAX_HOLIDAYS} holidays.`);
+    const byDate = new Map();
+    list.forEach((h) => {
+        const date = h && typeof h === "object" ? h.date : h;
+        if (!isDate(date)) throw new ProjectError(400, "Each holiday needs a real date.");
+        const name = h && typeof h.name === "string" ? h.name.trim().slice(0, MAX_HOLIDAY_NAME) : "";
+        byDate.set(date, { date, name });
+    });
+    return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** The user's holidays ([] when none). */
+async function getHolidays(userName) {
+    const data = await db().get({
+        TableName: SETTINGS_TABLE,
+        Key: { user_name: userName },
+        ProjectionExpression: "projects_holidays",
+    }).promise();
+    try { return cleanHolidays((data.Item && data.Item.projects_holidays) || []); } catch (err) { return []; }
+}
+
+/** Save the whole list (PUT /projects/holidays); returns it as stored. */
+async function setHolidays(userName, body) {
+    const holidays = cleanHolidays(body);
+    await db().update({
+        TableName: SETTINGS_TABLE,
+        Key: { user_name: userName },
+        UpdateExpression: "SET projects_holidays = :h",
+        ExpressionAttributeValues: { ":h": holidays },
+    }).promise();
+    return holidays;
+}
+
 module.exports = {
     listAll,
     createProject,
@@ -620,6 +667,9 @@ module.exports = {
     isDate,
     ProjectError,
     cleanLayout,
+    cleanHolidays,
+    getHolidays,
+    setHolidays,
     createGroup,
     renameGroup,
     ungroup,
