@@ -19,8 +19,10 @@ const SITES = {
         key: 'wordbook',
         name: 'Make Your Wordbook',
         icon: 'book',
-        // The side panel's main links, in order (components/Header.js).
-        nav: ['words', 'wordbooks', 'notebooks', 'tags', 'inbox'],
+        // The side panel's links, in order (components/Header.js). On
+        // phones only Words, Wordbooks, Notebooks and Inbox are tabs (in this
+        // order); the rest are on the More page.
+        nav: ['words', 'wordbooks', 'notebooks', 'tags', 'inbox', 'classrooms', 'bookmarks', 'projects', 'quizzes'],
         wordsPath: '/',
         homePath: '/',
         // The address people write to, shown on /support and /privacy.
@@ -33,7 +35,10 @@ const SITES = {
         key: 'remembrancer',
         name: 'Remembrancer',
         icon: 'bookmark',
-        nav: ['notebooks', 'wordbooks', 'words', 'tags', 'inbox'],
+        // The user's own collections first, then Words and Inbox (decided
+        // 2026-11-25); the phone's tabs stay Notebooks, Wordbooks, Words,
+        // Inbox. My Projects shows here only (`projects` below).
+        nav: ['notebooks', 'wordbooks', 'bookmarks', 'tags', 'quizzes', 'projects', 'classrooms', 'words', 'inbox'],
         wordsPath: '/words',
         homePath: '/account',
         // One inbox for both sites (each keeps its own setting, so they can

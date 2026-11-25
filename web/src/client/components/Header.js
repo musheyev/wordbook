@@ -287,10 +287,10 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
                         case 'tags':
                             return (
                                 // Lit on a tag's own view (/tag/…) too.
-                                <NavLink key={key} to="/tags" title={tip('Tags')}
+                                <NavLink key={key} to="/tags" title={tip('My Tags')}
                                     className={(state) => phoneMore({ isActive: state.isActive || tagName !== '' })}>
                                     <i className="tags icon"></i>
-                                    <span className="nav-label">Tags</span>
+                                    <span className="nav-label">My Tags</span>
                                 </NavLink>
                             );
                         case 'inbox':
@@ -307,34 +307,34 @@ const Header = ({ auth, isAdmin, inboxCount, noteWindowMode, notesFor, notesLeng
                                     <span className="nav-label">Inbox</span>
                                 </NavLink>
                             );
+                        case 'classrooms':
+                            // My Classrooms, as a tree (desktop rail; on phones, in More).
+                            return <ClassroomsNav key={key} signedIn={userExists} collapsed={collapsed} />;
+                        case 'bookmarks':
+                            // My Bookmarks: in the desktop rail; on phones, in More.
+                            return userExists ? (
+                                <NavLink key={key} to="/bookmarks" className={phoneMore} title={tip('My Bookmarks')}>
+                                    <i className="star outline icon"></i>
+                                    <span className="nav-label">My Bookmarks</span>
+                                </NavLink>
+                            ) : null;
+                        case 'quizzes':
+                            // My Quizzes (admins for now): in the desktop rail; on phones, in More.
+                            return userExists && isAdmin ? (
+                                <NavLink key={key} to="/quizzes" className={phoneMore} title={tip('My Quizzes')}>
+                                    <i className="question circle outline icon"></i>
+                                    <span className="nav-label">My Quizzes</span>
+                                </NavLink>
+                            ) : null;
+                        case 'projects':
+                            // My Projects, as a tree: computers only, myremembrancer.com only.
+                            return <ProjectsNav key={key} signedIn={userExists} collapsed={collapsed} />;
                         default:
                             return null;
                     }
                 })}
 
-                {/* My Classrooms, as a tree (desktop rail; on phones, in More). */}
-                <ClassroomsNav signedIn={userExists} collapsed={collapsed} />
-
-                {/* My Bookmarks: in the desktop rail; on phones, in More. */}
-                {userExists && (
-                    <NavLink to="/bookmarks" className={phoneMore} title={tip('My Bookmarks')}>
-                        <i className="star outline icon"></i>
-                        <span className="nav-label">My Bookmarks</span>
-                    </NavLink>
-                )}
-
-                {/* My Projects, as a tree: computers only, never on phones. */}
-                <ProjectsNav signedIn={userExists} collapsed={collapsed} />
-
-                {/* My Quizzes (admins for now): in the desktop rail; on phones, in More. */}
-                {userExists && isAdmin && (
-                    <NavLink to="/quizzes" className={phoneMore} title={tip('My Quizzes')}>
-                        <i className="question circle outline icon"></i>
-                        <span className="nav-label">My Quizzes</span>
-                    </NavLink>
-                )}
-
-                {/* Phones only: Tags, My Bookmarks, My Quizzes, Admin and Log out, on one page. */}
+                {/* Phones only: My Tags, My Bookmarks, My Quizzes, Admin and Log out, on one page. */}
                 <NavLink to="/more" className={() => `nav-item nav-main nav-more-tab${inMoreArea ? ' on' : ''}`}>
                     <span className="nav-icon-wrap">
                         <i className="ellipsis horizontal icon"></i>

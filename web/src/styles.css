@@ -582,6 +582,9 @@ nav-button-as-link {
   .nav-rail--ctx .nav-items { display: contents; }
   .nav-rail--ctx .nav-items > * { margin-left: 10px; margin-right: 10px; }
   .nav-rail--ctx .nav-main { order: 1; }
+  /* The My Classrooms and My Projects trees keep their place among the links
+     (without this they jumped to the top, above My Notebooks). */
+  .nav-rail--ctx .nav-classrooms { order: 1; }
   .nav-rail--ctx .nav-main:first-of-type { margin-top: 16px; }
   .nav-rail--ctx .nav-ctx { order: 2; margin-top: 8px; border-top: 1px solid var(--cb-border); }
   .nav-rail--ctx .nav-admin-group { order: 3; }

@@ -21,7 +21,7 @@ function TagsPage({ allTags, fetchAllTags }) {
 
     return (
         <div className="cb-account">
-            <div className="cb-account__head"><h1 className="cb-page-title">Tags</h1></div>
+            <div className="cb-account__head"><h1 className="cb-page-title">My Tags</h1></div>
 
             {allTags === null ? null : tagNames.length === 0 ? (
                 <div className="cb-empty">
