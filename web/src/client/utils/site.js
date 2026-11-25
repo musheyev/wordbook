@@ -38,7 +38,7 @@ const SITES = {
         // The user's own collections first, then Words and Inbox (decided
         // 2026-11-25); the phone's tabs stay Notebooks, Wordbooks, Words,
         // Inbox. My Projects shows here only (`projects` below).
-        nav: ['notebooks', 'wordbooks', 'bookmarks', 'tags', 'quizzes', 'words', 'inbox', 'projects', 'classrooms'],
+        nav: ['notebooks', 'wordbooks', 'bookmarks', 'tags', 'quizzes', 'projects', 'classrooms', 'words', 'inbox'],
         wordsPath: '/words',
         homePath: '/account',
         // One inbox for both sites (each keeps its own setting, so they can
