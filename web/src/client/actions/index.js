@@ -10,7 +10,11 @@ import { clearOfflineData, itemDeleted, notebookDeleted, notebookRenamed } from 
 // app, just after it opens, the phone's saved copy shows at once and the
 // server's answer follows (offline/apiCache.js). Elsewhere it's a plain request.
 import { requestSavedFirst } from '../offline/apiCache';
-import { applyPlaces } from '../utils/projectArrange';
+import { applyPlaces, arrangement, toPlaces } from '../utils/projectArrange';
+import {
+  projectsOfflineWanted, isProjectsOffline, hasPendingProjectChanges, goneOffline, savedProjectsCopy,
+  queueProjectChange, syncProjects, forgetProjectsOffline,
+} from '../offline/projectsOffline';
 import { rememberSignedIn, signedInOffline, forgetSignedIn } from '../utils/offlineSignIn';
 import {
   isQueueing, queueCardCreate, queueCardUpdate, queueItemColors, queueItemTags, queueQuizSave, queueQuizDelete,
@@ -443,6 +447,7 @@ export const logoutCurrentUser = () => async (dispatch, getState, api) => {
   // Downloads belong to the account: none stay on the device after log out.
   await clearOfflineData();
   forgetSignedIn();
+  await forgetProjectsOffline();
 
   dispatch({
     type: LOGOUT_CURRENT_USER,
@@ -466,6 +471,7 @@ export const deleteAccount = (username, proof) => async (dispatch, getState, api
   }
   rememberScheduledNotice(dueAt); // the start page says when (before it's shown)
   forgetSignedIn();
+  await forgetProjectsOffline();
   if (isNativeApp()) await nativeSignOut();
   await clearOfflineData({ send: false });
   dispatch({ type: SET_CURRENT_WORD, payload: '' });
@@ -1730,9 +1736,18 @@ export const fetchNotebookItemsFor = (name) => async (dispatch, getState, api) =
   teacherCall(() => api.post('/wordbook/words', { wordbook: name }, JSON_HEADERS), "Couldn't load that notebook.");
 
 // ---- My Projects (api/projects.js; pages/ProjectsPage.js) ------------------
-// The store keeps { projects, tasks } as the server sends them (null until
-// loaded). Start and end dates aren't stored: utils/projectSchedule.js works
-// them out from each task's days and "waits for" whenever the chart is drawn.
+// The store keeps { projects, tasks, groups, holidays, layout } as the server
+// sends them (null until loaded). Start and end dates aren't stored:
+// utils/projectSchedule.js works them out from each task's days and "waits
+// for" whenever the chart is drawn.
+//
+// Offline (myremembrancer.com on a computer; offline/projectsOffline.js):
+// every change here first tries the server. With no connection (or while
+// earlier offline changes are still waiting, so they keep their order) it's
+// applied to the copy in the app at once and kept in the outbox, to be sent
+// when the connection is back. New projects, tasks and groups get their id
+// here, so nothing needs renaming when they reach the server. Deleting a
+// whole project needs a connection (decided).
 export const SET_PROJECTS = 'set_projects';
 export const PROJECT_SAVED = 'project_saved';
 export const PROJECT_DELETED = 'project_deleted';
@@ -1743,39 +1758,109 @@ export const PROJECTS_LAYOUT_SET = 'projects_layout_set';
 export const PROJECT_STATE = 'project_state';
 export const HOLIDAYS_SET = 'holidays_set';
 
-// The server answers refusals as { error: "…" }; show its words when it sent some.
+// The server answers refusals as { error: "…" }; show its words when it sent
+// some. With no answer at all (no connection), the error says so (`network`).
 const projectsCall = async (call, fallback) => {
   try {
     return (await call()).data;
   } catch (err) {
     const said = err.response && err.response.data && err.response.data.error;
-    throw new Error(said || fallback);
+    const error = new Error(said || fallback);
+    error.network = !err.response;
+    throw error;
   }
 };
 const pid = (id) => encodeURIComponent(id);
+const newProjectId = () => (typeof crypto !== 'undefined' && crypto.randomUUID
+  ? crypto.randomUUID()
+  : `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`);
+const nowIso = () => new Date().toISOString();
 
-/** Load every project and task. */
+/**
+ * Online: `online()`. Offline (or while offline changes still wait), or if
+ * the server can't be reached: `offline()`, which applies the change here
+ * and queues it.
+ */
+async function onlineOrQueued(online, offline) {
+  if (projectsOfflineWanted() && (isProjectsOffline() || hasPendingProjectChanges())) return offline();
+  try {
+    return await online();
+  } catch (err) {
+    if (projectsOfflineWanted() && err.network) {
+      goneOffline();
+      return offline();
+    }
+    throw err;
+  }
+}
+
+/** The highest place in a project's own list (its groups and ungrouped tasks). */
+const topLevelMax = (state, projectId) => {
+  const groups = (state.groups || []).filter((g) => g.projectId === projectId);
+  const ids = new Set(groups.map((g) => g.id));
+  const loose = state.tasks.filter((t) => t.projectId === projectId && (!t.group || !ids.has(t.group)));
+  return Math.max(0, ...groups.map((g) => g.order || 0), ...loose.map((t) => t.order || 0));
+};
+
+/**
+ * Load every project and task. Offline: the copy saved in this browser.
+ * While offline changes wait, the copy too (they're in it), and they're sent.
+ */
 export const fetchProjects = () => async (dispatch, getState, api) => {
-  const data = await projectsCall(() => api.get('/projects'), "Couldn't load your projects.");
-  dispatch({ type: SET_PROJECTS, payload: data });
-  return data;
+  if (projectsOfflineWanted() && (isProjectsOffline() || hasPendingProjectChanges())) {
+    const copy = await savedProjectsCopy();
+    if (copy) {
+      if (!getState().projects) dispatch({ type: SET_PROJECTS, payload: copy });
+      if (!isProjectsOffline()) syncProjects().catch(() => {});
+      return getState().projects;
+    }
+  }
+  try {
+    const data = await projectsCall(() => api.get('/projects'), "Couldn't load your projects.");
+    dispatch({ type: SET_PROJECTS, payload: data });
+    return data;
+  } catch (err) {
+    if (projectsOfflineWanted() && err.network) {
+      goneOffline();
+      const copy = await savedProjectsCopy();
+      if (copy) {
+        dispatch({ type: SET_PROJECTS, payload: copy });
+        return copy;
+      }
+    }
+    throw err;
+  }
 };
 
 /** A new project, named. Resolves to the project ({ id, name, created_at }). */
 export const createProject = (name) => async (dispatch, getState, api) => {
-  const project = await projectsCall(() => api.post('/projects', { name }, JSON_HEADERS), "Couldn't make the project.");
-  dispatch({ type: PROJECT_SAVED, payload: project });
-  return project;
+  const id = newProjectId();
+  return onlineOrQueued(async () => {
+    const project = await projectsCall(() => api.post('/projects', { id, name }, JSON_HEADERS), "Couldn't make the project.");
+    dispatch({ type: PROJECT_SAVED, payload: project });
+    return project;
+  }, () => {
+    const project = { id, name, created_at: nowIso() };
+    dispatch({ type: PROJECT_SAVED, payload: project });
+    queueProjectChange({ kind: 'createProject', projectId: id, body: { id, name }, label: name });
+    return project;
+  });
 };
 
-export const renameProject = (id, name) => async (dispatch, getState, api) => {
+export const renameProject = (id, name) => async (dispatch, getState, api) => onlineOrQueued(async () => {
   const project = await projectsCall(() => api.put(`/projects/${pid(id)}`, { name }, JSON_HEADERS), "Couldn't rename the project.");
   dispatch({ type: PROJECT_SAVED, payload: project });
   return project;
-};
+}, () => {
+  const old = getState().projects.projects.find((p) => p.id === id) || { id };
+  dispatch({ type: PROJECT_SAVED, payload: { ...old, name } });
+  queueProjectChange({ kind: 'renameProject', projectId: id, body: { name, changedAt: nowIso() }, label: old.name || name });
+  return { ...old, name };
+});
 
-/** Deletes the project and its tasks (the page asks first). */
+/** Deletes the project and its tasks (the page asks first). Needs a connection (decided). */
 export const deleteProject = (id) => async (dispatch, getState, api) => {
+  if (projectsOfflineWanted() && isProjectsOffline()) throw new Error('Deleting a project needs an internet connection.');
   await projectsCall(() => api.delete(`/projects/${pid(id)}`), "Couldn't delete the project.");
   dispatch({ type: PROJECT_DELETED, payload: id });
 };
@@ -1785,27 +1870,46 @@ export const deleteProject = (id) => async (dispatch, getState, api) => {
  * Linked notes go up as [{ type, id }]; their titles stay on the copy here.
  */
 export const saveTask = (projectId, task) => async (dispatch, getState, api) => {
+  const isNew = !task.id;
+  const id = task.id || newProjectId();
   const body = {
     name: task.name, days: task.days, after: task.after || [], start: task.start || null,
-    who: task.who || '', notes: (task.notes || []).map(({ type, id }) => ({ type, id })), order: task.order,
+    who: task.who || '', notes: (task.notes || []).map(({ type, id: noteId }) => ({ type, id: noteId })), order: task.order,
   };
-  const saved = await projectsCall(
-    () => (task.id
-      ? api.put(`/projects/${pid(projectId)}/tasks/${pid(task.id)}`, body, JSON_HEADERS)
-      : api.post(`/projects/${pid(projectId)}/tasks`, body, JSON_HEADERS)),
-    "Couldn't save the task.",
-  );
-  // The server doesn't send titles back on a save: keep the ones we have.
-  const withTitles = { ...saved, notes: saved.notes.map((n) => (task.notes || []).find((m) => m.type === n.type && m.id === n.id) || n) };
-  dispatch({ type: TASKS_SAVED, payload: [withTitles] });
-  return withTitles;
+  const keepTitles = (saved) => ({ ...saved, notes: saved.notes.map((n) => (task.notes || []).find((m) => m.type === n.type && m.id === n.id) || n) });
+  return onlineOrQueued(async () => {
+    const saved = await projectsCall(
+      () => (isNew
+        ? api.post(`/projects/${pid(projectId)}/tasks`, { ...body, id }, JSON_HEADERS)
+        : api.put(`/projects/${pid(projectId)}/tasks/${pid(id)}`, body, JSON_HEADERS)),
+      "Couldn't save the task.",
+    );
+    // The server doesn't send titles back on a save: keep the ones we have.
+    const withTitles = keepTitles(saved);
+    dispatch({ type: TASKS_SAVED, payload: [withTitles] });
+    return withTitles;
+  }, () => {
+    const state = getState().projects;
+    const old = state.tasks.find((t) => t.id === id);
+    const local = {
+      ...(old || { group: null, order: topLevelMax(state, projectId) + 1 }),
+      ...body, id, projectId, notes: task.notes || [],
+      order: old ? old.order : topLevelMax(state, projectId) + 1,
+      start: body.after.length ? null : body.start,
+    };
+    dispatch({ type: TASKS_SAVED, payload: [local] });
+    queueProjectChange(isNew
+      ? { kind: 'createTask', projectId, taskId: id, body: { ...body, id }, label: body.name }
+      : { kind: 'updateTask', projectId, taskId: id, body: { ...body, changedAt: nowIso() }, label: body.name });
+    return local;
+  });
 };
 
 /**
  * Delete a task. `starts`: for tasks that waited only for it, the start they
  * have now, so they stay put (projectSchedule.startsAfterDeleting).
  */
-export const deleteTask = (projectId, taskId, starts) => async (dispatch, getState, api) => {
+export const deleteTask = (projectId, taskId, starts) => async (dispatch, getState, api) => onlineOrQueued(async () => {
   const { changed } = await projectsCall(
     () => api.delete(`/projects/${pid(projectId)}/tasks/${pid(taskId)}`, { data: { starts }, ...JSON_HEADERS }),
     "Couldn't delete the task.",
@@ -1813,7 +1917,19 @@ export const deleteTask = (projectId, taskId, starts) => async (dispatch, getSta
   dispatch({ type: TASK_DELETED, payload: taskId });
   const old = (getState().projects && getState().projects.tasks) || [];
   dispatch({ type: TASKS_SAVED, payload: changed.map((t) => ({ ...t, notes: (old.find((o) => o.id === t.id) || t).notes })) });
-};
+}, () => {
+  // As the server would: tasks that waited for it stop waiting; one that then
+  // waits for nothing keeps the start it had.
+  const tasks = getState().projects.tasks;
+  const gone = tasks.find((t) => t.id === taskId) || { name: 'A task' };
+  const changed = tasks.filter((t) => t.id !== taskId && (t.after || []).includes(taskId)).map((t) => {
+    const after = t.after.filter((x) => x !== taskId);
+    return after.length ? { ...t, after } : { ...t, after, start: (starts && starts[t.id]) || gone.start || nowIso().slice(0, 10) };
+  });
+  dispatch({ type: TASK_DELETED, payload: taskId });
+  if (changed.length) dispatch({ type: TASKS_SAVED, payload: changed });
+  queueProjectChange({ kind: 'deleteTask', projectId, taskId, body: { starts, changedAt: nowIso() }, label: gone.name });
+});
 
 /**
  * Save the chart table's layout ({ widths, folded, tableFolded }) on the
@@ -1821,32 +1937,60 @@ export const deleteTask = (projectId, taskId, starts) => async (dispatch, getSta
  */
 export const saveProjectsLayout = (layout) => async (dispatch, getState, api) => {
   dispatch({ type: PROJECTS_LAYOUT_SET, payload: layout });
-  try {
-    await api.put('/projects/layout', layout, JSON_HEADERS);
-  } catch (err) {
-    // Only how the table looks: keep it for now, it'll be tried again next change.
-  }
+  await onlineOrQueued(
+    () => projectsCall(() => api.put('/projects/layout', layout, JSON_HEADERS), "Couldn't save the layout."),
+    () => queueProjectChange({ kind: 'layout', body: layout, label: 'the column layout' }),
+  ).catch(() => { /* only how the table looks: kept on this page */ });
 };
 
 // ---- Task groups and order (api/projects.js; utils/projectArrange.js) ------
 
 /** A new group in a project, at the end of its list. Resolves to the group. */
 export const createTaskGroup = (projectId, name) => async (dispatch, getState, api) => {
-  const data = await projectsCall(() => api.post(`/projects/${pid(projectId)}/groups`, { name }, JSON_HEADERS), "Couldn't make the group.");
-  dispatch({ type: PROJECT_STATE, payload: data });
-  return data.group;
+  const id = newProjectId();
+  return onlineOrQueued(async () => {
+    const data = await projectsCall(() => api.post(`/projects/${pid(projectId)}/groups`, { id, name }, JSON_HEADERS), "Couldn't make the group.");
+    dispatch({ type: PROJECT_STATE, payload: data });
+    return data.group;
+  }, () => {
+    const state = getState().projects;
+    const group = { id, projectId, name, order: topLevelMax(state, projectId) + 1 };
+    const mine = (list) => list.filter((x) => x.projectId === projectId);
+    dispatch({ type: PROJECT_STATE, payload: { projectId, tasks: mine(state.tasks), groups: [...mine(state.groups || []), group] } });
+    queueProjectChange({ kind: 'createGroup', projectId, groupId: id, body: { id, name }, label: name });
+    return group;
+  });
 };
 
-export const renameTaskGroup = (projectId, groupId, name) => async (dispatch, getState, api) => {
+export const renameTaskGroup = (projectId, groupId, name) => async (dispatch, getState, api) => onlineOrQueued(async () => {
   const data = await projectsCall(() => api.put(`/projects/${pid(projectId)}/groups/${pid(groupId)}`, { name }, JSON_HEADERS), "Couldn't rename the group.");
   dispatch({ type: PROJECT_STATE, payload: data });
-};
+}, () => {
+  const state = getState().projects;
+  const mine = (list) => list.filter((x) => x.projectId === projectId);
+  const old = (state.groups || []).find((g) => g.id === groupId) || {};
+  dispatch({ type: PROJECT_STATE, payload: { projectId, tasks: mine(state.tasks), groups: mine(state.groups || []).map((g) => (g.id === groupId ? { ...g, name } : g)) } });
+  queueProjectChange({ kind: 'renameGroup', projectId, groupId, body: { name, changedAt: nowIso() }, label: old.name || name });
+});
 
 /** Ungroup: the group goes, its tasks stay where it was. */
-export const ungroupTaskGroup = (projectId, groupId) => async (dispatch, getState, api) => {
+export const ungroupTaskGroup = (projectId, groupId) => async (dispatch, getState, api) => onlineOrQueued(async () => {
   const data = await projectsCall(() => api.delete(`/projects/${pid(projectId)}/groups/${pid(groupId)}`), "Couldn't ungroup.");
   dispatch({ type: PROJECT_STATE, payload: data });
-};
+}, () => {
+  // As the server would: the group's tasks take its place in the project's list.
+  const state = getState().projects;
+  const arr = arrangement(projectId, state.tasks, state.groups || []);
+  const members = arr.groups[groupId] || [];
+  const top = arr.top.flatMap((item) => (item.type === 'group' && item.id === groupId ? members : [item]));
+  const groups = { ...arr.groups };
+  delete groups[groupId];
+  const mine = (list) => list.filter((x) => x.projectId === projectId);
+  const shown = applyPlaces(mine(state.tasks), mine(state.groups || []).filter((g) => g.id !== groupId), toPlaces({ top, groups }));
+  const old = (state.groups || []).find((g) => g.id === groupId) || {};
+  dispatch({ type: PROJECT_STATE, payload: { projectId, ...shown } });
+  queueProjectChange({ kind: 'ungroup', projectId, groupId, body: {}, label: old.name || 'a group' });
+});
 
 /**
  * Save new places (projectArrange.toPlaces): shown at once, then replaced by
@@ -1861,8 +2005,10 @@ export const arrangeProject = (projectId, places) => async (dispatch, getState, 
     dispatch({ type: PROJECT_STATE, payload: { projectId, ...shown } });
   }
   try {
-    const data = await projectsCall(() => api.put(`/projects/${pid(projectId)}/arrange`, places, JSON_HEADERS), "Couldn't save the new order.");
-    dispatch({ type: PROJECT_STATE, payload: data });
+    await onlineOrQueued(async () => {
+      const data = await projectsCall(() => api.put(`/projects/${pid(projectId)}/arrange`, places, JSON_HEADERS), "Couldn't save the new order.");
+      dispatch({ type: PROJECT_STATE, payload: data });
+    }, () => queueProjectChange({ kind: 'arrange', projectId, body: places, label: 'the order of tasks' }));
   } catch (err) {
     dispatch(fetchProjects()).catch(() => {});
     throw err;
@@ -1877,9 +2023,14 @@ export const saveHolidays = (holidays) => async (dispatch, getState, api) => {
   const before = getState().projects && getState().projects.holidays;
   dispatch({ type: HOLIDAYS_SET, payload: holidays });
   try {
-    const kept = await projectsCall(() => api.put('/projects/holidays', holidays, JSON_HEADERS), "Couldn't save the holidays.");
-    dispatch({ type: HOLIDAYS_SET, payload: kept });
-    return kept;
+    return await onlineOrQueued(async () => {
+      const kept = await projectsCall(() => api.put('/projects/holidays', holidays, JSON_HEADERS), "Couldn't save the holidays.");
+      dispatch({ type: HOLIDAYS_SET, payload: kept });
+      return kept;
+    }, () => {
+      queueProjectChange({ kind: 'holidays', body: holidays, label: 'the holidays' });
+      return holidays;
+    });
   } catch (err) {
     dispatch({ type: HOLIDAYS_SET, payload: before || [] });
     throw err;

@@ -14,6 +14,7 @@ import { ComputerOnly } from '../utils/computerOnly';
 import ProjectGantt, { projectColor, shortDate } from '../components/ProjectGantt';
 import ProjectTaskWindow from '../components/ProjectTaskWindow';
 import ProjectHolidays from '../components/ProjectHolidays';
+import ProjectsOfflineBar from '../components/ProjectsOfflineBar';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Spinner from '../components/Spinner';
 import { PROJECTS_PATH, projectPath } from '../components/ProjectsNav';
@@ -55,6 +56,10 @@ function Projects() {
     const navigate = useNavigate();
     const { projectId } = useParams();
     const data = useSelector((state) => state.projects);
+    // Offline (offline/projectsOffline.js): tasks with a change waiting get an amber dot.
+    const sync = useSelector((state) => state.projectsSync);
+    const pendingIds = useMemo(() => new Set((sync && sync.pending) || []), [sync]);
+    const offline = !!(sync && sync.offline);
     const [loadError, setLoadError] = useState('');
     const [folded, setFolded] = useState(readFolded);
     // The task window: { projectId, task } (task null = a new one), or null.
@@ -62,6 +67,10 @@ function Projects() {
     const [naming, setNaming] = useState(null);     // 'new' | 'rename' | null
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [error, setError] = useState('');
+    // Back online: the "needs a connection" message no longer applies.
+    useEffect(() => {
+        if (!offline) setError((was) => (was === 'Deleting a project needs an internet connection.' ? '' : was));
+    }, [offline]);
     // Select (a project's page): ticked task ids, or null when not selecting.
     const [picked, setPicked] = useState(null);
     // Renaming a group: its id.
@@ -251,7 +260,14 @@ function Projects() {
                             </button>
                         )}
                         <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setNaming('rename')}>Rename</button>
-                        <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setConfirmingDelete(true)}>Delete</button>
+                        {/* Deleting a whole project needs a connection (decided). Offline it's
+                            greyed out, and only says why when pointed at or clicked. */}
+                        <button type="button" className={`cb-btn cb-btn--ghost${offline ? ' projects-page__offbtn' : ''}`}
+                            aria-disabled={offline || undefined}
+                            title={offline ? 'Deleting a project needs an internet connection' : undefined}
+                            onClick={() => (offline ? setError('Deleting a project needs an internet connection.') : setConfirmingDelete(true))}>
+                            Delete
+                        </button>
                     </>
                 ) : (
                     <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setNaming('new')}>+ Project</button>
@@ -268,6 +284,7 @@ function Projects() {
                 )}
                 {projects.length > 0 && <button type="button" className="cb-btn cb-btn--accent" onClick={newTask}>+ Task</button>}
             </div>
+            <ProjectsOfflineBar />
             {error && <div className="cb-sheet__error" role="alert">{error}</div>}
             {picked && arr && (
                 <TaskSelectBar count={picked.size} groups={shownGroups} anyInGroup={pickedInOrder().some((id) => (tasks.find((t) => t.id === id) || {}).group)}
@@ -292,7 +309,7 @@ function Projects() {
                     layout={data.layout} onLayoutChange={(next) => dispatch(saveProjectsLayout(next))}
                     selection={selection}
                     dragRows={projectId ? dragRows : null} onDrop={projectId ? onDrop : null}
-                    onGroupAction={projectId ? onGroupAction : null} holidays={holidays} />
+                    onGroupAction={projectId ? onGroupAction : null} holidays={holidays} pendingIds={pendingIds} />
             )}
 
             {windowFor && (

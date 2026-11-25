@@ -172,10 +172,11 @@ function dayRange(placedList, today) {
  * @param {(dragged: {type, id}, place) => void} [props.onDrop] where it landed
  * @param {(groupId, action: 'rename'|'ungroup') => void} [props.onGroupAction] a group's ⋯
  * @param {Array<{date, name}>} [props.holidays] shaded like weekends, named on hover
+ * @param {Set<string>} [props.pendingIds] tasks changed offline, not sent yet (an amber dot)
  */
 export default function ProjectGantt({
     rows, placed, selectedId, onOpenTask, onToggleGroup, layout, onLayoutChange,
-    selection, dragRows, onDrop, onGroupAction, holidays = [],
+    selection, dragRows, onDrop, onGroupAction, holidays = [], pendingIds,
 }) {
     const boxRef = useRef(null);
     const boxWidth = useWidth(boxRef);
@@ -421,7 +422,8 @@ export default function ProjectGantt({
                             timelineW={timelineW} selected={r.task.id === selectedId} onOpen={onOpenTask}
                             selection={selecting ? selection : null} indentOf={indentOf}
                             onGrip={canDrag ? startMove({ type: 'task', id: r.task.id }) : null}
-                            moving={!!(moving && moving.item.type === 'task' && moving.item.id === r.task.id)} />
+                            moving={!!(moving && moving.item.type === 'task' && moving.item.id === r.task.id)}
+                            pending={!!(pendingIds && pendingIds.has(r.task.id))} />
                     )))}
 
                     {/* Where a dragged task or group will land. */}
@@ -463,7 +465,7 @@ export default function ProjectGantt({
 }
 
 /** One task: its cells in the table, its bar on the timeline. Click either to open it. */
-function TaskRow({ row, cols, tableW, dates, x, dayW, timelineW, selected, onOpen, selection, onGrip, moving, indentOf }) {
+function TaskRow({ row, cols, tableW, dates, x, dayW, timelineW, selected, onOpen, selection, onGrip, moving, indentOf, pending }) {
     const { task, color, level = 0 } = row;
     const picked = !!(selection && selection.isPicked(task.id));
     // While selecting, a click ticks the task instead of opening it.
@@ -492,6 +494,7 @@ function TaskRow({ row, cols, tableW, dates, x, dayW, timelineW, selected, onOpe
                                 <button key={c.key} type="button" className="pg__td pg__taskname" data-col="name"
                                     style={{ width: c.w, paddingLeft: indentOf(level) }} onClick={open} title={task.name}>
                                     {task.name}
+                                    {pending && <span className="pg__pending" title="Changed offline, waiting to be sent" aria-label="waiting to be sent" />}
                                 </button>
                             );
                         case 'start':

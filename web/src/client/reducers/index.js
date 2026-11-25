@@ -32,6 +32,7 @@ import accountDeletionReducer from './accountDeletionReducer';
 import myClassroomsReducer from './myClassroomsReducer';
 import bookmarksReducer from './bookmarksReducer';
 import projectsReducer from './projectsReducer';
+import projectsSyncReducer from './projectsSyncReducer';
 
 export default combineReducers({
     users: usersReducer,
@@ -70,5 +71,6 @@ export default combineReducers({
     myClassrooms: myClassroomsReducer,
     bookmarks: bookmarksReducer,
     projects: projectsReducer,
+    projectsSync: projectsSyncReducer,
 
 });

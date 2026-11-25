@@ -4912,3 +4912,10 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
 .holidays__add { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 .holidays__nameinput { flex: 1; }
 .holidays__hint { color: var(--cb-ink-3); font-size: 0.82rem; margin-bottom: 8px; }
+
+/* My Projects offline: the bar and notices (same look as the app's offline
+   bar), the amber dot on a task waiting to be sent, and Delete while offline. */
+.projects-offline .offline-bar { position: static; margin: 0 0 8px; }
+.offline-bar--saved { background: #15803d; }
+.pg__pending { display: inline-block; width: 8px; height: 8px; margin-left: 7px; border-radius: 50%; background: #d97706; vertical-align: 1px; }
+.projects-page__offbtn { opacity: 0.45; cursor: not-allowed; }
