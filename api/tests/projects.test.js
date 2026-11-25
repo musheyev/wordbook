@@ -255,6 +255,41 @@ test("renaming a group; deleting a project deletes its groups", async () => {
     assert.deepEqual((await projects.listAll(USER)).groups, []);
 });
 
+test("cleanColor: one of the colours, or none", () => {
+    assert.equal(projects.cleanColor("teal"), "teal");
+    assert.equal(projects.cleanColor(null), null);
+    assert.equal(projects.cleanColor(""), null);
+    assert.throws(() => projects.cleanColor("#ff0000"), /colours/);
+    assert.throws(() => projects.cleanColor("chartreuse"), /colours/);
+});
+
+test("a task's colour is saved, kept by edits that leave it out, and taken off with null", async () => {
+    const { p, a } = await abc();
+    const base = { name: "A", days: 1, start: MON };
+    const pink = await projects.updateTask(USER, p.id, a.id, { ...base, color: "pink" });
+    assert.equal(pink.color, "pink");
+    const edited = await projects.updateTask(USER, p.id, a.id, { ...base, name: "A2" });
+    assert.equal(edited.color, "pink");
+    const cleared = await projects.updateTask(USER, p.id, a.id, { ...base, color: null });
+    assert.equal(cleared.color, null);
+    await refuses(projects.updateTask(USER, p.id, a.id, { ...base, color: "gold" }), 400);
+    const made = await projects.createTask(USER, p.id, { name: "E", days: 1, start: MON, color: "red" });
+    assert.equal((await projects.listAll(USER)).tasks.find((t) => t.id === made.id).color, "red");
+});
+
+test("a group's colour: set without a name, kept by a rename, taken off with null", async () => {
+    const { p } = await abc();
+    const { group } = await projects.createGroup(USER, p.id, { name: "G" });
+    assert.equal(group.color, null);
+    assert.equal((await projects.renameGroup(USER, p.id, group.id, { color: "green" })).groups[0].color, "green");
+    const renamed = (await projects.renameGroup(USER, p.id, group.id, { name: "Finishing" })).groups[0];
+    assert.deepEqual([renamed.name, renamed.color], ["Finishing", "green"]);
+    const cleared = (await projects.renameGroup(USER, p.id, group.id, { color: null })).groups[0];
+    assert.deepEqual([cleared.name, cleared.color], ["Finishing", null]);
+    await refuses(projects.renameGroup(USER, p.id, group.id, { color: "gold" }), 400);
+    await refuses(projects.renameGroup(USER, p.id, group.id, {}), 400);
+});
+
 test("deleting a task keeps the group of the tasks that waited for it", async () => {
     const { p, a, c } = await abc();
     const { group } = await projects.createGroup(USER, p.id, { name: "G" });

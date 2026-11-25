@@ -1,7 +1,9 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toDay, fromDay, weekday, todayDate } from '../utils/projectSchedule';
 import { placeFromRows } from '../utils/projectArrange';
+import { projectColor } from '../utils/projectColors';
 import GripIcon from './GripIcon';
+import ColorSwatches from './ColorSwatches';
 
 // The Gantt chart of My Projects (pages/ProjectsPage.js): a table of tasks on
 // the left, and on the right a timeline with one bar per task.
@@ -41,7 +43,7 @@ import GripIcon from './GripIcon';
 // name, its number of tasks and a dark line for its span; ▾ folds it. While
 // folded, arrows to and from its tasks join its row. There, tasks and groups
 // can be dragged by their grip ⋮⋮ (a blue line shows where they'll land),
-// a group's ⋯ has Rename and Ungroup, and "Select" puts tick boxes on tasks
+// a group's ⋯ has Rename, Ungroup and its Colour, and "Select" puts tick boxes on tasks
 // (clicking a task then ticks it). On "All projects" the groups show and
 // fold, nothing more.
 
@@ -96,9 +98,8 @@ export const shortDate = (date) => {
     return `${MONTHS[m - 1]} ${d}`;
 };
 
-/** A colour for each project, by its place in the list. */
-const PROJECT_COLORS = ['#2563eb', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#4d7c0f', '#b91c1c'];
-export const projectColor = (index) => PROJECT_COLORS[index % PROJECT_COLORS.length];
+/** A colour for each project, by its place in the list (see utils/projectColors.js). */
+export { projectColor };
 
 /** A steady colour for a person's initial, from their name. */
 const PERSON_COLORS = ['#7c3aed', '#0891b2', '#b45309', '#db2777', '#15803d', '#4338ca', '#be123c', '#0f766e'];
@@ -170,7 +171,7 @@ function dayRange(placedList, today) {
  * @param {Array} [props.dragRows] the rows as projectArrange.visibleRows gives
  *   them (same order as `rows`); with `onDrop`, tasks and groups can be dragged
  * @param {(dragged: {type, id}, place) => void} [props.onDrop] where it landed
- * @param {(groupId, action: 'rename'|'ungroup') => void} [props.onGroupAction] a group's ⋯
+ * @param {(groupId, action: 'rename'|'ungroup'|'color', color?: string|null) => void} [props.onGroupAction] a group's ⋯
  * @param {Array<{date, name}>} [props.holidays] shaded like weekends, named on hover
  * @param {Set<string>} [props.pendingIds] tasks changed offline, not sent yet (an amber dot)
  */
@@ -380,7 +381,8 @@ export default function ProjectGantt({
                         <div key={`g${r.key}`}
                             className={`pg__row pg__row--group pg__row--level${r.level}${moving && moving.into === r.key ? ' pg__row--dropinto' : ''}${moving && moving.item.type === 'group' && moving.item.id === r.key ? ' pg__row--moving' : ''}`}
                             style={{ height: ROW_H }}>
-                            <div className="pg__cells" style={{ width: tableW }}>
+                            {/* With its menu open, above the rows below (each row's cells stack on their own). */}
+                            <div className={`pg__cells${menuFor === r.key ? ' pg__cells--menu' : ''}`} style={{ width: tableW }}>
                                 {r.editable && canDrag && (
                                     <span className="pg__drag" role="button" aria-label={`Move ${r.name}`} title="Drag to move"
                                         style={{ left: (selecting ? TICK_W : 0) + indentOf(r.level) - 22 }}
@@ -405,6 +407,11 @@ export default function ProjectGantt({
                                                 <button type="button" role="menuitem" onClick={() => { setMenuFor(null); onGroupAction(r.key, 'ungroup'); }}>
                                                     Ungroup <small>its tasks stay</small>
                                                 </button>
+                                                <span className="pg__menucolors">
+                                                    <span className="pg__menucolors-k">Colour</span>
+                                                    <ColorSwatches value={r.colorKey} auto={{ hex: r.autoColor, label: 'Same as project' }}
+                                                        onChange={(key) => { setMenuFor(null); onGroupAction(r.key, 'color', key); }} />
+                                                </span>
                                             </span>
                                         )}
                                     </span>
@@ -413,7 +420,7 @@ export default function ProjectGantt({
                             <div className="pg__track" style={{ width: timelineW }}>
                                 {r.span && (
                                     <div className="pg-bar pg-bar--span" title={`${r.name}: ${shortDate(r.span.start)} – ${shortDate(r.span.end)}`}
-                                        style={{ left: x(r.span.start), width: x(r.span.end) + dayW - x(r.span.start) }} />
+                                        style={{ left: x(r.span.start), width: x(r.span.end) + dayW - x(r.span.start), ...(r.color ? { background: r.color } : {}) }} />
                                 )}
                             </div>
                         </div>

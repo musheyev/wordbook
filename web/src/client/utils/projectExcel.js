@@ -176,7 +176,8 @@ export async function projectWorkbook({ title, rows, folded, placed, holidays })
         for (let day = range.first; day <= range.last; day += 1) {
             const cell = row.getCell(col(day));
             const onBar = dates && day >= barFrom && day <= barTo;
-            if (onBar) cell.fill = isGroup ? SPAN : fill(r.color || '#2563eb');
+            // A group's line is grey unless the group has a colour of its own.
+            if (onBar) cell.fill = isGroup ? (r.color ? fill(r.color) : SPAN) : fill(r.color || '#2563eb');
             else if (isOff(day)) cell.fill = SHADE;
             if (onBar || day === today) cell.border = { ...(onBar ? { top: GAP, bottom: GAP } : {}), ...(day === today ? TODAY_LINE : {}) };
         }
