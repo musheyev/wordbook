@@ -88,10 +88,15 @@ export async function projectWorkbook({ title, rows, folded, placed, holidays })
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Remembrancer';
     wb.created = new Date();
+    // Not `fitToPage` in pageSetup: together with row grouping, ExcelJS 4.4
+    // writes the sheet's settings in an order Excel refuses ("We found a
+    // problem…", and the sheet is removed when repaired). Fitting the print to
+    // one page wide is left to Excel's print dialog.
+    const deepest = Math.max(0, ...rows.map((r) => r.level || 0));
     const ws = wb.addWorksheet('Chart', {
         views: [{ state: 'frozen', xSplit: TABLE.length, ySplit: HEAD_ROWS }],
-        properties: { outlineProperties: { summaryBelow: false, summaryRight: false } },
-        pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+        properties: { outlineLevelRow: deepest, outlineProperties: { summaryBelow: false, summaryRight: false } },
+        pageSetup: { orientation: 'landscape' },
     });
 
     const today = toDay(todayDate());
