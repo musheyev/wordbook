@@ -41,6 +41,10 @@ const GROUP_ROW = fill('#f6f8fb');
 const HEAD = fill('#e9edf3');
 const SPAN = fill('#545c6b');           // a group's or project's whole span
 const TODAY_LINE = { left: { style: 'medium', color: { argb: 'FFEF4444' } } };
+// A bar's cells get a white edge above and below, so the grey of weekends
+// and holidays in the rows around never touches it (in Excel a fill covers
+// the whole cell; on the page the bar is thinner than its row).
+const GAP = { style: 'medium', color: { argb: 'FFFFFFFF' } };
 
 /** "2026-11-28" → a date Excel shows as "Nov 28" (stored as UTC midnight). */
 const excelDate = (date) => {
@@ -88,10 +92,15 @@ export async function projectWorkbook({ title, rows, folded, placed, holidays })
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Remembrancer';
     wb.created = new Date();
+    // Not `fitToPage` in pageSetup: together with row grouping, ExcelJS 4.4
+    // writes the sheet's settings in an order Excel refuses ("We found a
+    // problem…", and the sheet is removed when repaired). Fitting the print to
+    // one page wide is left to Excel's print dialog.
+    const deepest = Math.max(0, ...rows.map((r) => r.level || 0));
     const ws = wb.addWorksheet('Chart', {
         views: [{ state: 'frozen', xSplit: TABLE.length, ySplit: HEAD_ROWS }],
-        properties: { outlineProperties: { summaryBelow: false, summaryRight: false } },
-        pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+        properties: { outlineLevelRow: deepest, outlineProperties: { summaryBelow: false, summaryRight: false } },
+        pageSetup: { orientation: 'landscape' },
     });
 
     const today = toDay(todayDate());
@@ -166,9 +175,10 @@ export async function projectWorkbook({ title, rows, folded, placed, holidays })
         const barTo = dates ? toDay(dates.end) : null;
         for (let day = range.first; day <= range.last; day += 1) {
             const cell = row.getCell(col(day));
-            if (dates && day >= barFrom && day <= barTo) cell.fill = isGroup ? SPAN : fill(r.color || '#2563eb');
+            const onBar = dates && day >= barFrom && day <= barTo;
+            if (onBar) cell.fill = isGroup ? SPAN : fill(r.color || '#2563eb');
             else if (isOff(day)) cell.fill = SHADE;
-            if (day === today) cell.border = TODAY_LINE;
+            if (onBar || day === today) cell.border = { ...(onBar ? { top: GAP, bottom: GAP } : {}), ...(day === today ? TODAY_LINE : {}) };
         }
     });
     // Shade days off in the header too, and mark today there.
