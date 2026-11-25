@@ -2,7 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchProjects, createProject, renameProject, deleteProject, saveProjectsLayout } from '../actions';
+import {
+    fetchProjects, createProject, renameProject, deleteProject, saveProjectsLayout,
+    createTaskGroup, renameTaskGroup, ungroupTaskGroup, arrangeProject,
+} from '../actions';
+import {
+    arrangement, toPlaces, moveTask, moveGroup, putInGroup, takeOut, visibleRows,
+} from '../utils/projectArrange';
 import { schedule, span } from '../utils/projectSchedule';
 import { ComputerOnly } from '../utils/computerOnly';
 import ProjectGantt, { projectColor, shortDate } from '../components/ProjectGantt';
@@ -16,7 +22,11 @@ import requireAuth from '../components/hocs/requireAuth';
 //
 //   /projects       All projects on one timeline, each one a group whose
 //                   tasks fold away (▸ / ▾, remembered on this device)
-//   /projects/:id   one project: its tasks and bars, Rename and Delete
+//   /projects/:id   one project: its tasks and bars, Rename and Delete; its
+//                   tasks can be dragged, selected and put in groups
+//
+// Groups fold on both pages (▾, remembered on this device with the projects'
+// folds); only a project's own page changes them (decided).
 //
 // The projects and tasks come from the store (actions: fetchProjects). Each
 // task's dates are worked out here from its days and "waits for"
@@ -51,35 +61,99 @@ function Projects() {
     const [naming, setNaming] = useState(null);     // 'new' | 'rename' | null
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [error, setError] = useState('');
+    // Select (a project's page): ticked task ids, or null when not selecting.
+    const [picked, setPicked] = useState(null);
+    // Renaming a group: its id.
+    const [renamingGroup, setRenamingGroup] = useState(null);
 
     useEffect(() => {
         if (data === null) dispatch(fetchProjects()).catch((err) => setLoadError(err.message));
     }, [data, dispatch]);
     // Another project (or All): close the window and any message.
-    useEffect(() => { setWindowFor(null); setError(''); }, [projectId]);
+    useEffect(() => { setWindowFor(null); setError(''); setPicked(null); }, [projectId]);
 
     const projects = data ? data.projects : [];
     const tasks = data ? data.tasks : [];
+    const groups = (data && data.groups) || [];
     const project = projectId ? projects.find((p) => p.id === projectId) : null;
     const colorOf = (id) => projectColor(Math.max(0, projects.findIndex((p) => p.id === id)));
     const placed = useMemo(() => schedule(tasks), [tasks]);
 
+    const foldedSet = useMemo(() => new Set(folded), [folded]);
+    // This project's list (groups and tasks in order), and the rows shown.
+    const arr = useMemo(() => (projectId ? arrangement(projectId, tasks, groups) : null), [projectId, tasks, groups]);
+    const dragRows = useMemo(() => (arr ? visibleRows(arr, foldedSet) : null), [arr, foldedSet]);
+
     const rows = useMemo(() => {
-        if (projectId) {
-            return tasks.filter((t) => t.projectId === projectId)
-                .map((task) => ({ kind: 'task', task, color: colorOf(task.projectId) }));
-        }
+        const taskById = new Map(tasks.map((t) => [t.id, t]));
+        const groupById = new Map(groups.map((g) => [g.id, g]));
+        /** The rows of one project, its groups and tasks one level in from `level`. */
+        const projectRows = (pid, level, editable) => {
+            const color = colorOf(pid);
+            const a = pid === projectId && arr ? arr : arrangement(pid, tasks, groups);
+            return visibleRows(a, foldedSet).map((r) => {
+                if (r.type === 'task') return { kind: 'task', task: taskById.get(r.id), color, level: level + (r.group ? 1 : 0) };
+                const memberTasks = (a.groups[r.id] || []).map((t) => taskById.get(t.id));
+                return {
+                    kind: 'group', key: r.id, name: groupById.get(r.id).name, level, folded: !r.open, editable,
+                    count: memberTasks.length, members: memberTasks.map((t) => t.id), memberTasks,
+                    span: span(placed, memberTasks.map((t) => t.id)),
+                };
+            });
+        };
+        if (projectId) return projectRows(projectId, 0, true);
         const out = [];
         projects.forEach((p) => {
             const mine = tasks.filter((t) => t.projectId === p.id);
-            const isFolded = folded.includes(p.id);
-            out.push({ kind: 'group', project: p, span: span(placed, mine.map((t) => t.id)), folded: isFolded, count: mine.length });
-            if (!isFolded) mine.forEach((task) => out.push({ kind: 'task', task, color: colorOf(p.id), indent: true }));
+            const isFolded = foldedSet.has(p.id);
+            out.push({
+                kind: 'group', key: p.id, name: p.name, level: 0, folded: isFolded, editable: false,
+                count: mine.length, members: mine.map((t) => t.id), memberTasks: mine, span: span(placed, mine.map((t) => t.id)),
+            });
+            if (!isFolded) out.push(...projectRows(p.id, 1, false));
         });
         return out;
     // colorOf only depends on projects
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [projectId, projects, tasks, folded, placed]);
+    }, [projectId, projects, tasks, groups, foldedSet, placed, arr]);
+
+    // Save a new arrangement of this project (dragging, Put in group, Take out).
+    const saveArrangement = (next) => {
+        if (next === arr) return;
+        setError('');
+        dispatch(arrangeProject(projectId, toPlaces(next))).catch((err) => setError(err.message));
+    };
+    const onDrop = (dragged, place) => saveArrangement(dragged.type === 'task'
+        ? moveTask(arr, dragged.id, place)
+        : moveGroup(arr, dragged.id, place.before));
+
+    // Select: tick tasks, then put them in a group or take them out of one.
+    const selection = picked ? {
+        active: true,
+        isPicked: (id) => picked.has(id),
+        toggle: (id) => setPicked((was) => { const next = new Set(was); if (next.has(id)) next.delete(id); else next.add(id); return next; }),
+    } : null;
+    /** The ticked tasks, top to bottom (folded groups included). */
+    const pickedInOrder = () => (arr && picked ? visibleRows(arr, new Set()).filter((r) => r.type === 'task' && picked.has(r.id)).map((r) => r.id) : []);
+    const putPickedIn = (groupId) => { saveArrangement(putInGroup(arr, pickedInOrder(), groupId)); setPicked(new Set()); };
+    const takePickedOut = () => { saveArrangement(takeOut(arr, pickedInOrder())); setPicked(new Set()); };
+    /** A new group, where the first ticked task is, with the ticked tasks in it. */
+    const newGroupForPicked = async (name) => {
+        const ids = pickedInOrder();
+        const group = await dispatch(createTaskGroup(projectId, name));
+        const first = ids[0];
+        const inGroup = first && Object.keys(arr.groups).find((g) => arr.groups[g].some((t) => t.id === first));
+        const anchor = inGroup ? { type: 'group', id: inGroup } : { type: 'task', id: first };
+        const at = arr.top.findIndex((x) => x.type === anchor.type && x.id === anchor.id);
+        const top = [...arr.top];
+        top.splice(at < 0 ? top.length : at + (inGroup ? 1 : 0), 0, { type: 'group', id: group.id });
+        saveArrangement(putInGroup({ top, groups: { ...arr.groups, [group.id]: [] } }, ids, group.id));
+        setPicked(new Set());
+    };
+    const onGroupAction = (groupId, action) => {
+        if (action === 'rename') setRenamingGroup(groupId);
+        else dispatch(ungroupTaskGroup(projectId, groupId)).catch((err) => setError(err.message));
+    };
 
     const toggleGroup = (id) => {
         setFolded((was) => {
@@ -101,9 +175,10 @@ function Projects() {
     }
 
     const shownTasks = projectId ? tasks.filter((t) => t.projectId === projectId) : tasks;
+    const shownGroups = projectId ? groups.filter((g) => g.projectId === projectId) : [];
     const whole = span(placed, shownTasks.map((t) => t.id));
     const meta = projectId
-        ? `${shownTasks.length} ${shownTasks.length === 1 ? 'task' : 'tasks'}${whole ? ` · ends ${shortDate(whole.end)}` : ''}`
+        ? `${shownTasks.length} ${shownTasks.length === 1 ? 'task' : 'tasks'}${shownGroups.length ? ` · ${shownGroups.length} ${shownGroups.length === 1 ? 'group' : 'groups'}` : ''}${whole ? ` · ends ${shortDate(whole.end)}` : ''}`
         : `${projects.length} ${projects.length === 1 ? 'project' : 'projects'} · ${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`;
 
     const newTask = () => setWindowFor({ projectId: projectId || projects[0].id, task: null });
@@ -143,6 +218,12 @@ function Projects() {
                 <span className="projects-page__grow" />
                 {project ? (
                     <>
+                        {shownTasks.length > 0 && (
+                            <button type="button" className={`cb-btn cb-btn--ghost${picked ? ' projects-page__on' : ''}`} aria-pressed={!!picked}
+                                onClick={() => setPicked(picked ? null : new Set())}>
+                                <i className="check square outline icon" aria-hidden="true"></i>Select
+                            </button>
+                        )}
                         <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setNaming('rename')}>Rename</button>
                         <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setConfirmingDelete(true)}>Delete</button>
                     </>
@@ -152,6 +233,13 @@ function Projects() {
                 {projects.length > 0 && <button type="button" className="cb-btn cb-btn--accent" onClick={newTask}>+ Task</button>}
             </div>
             {error && <div className="cb-sheet__error" role="alert">{error}</div>}
+            {picked && arr && (
+                <TaskSelectBar count={picked.size} groups={shownGroups} anyInGroup={pickedInOrder().some((id) => (tasks.find((t) => t.id === id) || {}).group)}
+                    allPicked={shownTasks.length > 0 && shownTasks.every((t) => picked.has(t.id))}
+                    onPutIn={putPickedIn} onNewGroup={newGroupForPicked} onTakeOut={takePickedOut}
+                    onAll={(all) => setPicked(new Set(all ? shownTasks.map((t) => t.id) : []))}
+                    onCancel={() => setPicked(null)} />
+            )}
 
             {projects.length === 0 ? (
                 <div className="cb-empty">
@@ -165,7 +253,10 @@ function Projects() {
             ) : (
                 <ProjectGantt rows={rows} placed={placed} selectedId={windowFor && windowFor.task ? windowFor.task.id : null}
                     onOpenTask={(task) => setWindowFor({ projectId: task.projectId, task })} onToggleGroup={toggleGroup}
-                    layout={data.layout} onLayoutChange={(next) => dispatch(saveProjectsLayout(next))} />
+                    layout={data.layout} onLayoutChange={(next) => dispatch(saveProjectsLayout(next))}
+                    selection={selection}
+                    dragRows={projectId ? dragRows : null} onDrop={projectId ? onDrop : null}
+                    onGroupAction={projectId ? onGroupAction : null} />
             )}
 
             {windowFor && (
@@ -179,6 +270,14 @@ function Projects() {
                     initial={naming === 'rename' && project ? project.name : ''}
                     confirmLabel={naming === 'new' ? 'Make project' : 'Rename'}
                     onSave={saveName} onCancel={() => setNaming(null)} />
+            )}
+            {renamingGroup && (
+                <NameDialog title="Rename group" placeholder="Group name"
+                    initial={(groups.find((g) => g.id === renamingGroup) || {}).name || ''} confirmLabel="Rename"
+                    onSave={async (name) => {
+                        try { await dispatch(renameTaskGroup(projectId, renamingGroup, name)); setRenamingGroup(null); return ''; } catch (err) { return err.message; }
+                    }}
+                    onCancel={() => setRenamingGroup(null)} />
             )}
             <ConfirmDialog open={confirmingDelete} tone="danger" confirmLabel="Delete project"
                 title={project ? `Delete “${project.name}”?` : ''}
@@ -194,7 +293,7 @@ function Projects() {
  * A small dialog with one name box (new project, rename). `onSave(name)`
  * resolves to '' when done, or a message to show.
  */
-function NameDialog({ title, initial, confirmLabel, onSave, onCancel }) {
+function NameDialog({ title, initial, confirmLabel, onSave, onCancel, placeholder = 'Project name' }) {
     const [name, setName] = useState(initial);
     const [message, setMessage] = useState('');
     const [saving, setSaving] = useState(false);
@@ -220,7 +319,7 @@ function NameDialog({ title, initial, confirmLabel, onSave, onCancel }) {
                 onMouseDown={(e) => e.stopPropagation()} onSubmit={submit}>
                 <h3 className="cb-dialog__title">{title}</h3>
                 <input ref={inputRef} className="projects-page__nameinput" value={name} maxLength={200}
-                    placeholder="Project name" onChange={(e) => setName(e.target.value)} />
+                    placeholder={placeholder} onChange={(e) => setName(e.target.value)} />
                 {message && <div className="cb-sheet__error" role="alert">{message}</div>}
                 <div className="cb-dialog__actions">
                     <button type="button" className="cb-btn cb-btn--ghost" onClick={onCancel}>Cancel</button>
@@ -229,5 +328,63 @@ function NameDialog({ title, initial, confirmLabel, onSave, onCancel }) {
             </form>
         </div>,
         document.body,
+    );
+}
+
+/**
+ * The bar shown while selecting tasks (like a notebook's Select):
+ *
+ *   3 selected  [Put in group ▾]  [Take out of group]        Select all   Cancel
+ *
+ * "Put in group" lists the project's groups, and "+ New group" with a name box.
+ */
+function TaskSelectBar({ count, groups, anyInGroup, allPicked, onPutIn, onNewGroup, onTakeOut, onAll, onCancel }) {
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [naming, setNaming] = useState(false);
+    const [name, setName] = useState('');
+    const [message, setMessage] = useState('');
+    const wrapRef = useRef(null);
+    useEffect(() => {
+        if (!menuOpen) return undefined;
+        const close = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) { setMenuOpen(false); setNaming(false); } };
+        window.addEventListener('pointerdown', close);
+        return () => window.removeEventListener('pointerdown', close);
+    }, [menuOpen]);
+    const closeMenu = () => { setMenuOpen(false); setNaming(false); setName(''); setMessage(''); };
+    const make = async (e) => {
+        e.preventDefault();
+        if (!name.trim()) return;
+        try { await onNewGroup(name.trim()); closeMenu(); } catch (err) { setMessage(err.message); }
+    };
+    return (
+        <div className="nb-selectbar projects-selectbar" role="toolbar" aria-label="Selected tasks">
+            <span className="nb-selectbar__count">{count === 0 ? 'Tick tasks to group them' : `${count} selected`}</span>
+            <span className="projects-selectbar__menuwrap" ref={wrapRef}>
+                <button type="button" className="cb-btn cb-btn--ghost" disabled={count === 0} aria-haspopup="menu" aria-expanded={menuOpen}
+                    onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}>
+                    Put in group <i className="caret down icon" aria-hidden="true"></i>
+                </button>
+                {menuOpen && (
+                    <span className="projects-selectbar__menu" role="menu">
+                        {groups.map((g) => (
+                            <button key={g.id} type="button" role="menuitem" onClick={() => { onPutIn(g.id); closeMenu(); }}>{g.name}</button>
+                        ))}
+                        {naming ? (
+                            <form className="projects-selectbar__new" onSubmit={make}>
+                                <input autoFocus value={name} maxLength={200} placeholder="Group name" aria-label="New group name"
+                                    onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') closeMenu(); }} />
+                                {message && <span className="nav-projects__error" role="alert">{message}</span>}
+                            </form>
+                        ) : (
+                            <button type="button" role="menuitem" className="projects-selectbar__add" onClick={() => setNaming(true)}>+ New group</button>
+                        )}
+                    </span>
+                )}
+            </span>
+            <button type="button" className="cb-btn cb-btn--ghost" disabled={!anyInGroup} onClick={onTakeOut}>Take out of group</button>
+            <span className="nb-selectbar__spacer" />
+            <button type="button" className="nb-selectbar__link" onClick={() => onAll(!allPicked)}>{allPicked ? 'Select none' : 'Select all'}</button>
+            <button type="button" className="nb-selectbar__link" onClick={onCancel}>Cancel</button>
+        </div>
     );
 }

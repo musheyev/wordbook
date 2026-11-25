@@ -4865,3 +4865,36 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
   font-size: 0.95rem; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 .pg-divider__btn:hover { color: var(--cb-accent); border-color: var(--cb-accent); }
+
+/* Task groups, dragging and Select (My Projects, a project's page). */
+.pg__row--level1, .pg__row--level1 .pg__cells { background: #fafbfd; }
+.pg__groupname-text { overflow: hidden; text-overflow: ellipsis; }
+.pg__drag {
+  position: absolute; top: 9px; left: 4px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--cb-ink-3); cursor: grab; border-radius: 5px; opacity: 0; touch-action: none; z-index: 2;
+}
+.pg__row:hover .pg__drag, .pg__drag:focus-visible { opacity: 1; }
+.pg__drag:hover { background: var(--cb-surface); color: var(--cb-ink); }
+.pg__row--moving { opacity: 0.4; }
+.pg__row--dropinto .pg__cells, .pg__row--dropinto { background: var(--cb-accent-weak) !important; box-shadow: inset 0 0 0 2px var(--cb-accent); }
+.pg-dropline { position: absolute; height: 3px; border-radius: 2px; background: var(--cb-accent); z-index: 6; pointer-events: none; }
+.pg-dropline::before { content: ""; position: absolute; left: -5px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: var(--cb-accent); }
+.pg__menuwrap { position: relative; margin: 0 6px 0 auto; flex: none; }
+.pg__dots { width: 26px; height: 22px; padding: 0; border: 1px solid var(--cb-border-strong); border-radius: 6px; background: var(--cb-bg); color: var(--cb-ink-2); cursor: pointer; font-weight: 900; line-height: 1; opacity: 0; }
+.pg__row:hover .pg__dots, .pg__dots[aria-expanded="true"], .pg__dots:focus-visible { opacity: 1; }
+.pg__menu, .projects-selectbar__menu {
+  position: absolute; top: calc(100% + 4px); z-index: 20; display: flex; flex-direction: column; min-width: 190px; padding: 5px;
+  background: var(--cb-bg); border: 1px solid var(--cb-border-strong); border-radius: 10px; box-shadow: 0 10px 28px rgba(30, 40, 60, 0.18);
+}
+.pg__menu { right: 0; }
+.projects-selectbar__menu { left: 0; }
+.pg__menu button, .projects-selectbar__menu button { border: none; background: none; text-align: left; padding: 7px 10px; border-radius: 6px; font: inherit; font-size: 0.9rem; cursor: pointer; color: var(--cb-ink); }
+.pg__menu button:hover, .projects-selectbar__menu button:hover { background: var(--cb-accent-weak); }
+.pg__menu small { color: var(--cb-ink-3); margin-left: 4px; }
+.pg__tickcell { flex: none; height: 100%; border: none; background: none; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.projects-page__on { background: var(--cb-accent-weak); color: var(--cb-accent); border-color: var(--cb-accent); }
+.projects-selectbar { margin-bottom: 10px; }
+.projects-selectbar__menuwrap { position: relative; }
+.projects-selectbar__add { color: var(--cb-accent) !important; font-weight: 700 !important; border-top: 1px solid var(--cb-border) !important; border-radius: 0 !important; margin-top: 3px; }
+.projects-selectbar__new { padding: 5px 6px; border-top: 1px solid var(--cb-border); margin-top: 3px; }
+.projects-selectbar__new input { width: 100%; font: inherit; font-size: 0.9rem; padding: 5px 8px; border: 1px solid var(--cb-accent); border-radius: 6px; outline: none; }

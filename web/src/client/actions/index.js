@@ -10,6 +10,7 @@ import { clearOfflineData, itemDeleted, notebookDeleted, notebookRenamed } from 
 // app, just after it opens, the phone's saved copy shows at once and the
 // server's answer follows (offline/apiCache.js). Elsewhere it's a plain request.
 import { requestSavedFirst } from '../offline/apiCache';
+import { applyPlaces } from '../utils/projectArrange';
 import {
   isQueueing, queueCardCreate, queueCardUpdate, queueItemColors, queueItemTags, queueQuizSave, queueQuizDelete,
   queueBookmark, queueBookmarksClear,
@@ -1724,6 +1725,8 @@ export const PROJECT_DELETED = 'project_deleted';
 export const TASKS_SAVED = 'tasks_saved';
 export const TASK_DELETED = 'task_deleted';
 export const PROJECTS_LAYOUT_SET = 'projects_layout_set';
+// One project's tasks and groups, after a change to their order or groups.
+export const PROJECT_STATE = 'project_state';
 
 // The server answers refusals as { error: "…" }; show its words when it sent some.
 const projectsCall = async (call, fallback) => {
@@ -1807,5 +1810,46 @@ export const saveProjectsLayout = (layout) => async (dispatch, getState, api) =>
     await api.put('/projects/layout', layout, JSON_HEADERS);
   } catch (err) {
     // Only how the table looks: keep it for now, it'll be tried again next change.
+  }
+};
+
+// ---- Task groups and order (api/projects.js; utils/projectArrange.js) ------
+
+/** A new group in a project, at the end of its list. Resolves to the group. */
+export const createTaskGroup = (projectId, name) => async (dispatch, getState, api) => {
+  const data = await projectsCall(() => api.post(`/projects/${pid(projectId)}/groups`, { name }, JSON_HEADERS), "Couldn't make the group.");
+  dispatch({ type: PROJECT_STATE, payload: data });
+  return data.group;
+};
+
+export const renameTaskGroup = (projectId, groupId, name) => async (dispatch, getState, api) => {
+  const data = await projectsCall(() => api.put(`/projects/${pid(projectId)}/groups/${pid(groupId)}`, { name }, JSON_HEADERS), "Couldn't rename the group.");
+  dispatch({ type: PROJECT_STATE, payload: data });
+};
+
+/** Ungroup: the group goes, its tasks stay where it was. */
+export const ungroupTaskGroup = (projectId, groupId) => async (dispatch, getState, api) => {
+  const data = await projectsCall(() => api.delete(`/projects/${pid(projectId)}/groups/${pid(groupId)}`), "Couldn't ungroup.");
+  dispatch({ type: PROJECT_STATE, payload: data });
+};
+
+/**
+ * Save new places (projectArrange.toPlaces): shown at once, then replaced by
+ * what the server kept. If saving fails, the projects are loaded again so
+ * the page shows what's really saved.
+ */
+export const arrangeProject = (projectId, places) => async (dispatch, getState, api) => {
+  const now = getState().projects;
+  if (now) {
+    const mine = (list) => list.filter((x) => x.projectId === projectId);
+    const shown = applyPlaces(mine(now.tasks), mine(now.groups || []), places);
+    dispatch({ type: PROJECT_STATE, payload: { projectId, ...shown } });
+  }
+  try {
+    const data = await projectsCall(() => api.put(`/projects/${pid(projectId)}/arrange`, places, JSON_HEADERS), "Couldn't save the new order.");
+    dispatch({ type: PROJECT_STATE, payload: data });
+  } catch (err) {
+    dispatch(fetchProjects()).catch(() => {});
+    throw err;
   }
 };

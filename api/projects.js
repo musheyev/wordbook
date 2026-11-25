@@ -8,7 +8,13 @@
 //   ---------  ----------------------------  --------------------------------
 //   rudy       project#<projectId>           { name, created_at, updated_at }
 //   rudy       task#<projectId>#<taskId>     { name, days, start, after, who,
-//                                              notes, order, … }
+//                                              notes, order, group, … }
+//   rudy       group#<projectId>#<groupId>   { name, order }
+//
+// Groups: a project's tasks can be put in named groups, which fold on the
+// chart. The project's list is groups and ungrouped tasks, each with an
+// `order` (one numbering for that list); a task in a group has an `order`
+// within its group instead. Order and groups never change a task's dates.
 //
 // Why one table with two kinds of row: a single query (all rows for the
 // user) loads every project and task at once, which is what the "All
@@ -40,6 +46,7 @@ const TABLE = "dictionary_projects";
 
 const MAX_PROJECTS = 200;
 const MAX_TASKS = 500;          // per project
+const MAX_GROUPS = 200;         // per project
 const MAX_NAME = 200;
 const MAX_WHO = 80;
 const MAX_DAYS = 999;
@@ -57,6 +64,7 @@ class ProjectError extends Error {
 const db = () => database.dynamoDbClientInstance();
 const projectKey = (projectId) => `project#${projectId}`;
 const taskKey = (projectId, taskId) => `task#${projectId}#${taskId}`;
+const groupKey = (projectId, groupId) => `group#${projectId}#${groupId}`;
 const newId = () => crypto.randomUUID();
 
 /** Ids we made (UUIDs); anything else in a URL is refused before it reaches a key. */
@@ -188,7 +196,11 @@ const taskOut = (row) => ({
     who: row.who || "",
     notes: row.notes || [],
     order: row.order || 0,
+    group: row.group || null,
 });
+
+/** A stored group row as the web app sees it. */
+const groupOut = (row) => ({ id: row.group_id, projectId: row.project_id, name: row.name, order: row.order || 0 });
 
 const projectOut = (row) => ({ id: row.project_id, name: row.name, created_at: row.created_at });
 
@@ -200,6 +212,23 @@ async function getProjectRow(userName, projectId) {
 
 /** One project's tasks as stored rows. */
 const projectTaskRows = (userName, projectId) => readRows(userName, `task#${projectId}#`);
+/** One project's groups as stored rows. */
+const projectGroupRows = (userName, projectId) => readRows(userName, `group#${projectId}#`);
+
+/**
+ * Each linked note with its title now; notes deleted since are left out
+ * (the link quietly goes away). Changes the tasks given.
+ */
+async function addNoteTitles(userName, tasks) {
+    const cardIds = [...new Set(tasks.flatMap((t) => t.notes.filter((n) => n.type === "card").map((n) => n.id)))];
+    const titles = cardIds.length ? await noteTitles(userName, cardIds) : {};
+    tasks.forEach((t) => {
+        t.notes = t.notes
+            .filter((n) => n.type === "word" || n.id in titles)
+            .map((n) => ({ ...n, title: n.type === "card" ? titles[n.id] : n.id }));
+    });
+    return tasks;
+}
 
 /**
  * All the user's projects and tasks, and the table's column layout
@@ -208,7 +237,7 @@ const projectTaskRows = (userName, projectId) => readRows(userName, `task#${proj
  * deleted since are left out (the link quietly goes away).
  *
  * @param {string} userName
- * @returns {Promise<{projects: object[], tasks: object[], layout: object}>}
+ * @returns {Promise<{projects: object[], tasks: object[], groups: object[], layout: object}>}
  */
 async function listAll(userName) {
     const rows = await readRows(userName);
@@ -216,15 +245,17 @@ async function listAll(userName) {
         .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
     const tasks = rows.filter((r) => r.item_key.startsWith("task#")).map(taskOut)
         .sort((a, b) => a.order - b.order);
+    const groups = rows.filter((r) => r.item_key.startsWith("group#")).map(groupOut)
+        .sort((a, b) => a.order - b.order);
+    await addNoteTitles(userName, tasks);
+    return { projects, tasks, groups, layout: await getLayout(userName) };
+}
 
-    const cardIds = [...new Set(tasks.flatMap((t) => t.notes.filter((n) => n.type === "card").map((n) => n.id)))];
-    const titles = cardIds.length ? await noteTitles(userName, cardIds) : {};
-    tasks.forEach((t) => {
-        t.notes = t.notes
-            .filter((n) => n.type === "word" || n.id in titles)
-            .map((n) => ({ ...n, title: n.type === "card" ? titles[n.id] : n.id }));
-    });
-    return { projects, tasks, layout: await getLayout(userName) };
+/** One project's tasks and groups, as the web app gets them after a change to its groups or order. */
+async function projectState(userName, projectId) {
+    const [taskRows, groupRows] = await Promise.all([projectTaskRows(userName, projectId), projectGroupRows(userName, projectId)]);
+    const tasks = await addNoteTitles(userName, taskRows.map(taskOut).sort((a, b) => a.order - b.order));
+    return { projectId, tasks, groups: groupRows.map(groupOut).sort((a, b) => a.order - b.order) };
 }
 
 /** Make a project (POST /projects). */
@@ -274,9 +305,10 @@ async function deleteProject(userName, projectId) {
     checkId(projectId, "project");
     await getProjectRow(userName, projectId);
     const taskRows = await projectTaskRows(userName, projectId);
-    // Tasks first, the project last: if this stops halfway, the project is
-    // still there to delete again.
-    await deleteKeys(userName, taskRows.map((r) => r.item_key));
+    const groupRows = await projectGroupRows(userName, projectId);
+    // Tasks and groups first, the project last: if this stops halfway, the
+    // project is still there to delete again.
+    await deleteKeys(userName, [...taskRows, ...groupRows].map((r) => r.item_key));
     await deleteKeys(userName, [projectKey(projectId)]);
 }
 
@@ -303,6 +335,7 @@ async function putTask(userName, projectId, taskId, fields, createdAt) {
         updated_at: now,
     };
     if (row.start == null) delete row.start;
+    if (!row.group) delete row.group;
     await db().put({ TableName: TABLE, Item: row }).promise();
     return row;
 }
@@ -316,7 +349,10 @@ async function createTask(userName, projectId, body) {
     if (tasks.length >= MAX_TASKS) throw new ProjectError(413, `A project can have up to ${MAX_TASKS} tasks.`);
     const taskId = newId();
     checkAfter(tasks, taskId, fields.after);
-    if (body.order == null) fields.order = tasks.reduce((max, t) => Math.max(max, t.order), 0) + 1;
+    // A new task goes at the end of the project's list, in no group.
+    const groups = (await projectGroupRows(userName, projectId)).map(groupOut);
+    fields.group = null;
+    fields.order = topLevelMax(tasks, groups) + 1;
     return taskOut(await putTask(userName, projectId, taskId, fields));
 }
 
@@ -329,6 +365,9 @@ async function updateTask(userName, projectId, taskId, body) {
     const old = rows.find((r) => r.task_id === taskId);
     if (!old) throw new ProjectError(404, "That task wasn't found.");
     checkAfter(rows.map(taskOut), taskId, fields.after);
+    // Its place and group only change by arranging (PUT …/arrange).
+    fields.order = old.order || 0;
+    fields.group = old.group || null;
     return taskOut(await putTask(userName, projectId, taskId, fields, old.created_at));
 }
 
@@ -358,11 +397,162 @@ async function deleteTask(userName, projectId, taskId, starts) {
             const start = given[row.task_id];
             fields.start = isDate(start) ? start : (gone.start || new Date().toISOString().slice(0, 10));
         }
-        const { name, days, after, start, who, notes, order } = fields;
-        changed.push(taskOut(await putTask(userName, projectId, row.task_id, { name, days, after, start, who, notes, order }, row.created_at)));
+        const { name, days, after, start, who, notes, order, group } = fields;
+        changed.push(taskOut(await putTask(userName, projectId, row.task_id, { name, days, after, start, who, notes, order, group }, row.created_at)));
     }
     await deleteKeys(userName, [gone.item_key]);
     return { changed };
+}
+
+// ---- Groups and order ---------------------------------------------------------
+
+/** The highest `order` in the project's own list (ungrouped tasks and groups). */
+function topLevelMax(tasks, groups) {
+    const groupIds = new Set(groups.map((g) => g.id));
+    return Math.max(0,
+        ...groups.map((g) => g.order || 0),
+        ...tasks.filter((t) => !t.group || !groupIds.has(t.group)).map((t) => t.order || 0));
+}
+
+async function getGroupRow(userName, projectId, groupId) {
+    const data = await db().get({ TableName: TABLE, Key: { user_name: userName, item_key: groupKey(projectId, groupId) } }).promise();
+    if (!data.Item) throw new ProjectError(404, "That group wasn't found.");
+    return data.Item;
+}
+
+/**
+ * Make a group (POST /projects/:projectId/groups), at the end of the
+ * project's list. Tasks go in it by arranging.
+ * @returns {Promise<{projectId, tasks, groups, group}>} the project as it is now, and the new group
+ */
+async function createGroup(userName, projectId, body) {
+    checkId(projectId, "project");
+    const name = cleanName(body && body.name, "group");
+    await getProjectRow(userName, projectId);
+    const [taskRows, groupRows] = await Promise.all([projectTaskRows(userName, projectId), projectGroupRows(userName, projectId)]);
+    if (groupRows.length >= MAX_GROUPS) throw new ProjectError(413, `A project can have up to ${MAX_GROUPS} groups.`);
+    const groupId = newId();
+    const now = new Date().toISOString();
+    const row = {
+        user_name: userName, item_key: groupKey(projectId, groupId), project_id: projectId, group_id: groupId,
+        name, order: topLevelMax(taskRows.map(taskOut), groupRows.map(groupOut)) + 1, created_at: now, updated_at: now,
+    };
+    await db().put({ TableName: TABLE, Item: row }).promise();
+    return { ...(await projectState(userName, projectId)), group: groupOut(row) };
+}
+
+/** Rename a group (PUT /projects/:projectId/groups/:groupId). */
+async function renameGroup(userName, projectId, groupId, body) {
+    checkId(projectId, "project");
+    checkId(groupId, "group");
+    const name = cleanName(body && body.name, "group");
+    await getGroupRow(userName, projectId, groupId);
+    await db().update({
+        TableName: TABLE,
+        Key: { user_name: userName, item_key: groupKey(projectId, groupId) },
+        UpdateExpression: "SET #n = :n, updated_at = :t",
+        ExpressionAttributeNames: { "#n": "name" },
+        ExpressionAttributeValues: { ":n": name, ":t": new Date().toISOString() },
+    }).promise();
+    return projectState(userName, projectId);
+}
+
+/** Set a task's or group's place (and a task's group) without touching anything else. */
+async function setPlace(userName, itemKey, order, group) {
+    const names = { "#o": "order" };
+    const values = { ":o": order, ":t": new Date().toISOString() };
+    let expression = "SET #o = :o, updated_at = :t";
+    if (group !== undefined) {
+        names["#g"] = "group";
+        if (group) { values[":g"] = group; expression += ", #g = :g"; } else { expression += " REMOVE #g"; }
+    }
+    await db().update({
+        TableName: TABLE,
+        Key: { user_name: userName, item_key: itemKey },
+        UpdateExpression: expression,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+        ConditionExpression: "attribute_exists(item_key)",
+    }).promise();
+}
+
+/**
+ * Ungroup (DELETE /projects/:projectId/groups/:groupId): the group goes; its
+ * tasks stay, in the project's list where the group was, in their order.
+ */
+async function ungroup(userName, projectId, groupId) {
+    checkId(projectId, "project");
+    checkId(groupId, "group");
+    await getGroupRow(userName, projectId, groupId);
+    const state = await projectState(userName, projectId);
+    const groupIds = new Set(state.groups.map((g) => g.id));
+    const top = [
+        ...state.groups.map((g) => ({ type: "group", id: g.id, order: g.order })),
+        ...state.tasks.filter((t) => !t.group || !groupIds.has(t.group)).map((t) => ({ type: "task", id: t.id, order: t.order })),
+    ].sort((a, b) => a.order - b.order);
+    const members = state.tasks.filter((t) => t.group === groupId).sort((a, b) => a.order - b.order);
+    const list = top.flatMap((item) => (item.type === "group" && item.id === groupId
+        ? members.map((t) => ({ type: "task", id: t.id, order: t.order, wasIn: true }))
+        : [item]));
+    for (let i = 0; i < list.length; i += 1) {
+        const item = list[i];
+        const order = i + 1;
+        if (item.order === order && !item.wasIn) continue;
+        const key = item.type === "group" ? groupKey(projectId, item.id) : taskKey(projectId, item.id);
+        await setPlace(userName, key, order, item.type === "task" ? null : undefined);
+    }
+    await deleteKeys(userName, [groupKey(projectId, groupId)]);
+    return projectState(userName, projectId);
+}
+
+/**
+ * Checks an arrangement as sent by the web app. Pure.
+ * @param {{groups?: Array<{id, order}>, tasks?: Array<{id, group, order}>}} body
+ * @param {string[]} taskIds the project's tasks
+ * @param {string[]} groupIds the project's groups
+ */
+function cleanArrangement(body, taskIds, groupIds) {
+    const input = body && typeof body === "object" ? body : {};
+    const known = { task: new Set(taskIds), group: new Set(groupIds) };
+    const order = (value) => {
+        const n = Number(value);
+        if (!Number.isFinite(n)) throw new ProjectError(400, "Each place needs a number.");
+        return n;
+    };
+    const groups = (Array.isArray(input.groups) ? input.groups : []).map((g) => {
+        if (!g || !known.group.has(g.id)) throw new ProjectError(400, "That group isn't in this project.");
+        return { id: g.id, order: order(g.order) };
+    });
+    const tasks = (Array.isArray(input.tasks) ? input.tasks : []).map((t) => {
+        if (!t || !known.task.has(t.id)) throw new ProjectError(400, "That task isn't in this project.");
+        const group = t.group == null || t.group === "" ? null : t.group;
+        if (group && !known.group.has(group)) throw new ProjectError(400, "That group isn't in this project.");
+        return { id: t.id, group, order: order(t.order) };
+    });
+    return { groups, tasks };
+}
+
+/**
+ * New places for some of a project's tasks and groups, and which group each
+ * of those tasks is in (PUT /projects/:projectId/arrange). Used for dragging,
+ * "Put in group" and "Take out of group". Only what changed is written.
+ * @returns {Promise<{projectId, tasks, groups}>} the project as it is now
+ */
+async function arrange(userName, projectId, body) {
+    checkId(projectId, "project");
+    await getProjectRow(userName, projectId);
+    const state = await projectState(userName, projectId);
+    const { groups, tasks } = cleanArrangement(body, state.tasks.map((t) => t.id), state.groups.map((g) => g.id));
+    const oldTask = new Map(state.tasks.map((t) => [t.id, t]));
+    const oldGroup = new Map(state.groups.map((g) => [g.id, g]));
+    for (const g of groups) {
+        if (oldGroup.get(g.id).order !== g.order) await setPlace(userName, groupKey(projectId, g.id), g.order);
+    }
+    for (const t of tasks) {
+        const was = oldTask.get(t.id);
+        if (was.order !== t.order || (was.group || null) !== t.group) await setPlace(userName, taskKey(projectId, t.id), t.order, t.group);
+    }
+    return projectState(userName, projectId);
 }
 
 // ---- Column layout ----------------------------------------------------------
@@ -430,6 +620,11 @@ module.exports = {
     isDate,
     ProjectError,
     cleanLayout,
+    createGroup,
+    renameGroup,
+    ungroup,
+    arrange,
+    cleanArrangement,
     getLayout,
     setLayout,
 };

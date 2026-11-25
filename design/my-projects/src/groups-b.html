@@ -1,0 +1,48 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="common.css"><script src="common.js"></script></head><body>
+<h1>B • Groups fold, tasks drag</h1>
+<p class="sub">A group is a row with its name and a dark line for its whole span; ▾ folds its tasks away. Drag a task by its grip ⋮⋮ to move it up or down, into a group or out of one. (Several states are shown at once here.)</p>
+<div class="frame" id="f" style="height:700px"></div>
+<script>
+document.getElementById('f').innerHTML = side2('Kitchen remodel') +
+  `<div class="main"><div class="top"><h2>Kitchen remodel</h2><span class="meta">8 tasks · 3 groups · ends Dec 31</span><span class="grow"></span><button class="btn">Select</button><button class="btn">Rename</button><button class="btn">Delete</button><button class="btn primary">+ Task</button></div>
+   <div class="gantt" id="g"></div>
+   <div class="callout" style="left:24px;bottom:22px;width:720px">
+     <p><span class="n">1</span><b>Drag:</b> the grip ⋮⋮ shows when you point at a task. Here “Demolition” is being dragged; the blue line is where it will land.</p>
+     <p><span class="n">2</span><b>A group’s ⋯:</b> Rename, or Ungroup (its tasks stay, just not in a group). Groups can be dragged too, with their tasks.</p>
+     <p><span class="n">3</span><b>Folded group:</b> only its line shows. Arrows to and from its tasks join the group’s row.</p>
+   </div>
+  </div>`;
+const k = kitchen();
+const by = Object.fromEntries(k.map((t) => [t.id, t]));
+const ind = ['plan', 'demo', 'plumb', 'pick', 'order', 'install'];
+const name = (t) => t.group
+  ? `<span class="grp-name" style="display:flex;align-items:center;width:100%"><span class="car">${t.open ? '▾' : '▸'}</span>${t.group}<span class="cnt">${t.count}</span>${t.dots ? '<span class="dots">⋯</span>' : ''}</span>`
+  : `<span style="padding-left:18px">${t.id === 'plumb' ? '<span class="grip">⋮⋮</span>' : ''}${t.name}</span>`;
+// Finishing is folded: its row stands for Countertops + Paint (the arrow from Install joins it).
+const fin = { id: 'fin', group: 'Finishing', count: 2, len: 14, after: ['install'] };
+const rows = [{ group: 'Prep', open: true, count: 3, from: 0, to: 15 }, by.plan, by.demo, by.plumb,
+  { group: 'Cabinets', open: true, count: 3, from: 5, to: 31, dots: true }, by.pick, by.order, by.install, fin];
+gantt(document.getElementById('g'), {
+  rows, dayW: 8.6, sel: null,
+  cols: [{ h: 'Task', w: 240, cell: name }, { h: 'Starts', w: 70, dim: true, cell: (t) => t.group ? '' : fmt(t.start) }, { h: 'Days', w: 48, dim: true, cell: (t) => t.group ? '' : t.len }, { h: 'Who', w: 150, cell: (t) => t.group ? '' : whoCell(t) }],
+});
+// The folded group's span line (drawn like the others).
+const finRow = document.querySelectorAll('.grow-row')[8];
+const track = finRow.querySelector('.track');
+track.innerHTML = `<div class="bar sum" style="left:${31 * 8.6}px;width:${14 * 8.6}px"></div>`;
+// Drag in progress: Demolition lifted, landing between Measure & plan and Plumbing.
+const main = document.querySelector('.main'), mr = main.getBoundingClientRect();
+const rowsEl = document.querySelectorAll('.grow-row');
+const demo = rowsEl[2].getBoundingClientRect();
+rowsEl[2].style.opacity = '.35';
+const line = document.createElement('div'); line.className = 'dropline';
+const r3 = rowsEl[3].getBoundingClientRect();
+line.style.cssText = `left:${r3.left - mr.left + 18}px;top:${r3.bottom - mr.top - 1}px;width:220px`; main.appendChild(line);
+const ghost = document.createElement('div'); ghost.className = 'ghost';
+ghost.innerHTML = '<span class="grip">⋮⋮</span>Demolition';
+ghost.style.cssText += `;left:${demo.left - mr.left + 300}px;top:${r3.bottom - mr.top - 18}px`; main.appendChild(ghost);
+function mark(el, n, dx, dy) { const r = el.getBoundingClientRect(); const b = document.createElement('div'); b.className = 'num'; b.textContent = n; b.style.left = (r.left - mr.left + dx) + 'px'; b.style.top = (r.top - mr.top + dy) + 'px'; main.appendChild(b); }
+mark(ghost, 1, -30, 4);
+mark(document.querySelector('.dots'), 2, 32, -1);
+mark(finRow, 3, 250, 7);
+</script></body></html>
