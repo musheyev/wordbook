@@ -15,6 +15,7 @@ import { installOffline } from './client/offline/downloads';
 import reducers from './client/reducers';
 import { rememberNotebookKinds } from './client/utils/notebookPaths';
 import { installImageFullSize } from './client/utils/imageFullSize';
+import { installServiceWorker } from './client/utils/serviceWorker';
 import './client/fonts.js';
 import './styles.css';
 
@@ -87,6 +88,7 @@ store.subscribe(() => rememberNotebookKinds(store.getState().wordbookKinds));
 
 // Click an image in a note to open it at full size (website only).
 installImageFullSize();
+installServiceWorker();
 
 // Inside the iPhone app: downloads and saved copies for offline use
 // (client/offline/). The first screen waits for the list of what's
