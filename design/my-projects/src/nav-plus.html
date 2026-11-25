@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="common.css"><script src="common.js"></script>
+<style>
+.cols3 { display: flex; gap: 26px; }
+.col { flex: 1; }
+.col h3 { font-size: 20px; margin: 0 0 4px; }
+.col p { margin: 0 0 12px; color: var(--ink-2); font-size: 14px; line-height: 1.4; min-height: 58px; }
+.pane { background: var(--surface); border-radius: 14px; padding: 14px 10px; box-shadow: 0 6px 22px rgba(30,40,60,.12); }
+.nrow { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; font-size: 16px; }
+.nrow svg { width: 19px; height: 19px; stroke: var(--ink-2); fill: none; stroke-width: 1.8; flex: none; }
+.nrow.on { background: var(--accent-weak); color: var(--accent); font-weight: 700; }
+.nrow.on svg { stroke: var(--accent); }
+.tools { margin-left: auto; display: inline-flex; gap: 2px; align-items: center; }
+.ib { width: 26px; height: 26px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-3); font-size: 18px; }
+.ib.hover { background: #e6e9ef; color: var(--ink); }
+.list { margin: 0 0 6px 30px; border-left: 1px solid var(--border); }
+.li { padding: 6px 12px; font-size: 15px; color: var(--ink-2); border-radius: 0 6px 6px 0; }
+.li.cur { color: var(--ink); font-weight: 700; background: #e9ecf1; box-shadow: inset 2px 0 0 var(--ink-2); }
+.li.add { color: var(--ink-3); }
+.li.add.hover { color: var(--ink); background: #eef0f4; }
+.namebox { margin: 4px 8px 6px 10px; padding: 5px 9px; border: 1px solid var(--ink-3); border-radius: 6px; background: #fff; font-size: 14px; color: var(--ink); }
+.tip { position: relative; display: inline-block; background: #1f2430; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; margin-left: 8px; }
+.small { font-size: 13px; color: var(--ink-3); margin: 10px 4px 4px; }
+.page-btn { display: inline-block; margin-top: 10px; border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 12px; font-size: 14px; font-weight: 700; color: var(--ink-2); background: #fff; }
+</style></head><body>
+<h1>Side panel: My Projects list</h1>
+<p class="sub">Same in all three: <b>blue only marks the section you're in</b> (My Projects). The open project is <b>dark and bold on light grey</b>, with a thin dark line at its left; no blue. <b>“All projects” shows only when there are two or more projects.</b> The three options differ in where you start a new project.</p>
+<div class="cols3" id="c"></div>
+<script>
+const nav = (i, t, on, tools = '') => `<div class="nrow${on ? ' on' : ''}">${ICON[i]}${t}${tools}</div>`;
+const projectsList = (extra) => `<div class="list"><div class="li">All projects</div><div class="li cur">Kitchen remodel</div><div class="li">Spanish B1 exam</div>${extra || ''}</div>`;
+const panel = (myProjectsTools, listExtra, after) => `<div class="pane">${nav('books', 'My Notebooks')}${nav('book', 'My Wordbooks')}${nav('star', 'My Bookmarks')}${nav('tag', 'My Tags')}${nav('proj', 'My Projects', true, myProjectsTools)}${projectsList(listExtra)}${nav('search', 'Words')}${nav('inbox', 'Inbox')}${after || ''}</div>`;
+const single = `<div class="small">With one project, no “All projects”:</div><div class="pane" style="padding:8px 10px">${nav('proj', 'My Projects', true, '<span class="tools"><span class="ib">+</span><span class="ib">▾</span></span>')}<div class="list"><div class="li cur">Kitchen remodel</div></div></div>`;
+document.getElementById('c').innerHTML = [
+  { h: 'A • “+” beside My Projects (recommended)', p: 'A grey + next to the ▾, like the + beside a notebook’s notes. Pointing at it says “New project”; clicking it opens a name box at the end of the list.',
+    body: panel('<span class="tools"><span class="ib hover">+</span><span class="ib">▾</span><span class="tip">New project</span></span>', '<div class="namebox">Project name|</div>') + single },
+  { h: 'B • A grey last row', p: '“+ New project” stays as the last row of the list, in grey like a hint; darker when pointed at. Easy to find, never blue.',
+    body: panel('<span class="tools"><span class="ib">▾</span></span>', '<div class="li add hover">+ New project</div>') },
+  { h: 'C • Only on the page', p: 'The side panel lists projects only. New projects start from the “+ Project” button on the My Projects page (as today on All projects).',
+    body: panel('<span class="tools"><span class="ib">▾</span></span>', '') + '<div class="small">On the My Projects page:</div><span class="page-btn">+ Project</span>' },
+].map((o) => `<div class="col"><h3>${o.h}</h3><p>${o.p}</p>${o.body}</div>`).join('');
+</script></body></html>

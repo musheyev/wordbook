@@ -4740,9 +4740,15 @@ html.is-native-app .nb-selectbar { top: var(--safe-top); }
 
 /* ---- My Projects (pages/ProjectsPage.js, components/ProjectGantt.js,
    ProjectTaskWindow.js, ProjectsNav.js). Computers only. ---------------- */
-.nav-projects__add { border: none; background: none; text-align: left; cursor: pointer; font: inherit; font-size: 0.88rem; color: var(--cb-accent); }
+.nav-projects__add { border: none; background: none; text-align: left; cursor: pointer; font: inherit; font-size: 0.88rem; color: var(--cb-ink-3); }
+.nav-projects__add:hover { color: var(--cb-ink); background: #eef0f4; }
+/* The open project: dark and bold on light grey, a thin dark line at its
+   left; no blue (blue marks the section, My Projects). */
+.nav-projects__item--open, .nav-projects__item--open:hover {
+  color: var(--cb-ink); font-weight: 700; background: #e9ecf1; box-shadow: inset 2px 0 0 var(--cb-ink-2);
+}
 .nav-projects__new { padding: 3px 6px 3px 8px; }
-.nav-projects__input { width: 100%; font: inherit; font-size: 0.88rem; padding: 4px 8px; border: 1px solid var(--cb-accent); border-radius: 6px; outline: none; }
+.nav-projects__input { width: 100%; font: inherit; font-size: 0.88rem; padding: 4px 8px; border: 1px solid var(--cb-ink-3); border-radius: 6px; outline: none; background: var(--cb-bg); color: var(--cb-ink); }
 .nav-projects__error { display: block; font-size: 0.78rem; color: var(--cb-danger); margin-top: 3px; }
 
 .projects-page { padding: 24px 20px 44px; min-width: 0; }
