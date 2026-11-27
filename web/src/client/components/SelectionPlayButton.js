@@ -8,7 +8,11 @@ import { selectionChunks } from '../utils/selectionChunks';
 // `rootRef`: the note's text element.
 //
 // Where it goes:
-//   - With a mouse: just under the selection.
+//   - With a mouse (a computer): quiet and out of the way, as selecting
+//     there is mostly for copying, not for listening: a small pale pill
+//     (.sel-play--side) at the note's right edge, level with the end of the
+//     selection. Outside the note when the window has room beside it (the
+//     note made narrower with its corner grip), otherwise just inside.
 //   - On a touch screen (iPhone, iPad): the system's own Copy / Look Up menu
 //     shows next to the selection, sometimes above it and sometimes below,
 //     and a page can't tell which. It sits on top of everything, so a Play
@@ -20,6 +24,9 @@ import { selectionChunks } from '../utils/selectionChunks';
 
 const WIDTH = 96;
 const HEIGHT = 40;
+// The quiet pill used with a mouse (.sel-play--side in styles.css).
+const SIDE_WIDTH = 68;
+const SIDE_HEIGHT = 28;
 // How far up from the bottom the pinned button reaches (its bottom offset —
 // above the phone's tab bar and home bar — plus its height and a gap).
 const PINNED_ZONE = 170;
@@ -30,17 +37,23 @@ const isTouch = () => typeof window !== 'undefined'
 /**
  * Where Play goes for a selection.
  * @param {DOMRect} r the selection's box on screen
+ * @param {HTMLElement} root the note's text element (its scrolling area)
  * @returns {{ className: string, style: object }}
  */
-function placement(r) {
+function placement(r, root) {
     if (!isTouch()) {
-        return {
-            className: '',
-            style: {
-                top: Math.min(r.bottom + 8, window.innerHeight - 56),
-                left: Math.max(8, Math.min(r.left + r.width / 2 - WIDTH / 2, window.innerWidth - WIDTH - 8)),
-            },
-        };
+        const box = root.getBoundingClientRect();
+        // The right edge of the note's text area, left of its scrollbar.
+        const right = box.left + root.clientLeft + root.clientWidth;
+        // Level with the selection's last line, kept within the note's
+        // visible part (and the window).
+        const top = Math.max(Math.max(box.top, 8),
+            Math.min(r.bottom - SIDE_HEIGHT, Math.min(box.bottom, window.innerHeight) - SIDE_HEIGHT - 8));
+        // Just outside the note's right edge if that fits in the window,
+        // otherwise just inside it.
+        const outside = box.right + 8;
+        const left = outside + SIDE_WIDTH + 8 <= window.innerWidth ? outside : right - SIDE_WIDTH - 6;
+        return { className: ' sel-play--side', style: { top, left } };
     }
     // The open player panel (PlayerPanel.js), if it's on screen: Play sits
     // just above it rather than behind it.
@@ -69,7 +82,7 @@ export default function SelectionPlayButton({ rootRef, title }) {
                 setAt(null);
                 return;
             }
-            setAt(placement(sel.getRangeAt(0).getBoundingClientRect()));
+            setAt(placement(sel.getRangeAt(0).getBoundingClientRect(), root));
         };
         document.addEventListener('selectionchange', update);
         window.addEventListener('scroll', update, true);

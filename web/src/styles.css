@@ -3983,6 +3983,16 @@ ul.word-chips { list-style: none; margin: 0; padding: 0; }
   box-shadow: 0 6px 18px rgba(15, 20, 35, 0.3); touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .sel-play .icon { margin: 0; height: auto; }
+/* With a mouse (SelectionPlayButton): small and pale at the note's right
+   edge, so it doesn't pull the eye when you're only selecting to copy;
+   darker on hover. */
+.sel-play--side {
+  width: 68px; height: 28px; gap: 4px; font-size: 0.8rem; font-weight: 500;
+  background: rgba(246, 248, 251, 0.92); color: var(--cb-ink-2);
+  border: 1px solid var(--cb-border-strong); box-shadow: 0 1px 3px rgba(15, 20, 35, 0.08);
+}
+.sel-play--side .icon { font-size: 0.75em; }
+.sel-play--side:hover { background: var(--cb-bg); color: var(--cb-ink); border-color: var(--cb-ink-3); }
 /* On touch screens, away from the system's Copy / Look Up menu: bottom left,
    level with the Controls pill (.player-pill), or top left when the
    selection is down in that corner. */
